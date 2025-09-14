@@ -64,7 +64,8 @@
         </Grid.RowDefinitions>
         
         <!-- 커스텀 타이틀바 -->
-        <Border Grid.Row="0" 
+        <Border x:Name="TitleBar" 
+                Grid.Row="0" 
                 Background="#87CEEB" 
                 CornerRadius="0,0,0,0">
             <Grid>
@@ -73,19 +74,56 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <!-- 타이틀 텍스트 -->
-                <TextBlock Grid.Column="0" 
-                          Text="OptiX" 
-                          FontSize="16" 
-                          FontWeight="Bold" 
-                          Foreground="White" 
-                          VerticalAlignment="Center" 
-                          Margin="15,0,0,0"/>
+                        <!-- 타이틀 텍스트 -->
+                        <TextBlock x:Name="TitleText" 
+                                  Grid.Column="0" 
+                                  Text="OptiX" 
+                                  FontSize="16" 
+                                  FontWeight="Bold" 
+                                  Foreground="White" 
+                                  VerticalAlignment="Center" 
+                                  Margin="15,0,0,0"/>
                 
                 <!-- 창 제어 버튼들 -->
                 <StackPanel Grid.Column="1" 
                            Orientation="Horizontal" 
                            HorizontalAlignment="Right">
+                    <!-- 모드 토글 컨테이너 -->
+                    <Border x:Name="ModeToggleContainer" 
+                           Width="60" 
+                           Height="24" 
+                           Background="#87CEEB" 
+                           CornerRadius="12" 
+                           Margin="0,0,5,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- 라이트모드 버튼 -->
+                            <Button x:Name="LightModeButton" 
+                                   Grid.Column="0"
+                                   Background="Transparent" 
+                                   BorderThickness="0" 
+                                   Click="LightModeButton_Click"
+                                   Margin="3">
+                                <Ellipse Width="16" Height="16" 
+                                        Fill="White"/>
+                            </Button>
+                            
+                            <!-- 다크모드 버튼 -->
+                            <Button x:Name="DarkModeButton" 
+                                   Grid.Column="1"
+                                   Background="Transparent" 
+                                   BorderThickness="0" 
+                                   Click="DarkModeButton_Click"
+                                   Margin="3">
+                                <Ellipse Width="16" Height="16" 
+                                        Fill="Black"/>
+                            </Button>
+                        </Grid>
+                    </Border>
                     <Button x:Name="MinimizeButton" 
                            Content="─" 
                            Width="40" 
@@ -111,20 +149,22 @@
         </Border>
         
         <!-- 메인 콘텐츠 -->
-        <Grid Grid.Row="1" Grid.RowSpan="2" Margin="40,20,40,40">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="2*"/>
-                <RowDefinition Height="1*"/>
-            </Grid.RowDefinitions>
-        
-        <!-- 상단 2개 박스 -->
-        <Grid Grid.Row="0" Margin="0,0,0,30">
+        <Grid x:Name="MainContent" Grid.Row="1" Grid.RowSpan="2" Margin="40,20,40,40">
+            <!-- 메인 페이지 콘텐츠 -->
+            <Grid x:Name="MainPageContent">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="2*"/>
+                    <RowDefinition Height="1*"/>
+                </Grid.RowDefinitions>
+            
+            <!-- 상단 2개 박스 -->
+            <Grid Grid.Row="0" Margin="0,0,0,30">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="1*"/>
                 <ColumnDefinition Width="1*"/>
             </Grid.ColumnDefinitions>
             
-            <!-- 특성 버튼 -->
+            <!-- Optic 버튼 -->
             <Button x:Name="CharacteristicsButton" 
                     Grid.Column="0" 
                     Margin="0,0,15,0"
@@ -133,7 +173,7 @@
                     Click="CharacteristicsButton_Click"
                     MouseEnter="CharacteristicsButton_MouseEnter"
                     MouseLeave="CharacteristicsButton_MouseLeave">
-                특성
+                Optic
             </Button>
             
             <!-- IPVS 버튼 -->
@@ -156,7 +196,7 @@
                 <ColumnDefinition Width="1*"/>
             </Grid.ColumnDefinitions>
             
-            <!-- 특성 호버 툴팁 -->
+            <!-- Optic 호버 툴팁 -->
             <Border x:Name="CharacteristicsTooltip" 
                     Grid.Column="0"
                     Background="White"
@@ -172,9 +212,10 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" 
-                              Text="특성" 
+                              Text="Optic" 
                               FontSize="28" 
                               FontWeight="Bold" 
                               Foreground="#2C3E50" 
@@ -187,7 +228,45 @@
                               TextWrapping="Wrap"
                               HorizontalAlignment="Left"
                               TextAlignment="Left"
-                              LineHeight="20"/>
+                              LineHeight="20"
+                              Margin="0,0,0,20"/>
+                    <!-- Optic 계측 그림 -->
+                    <Canvas Grid.Row="2" 
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            Width="300" 
+                            Height="180">
+                        <!-- 휴대폰 패널 -->
+                        <Rectangle Canvas.Left="30" Canvas.Top="30" 
+                                  Width="240" Height="120" 
+                                  Fill="#F0F0F0" 
+                                  Stroke="#CCCCCC" 
+                                  StrokeThickness="3" 
+                                  RadiusX="12" RadiusY="12"/>
+                        <!-- 중심점 원 -->
+                        <Ellipse Canvas.Left="135" Canvas.Top="75" 
+                                Width="30" Height="30" 
+                                Fill="#4285F4" 
+                                Stroke="#1A73E8" 
+                                StrokeThickness="3"/>
+                        <!-- 계측기 -->
+                        <Path Canvas.Left="165" Canvas.Top="60" 
+                              Data="M 0,0 L 30,15 L 0,30 Z" 
+                              Fill="#FF6B6B" 
+                              Stroke="#E53E3E" 
+                              StrokeThickness="2"/>
+                        <!-- 계측선 -->
+                        <Line Canvas.Left="150" Canvas.Top="90" 
+                              X2="180" Y2="90" 
+                              Stroke="#FF6B6B" 
+                              StrokeThickness="3"/>
+                        <!-- 텍스트 -->
+                        <TextBlock Canvas.Left="15" Canvas.Top="160" 
+                                  Text="Center Point 계측" 
+                                  FontSize="12" 
+                                  Foreground="#666666" 
+                                  HorizontalAlignment="Center"/>
+                    </Canvas>
                 </Grid>
             </Border>
             
@@ -207,6 +286,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" 
                               Text="IPVS" 
@@ -222,7 +302,65 @@
                               TextWrapping="Wrap"
                               HorizontalAlignment="Left"
                               TextAlignment="Left"
-                              LineHeight="20"/>
+                              LineHeight="20"
+                              Margin="0,0,0,20"/>
+                    <!-- IPVS 계측 그림 -->
+                    <Canvas Grid.Row="2" 
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            Width="300" 
+                            Height="180">
+                        <!-- 휴대폰 패널 -->
+                        <Rectangle Canvas.Left="30" Canvas.Top="30" 
+                                  Width="240" Height="120" 
+                                  Fill="#F0F0F0" 
+                                  Stroke="#CCCCCC" 
+                                  StrokeThickness="3" 
+                                  RadiusX="12" RadiusY="12"/>
+                        <!-- 가로로 5개 원 (패널 중앙 배치) -->
+                        <Ellipse Canvas.Left="60" Canvas.Top="75" 
+                                Width="22" Height="22" 
+                                Fill="#E0E0E0" 
+                                Stroke="#CCCCCC" 
+                                StrokeThickness="2"/>
+                        <Ellipse Canvas.Left="97" Canvas.Top="75" 
+                                Width="22" Height="22" 
+                                Fill="#E0E0E0" 
+                                Stroke="#CCCCCC" 
+                                StrokeThickness="2"/>
+                        <Ellipse Canvas.Left="134" Canvas.Top="75" 
+                                Width="22" Height="22" 
+                                Fill="#4285F4" 
+                                Stroke="#1A73E8" 
+                                StrokeThickness="3"/>
+                        <Ellipse Canvas.Left="171" Canvas.Top="75" 
+                                Width="22" Height="22" 
+                                Fill="#E0E0E0" 
+                                Stroke="#CCCCCC" 
+                                StrokeThickness="2"/>
+                        <Ellipse Canvas.Left="208" Canvas.Top="75" 
+                                Width="22" Height="22" 
+                                Fill="#E0E0E0" 
+                                Stroke="#CCCCCC" 
+                                StrokeThickness="2"/>
+                        <!-- 계측기 -->
+                        <Path Canvas.Left="165" Canvas.Top="45" 
+                              Data="M 0,0 L 22,11 L 0,22 Z" 
+                              Fill="#FF6B6B" 
+                              Stroke="#E53E3E" 
+                              StrokeThickness="2"/>
+                        <!-- 계측선 -->
+                        <Line Canvas.Left="145" Canvas.Top="86" 
+                              X2="168" Y2="86" 
+                              Stroke="#FF6B6B" 
+                              StrokeThickness="3"/>
+                        <!-- 텍스트 -->
+                        <TextBlock Canvas.Left="15" Canvas.Top="160" 
+                                  Text="ex) 5-Point 계측" 
+                                  FontSize="12" 
+                                  Foreground="#666666" 
+                                  HorizontalAlignment="Center"/>
+                    </Canvas>
                 </Grid>
             </Border>
         </Grid>
@@ -236,32 +374,153 @@
             </Grid.ColumnDefinitions>
             
             <!-- Manual 버튼 -->
-            <Button Grid.Column="0" 
+            <Button x:Name="ManualButton" 
+                    Grid.Column="0" 
                     Margin="0,0,15,0"
                     Style="{StaticResource ModernButtonStyle}"
                     FontSize="24"
-                    Click="ManualButton_Click">
+                    Click="ManualButton_Click"
+                    MouseEnter="ManualButton_MouseEnter"
+                    MouseLeave="ManualButton_MouseLeave">
                 Manual
             </Button>
             
             <!-- LUT 버튼 -->
-            <Button Grid.Column="1" 
+            <Button x:Name="LUTButton" 
+                    Grid.Column="1" 
                     Margin="7,0,7,0"
                     Style="{StaticResource ModernButtonStyle}"
                     FontSize="24"
-                    Click="LUTButton_Click">
+                    Click="LUTButton_Click"
+                    MouseEnter="LUTButton_MouseEnter"
+                    MouseLeave="LUTButton_MouseLeave">
                 LUT
             </Button>
             
             <!-- 설정 버튼 -->
-            <Button Grid.Column="2" 
+            <Button x:Name="SettingsButton" 
+                    Grid.Column="2" 
                     Margin="15,0,0,0"
                     Style="{StaticResource ModernButtonStyle}"
                     FontSize="24"
-                    Click="SettingsButton_Click">
+                    Click="SettingsButton_Click"
+                    MouseEnter="SettingsButton_MouseEnter"
+                    MouseLeave="SettingsButton_MouseLeave">
                 설정
             </Button>
         </Grid>
+        
+        <!-- 하단 버튼 툴팁 레이어 -->
+        <Grid Grid.Row="1" IsHitTestVisible="False">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Manual 호버 툴팁 -->
+            <Border x:Name="ManualTooltip" 
+                    Grid.Column="0"
+                    Background="White"
+                    BorderBrush="#4285F4"
+                    BorderThickness="2"
+                    CornerRadius="10"
+                    Padding="20"
+                    Margin="0,0,15,0"
+                    Visibility="Collapsed"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" 
+                              Text="Manual" 
+                              FontSize="20" 
+                              FontWeight="Bold" 
+                              Foreground="#2C3E50" 
+                              HorizontalAlignment="Center"
+                              Margin="0,0,0,10"/>
+                    <TextBlock Grid.Row="1" 
+                              Text="수동 설정 및 제어 기능" 
+                              FontSize="14" 
+                              Foreground="#666666" 
+                              TextWrapping="Wrap"
+                              HorizontalAlignment="Center"
+                              TextAlignment="Center"/>
+                </Grid>
+            </Border>
+            
+            <!-- LUT 호버 툴팁 -->
+            <Border x:Name="LUTTooltip" 
+                    Grid.Column="1"
+                    Background="White"
+                    BorderBrush="#4285F4"
+                    BorderThickness="2"
+                    CornerRadius="10"
+                    Padding="20"
+                    Margin="7,0,7,0"
+                    Visibility="Collapsed"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch">
+    <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" 
+                              Text="LUT" 
+                              FontSize="20" 
+                              FontWeight="Bold" 
+                              Foreground="#2C3E50" 
+                              HorizontalAlignment="Center"
+                              Margin="0,0,0,10"/>
+                    <TextBlock Grid.Row="1" 
+                              Text="Look-Up Table 관련 기능" 
+                              FontSize="14" 
+                              Foreground="#666666" 
+                              TextWrapping="Wrap"
+                              HorizontalAlignment="Center"
+                              TextAlignment="Center"/>
+                </Grid>
+            </Border>
+            
+            <!-- 설정 호버 툴팁 -->
+            <Border x:Name="SettingsTooltip" 
+                    Grid.Column="2"
+                    Background="White"
+                    BorderBrush="#4285F4"
+                    BorderThickness="2"
+                    CornerRadius="10"
+                    Padding="20"
+                    Margin="15,0,0,0"
+                    Visibility="Collapsed"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" 
+                              Text="설정" 
+                              FontSize="20" 
+                              FontWeight="Bold" 
+                              Foreground="#2C3E50" 
+                              HorizontalAlignment="Center"
+                              Margin="0,0,0,10"/>
+                    <TextBlock Grid.Row="1" 
+                              Text="애플리케이션 설정 및 환경 구성" 
+                              FontSize="14" 
+                              Foreground="#666666" 
+                              TextWrapping="Wrap"
+                              HorizontalAlignment="Center"
+                              TextAlignment="Center"/>
+                </Grid>
+            </Border>
+        </Grid>
+            </Grid>
         </Grid>
     </Grid>
 </Window>
