@@ -7,13 +7,50 @@
              d:DesignHeight="800" d:DesignWidth="1200">
     
     <UserControl.Resources>
-        <!-- 모던 스타일 정의 -->
+        <!-- BooleanToVisibilityConverter -->
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        
+        <!-- 라이트 모드 색상 팔레트 -->
+        <SolidColorBrush x:Key="PrimaryColor" Color="#8B5CF6"/>
+        <SolidColorBrush x:Key="PrimaryDarkColor" Color="#7C3AED"/>
+        <SolidColorBrush x:Key="PrimaryLightColor" Color="#A78BFA"/>
+        <SolidColorBrush x:Key="SecondaryColor" Color="#10B981"/>
+        <SolidColorBrush x:Key="SecondaryDarkColor" Color="#059669"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="BackgroundColor" Color="#F8FAFC"/>
+        <SolidColorBrush x:Key="SurfaceColor" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="CardColor" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextPrimaryColor" Color="#1E293B"/>
+        <SolidColorBrush x:Key="TextSecondaryColor" Color="#64748B"/>
+        <SolidColorBrush x:Key="TextMutedColor" Color="#94A3B8"/>
+        
+        <!-- 다크 모드 색상 팔레트 -->
+        <SolidColorBrush x:Key="DarkBackgroundColor" Color="#0F172A"/>
+        <SolidColorBrush x:Key="DarkSurfaceColor" Color="#1E293B"/>
+        <SolidColorBrush x:Key="DarkCardColor" Color="#334155"/>
+        <SolidColorBrush x:Key="DarkBorderColor" Color="#475569"/>
+        <SolidColorBrush x:Key="DarkTextPrimaryColor" Color="#F1F5F9"/>
+        <SolidColorBrush x:Key="DarkTextSecondaryColor" Color="#CBD5E1"/>
+        <SolidColorBrush x:Key="DarkTextMutedColor" Color="#94A3B8"/>
+        
+        <!-- 동적 색상 팔레트 (C#에서 변경 가능) -->
+        <SolidColorBrush x:Key="DynamicBackgroundColor" Color="#F8FAFC"/>
+        <SolidColorBrush x:Key="DynamicSurfaceColor" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="DynamicCardColor" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="DynamicBorderColor" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="DynamicTextPrimaryColor" Color="#1E293B"/>
+        <SolidColorBrush x:Key="DynamicTextSecondaryColor" Color="#64748B"/>
+        <SolidColorBrush x:Key="DynamicTextMutedColor" Color="#94A3B8"/>
+        
+        <!-- 모던 버튼 스타일 -->
         <Style x:Key="ModernButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#E1E5E9"/>
-            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -21,286 +58,700 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="15"
-                                Padding="20">
+                                CornerRadius="8"
+                                Padding="16,12">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000" 
+                                                Opacity="0.1" 
+                                                BlurRadius="8" 
+                                                ShadowDepth="2" 
+                                                Direction="270"/>
+                            </Border.Effect>
                             <ContentPresenter HorizontalAlignment="Center" 
                                             VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#F1F3F4"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#4285F4"/>
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource PrimaryDarkColor}"/>
                                 <Setter TargetName="border" Property="Effect">
                                     <Setter.Value>
-                                        <DropShadowEffect Color="#4285F4" 
-                                                        BlurRadius="10" 
-                                                        ShadowDepth="0" 
-                                                        Opacity="0.3"/>
+                                        <DropShadowEffect Color="#000000" 
+                                                        Opacity="0.15" 
+                                                        BlurRadius="12" 
+                                                        ShadowDepth="4" 
+                                                        Direction="270"/>
                                     </Setter.Value>
                                 </Setter>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#E8F0FE"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#1A73E8"/>
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource PrimaryDarkColor}"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#000000" 
+                                                        Opacity="0.05" 
+                                                        BlurRadius="4" 
+                                                        ShadowDepth="1" 
+                                                        Direction="270"/>
+                                    </Setter.Value>
+                                </Setter>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+        
+        <!-- 세컨더리 버튼 스타일 -->
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource DynamicSurfaceColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DynamicBorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource DynamicTextPrimaryColor}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="16,12">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000" 
+                                                Opacity="0.05" 
+                                                BlurRadius="4" 
+                                                ShadowDepth="1" 
+                                                Direction="270"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource DynamicBackgroundColor}"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource PrimaryColor}"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#000000" 
+                                                        Opacity="0.1" 
+                                                        BlurRadius="8" 
+                                                        ShadowDepth="2" 
+                                                        Direction="270"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource DynamicBackgroundColor}"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#000000" 
+                                                        Opacity="0.02" 
+                                                        BlurRadius="2" 
+                                                        ShadowDepth="0" 
+                                                        Direction="270"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- 탭 버튼 스타일 -->
+        <Style x:Key="TabButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource DynamicTextSecondaryColor}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="16,8">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource DynamicBackgroundColor}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- 활성 탭 버튼 스타일 -->
+        <Style x:Key="ActiveTabButtonStyle" TargetType="Button" BasedOn="{StaticResource TabButtonStyle}">
+            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="Black"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        
+        <!-- Zone 버튼 스타일 -->
+        <Style x:Key="ZoneButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource DynamicSurfaceColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DynamicBorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{DynamicResource DynamicTextSecondaryColor}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="14"
+                                Padding="0">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000" 
+                                                Opacity="0.06" 
+                                                BlurRadius="2" 
+                                                ShadowDepth="1" 
+                                                Direction="270"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"
+                                            Margin="4"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource PrimaryLightColor}"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource PrimaryColor}"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#000000" 
+                                                        Opacity="0.1" 
+                                                        BlurRadius="4" 
+                                                        ShadowDepth="1" 
+                                                        Direction="270"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- 활성 Zone 버튼 스타일 -->
+        <Style x:Key="ActiveZoneButtonStyle" TargetType="Button" BasedOn="{StaticResource ZoneButtonStyle}">
+            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        
+        <!-- DataGrid 행 병합을 위한 스타일 -->
+        <Style x:Key="MergedCellStyle" TargetType="DataGridCell">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
     </UserControl.Resources>
     
+    <Grid Background="{DynamicResource DynamicBackgroundColor}">
+        <!-- 뒤로가기 버튼 (직사각형) -->
+                <Button x:Name="BackButton" 
+                Width="60" 
+                        Height="40" 
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="4,4,0,0"
+                Style="{StaticResource SecondaryButtonStyle}"
+                FontSize="20" 
+                        FontWeight="Bold"
+                Click="BackButton_Click">
+            <TextBlock Text="←" 
+                       HorizontalAlignment="Center" 
+                       VerticalAlignment="Center"
+                       FontSize="20"
+                       FontWeight="Bold"/>
+        </Button>
+        
+        <!-- 메인 콘텐츠 영역 -->
+        <Grid Margin="4,48,4,4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                <RowDefinition Height="280"/>
+                </Grid.RowDefinitions>
+                
+            <!-- 데이터 테이블 카드 (상단) -->
+            <Border Grid.Row="0" 
+                    Background="{DynamicResource DynamicCardColor}" 
+                    BorderBrush="{DynamicResource DynamicBorderColor}" 
+                        BorderThickness="1" 
+                    CornerRadius="6"
+                    Margin="0,0,0,4">
+                <Border.Effect>
+                    <DropShadowEffect Color="#000000" 
+                                    Opacity="0.08" 
+                                    BlurRadius="16" 
+                                    ShadowDepth="4" 
+                                    Direction="270"/>
+                </Border.Effect>
+                    <Grid>
+                        <!-- 테이블 헤더 -->
+                    <Border Background="{DynamicResource DynamicBackgroundColor}" 
+                            CornerRadius="6,6,0,0" 
+                            Height="36"
+                            VerticalAlignment="Top">
+                        <TextBlock Text="📊 IPVS 데이터 테이블" 
+                        FontSize="14" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                   VerticalAlignment="Center" 
+                                   Margin="8,0"/>
+                        </Border>
+                        
+                    <!-- 스크롤 가능한 테이블 영역 -->
+                    <ScrollViewer x:Name="MainScrollViewer" 
+                                  HorizontalScrollBarVisibility="Auto" 
+                                  VerticalScrollBarVisibility="Auto"
+                                  CanContentScroll="True"
+                                  Margin="0,36,0,0">
+                        <Grid x:Name="DataTableGrid" Background="{DynamicResource DynamicSurfaceColor}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="1.5*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                    </Grid>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            
+            <!-- 하단 영역 (Graph/Total + IPVS 판정 현황 + Control Panel) -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="3*"/>
+                    <ColumnDefinition Width="1*"/>
+                    <ColumnDefinition Width="1*"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- Graph/Total 영역 카드 (하단, 왼쪽) -->
+                <Border Grid.Column="0" 
+                        Background="{DynamicResource DynamicCardColor}" 
+                        BorderBrush="{DynamicResource DynamicBorderColor}" 
+                        BorderThickness="1" 
+                        CornerRadius="6"
+                        Margin="0,0,2,0">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" 
+                                        Opacity="0.08" 
+                                        BlurRadius="16" 
+                                        ShadowDepth="4" 
+                                        Direction="270"/>
+                    </Border.Effect>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         
-        <!-- 메인 콘텐츠 영역 (플랫폼에 꽉 차게) -->
-        <Grid Grid.Row="1" Margin="0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            
-            <!-- 뒤로가기, Cell/Total 토글 버튼 (콘텐츠 영역 왼쪽 상단) -->
-            <StackPanel Grid.Row="0" 
-                       Orientation="Horizontal" 
-                       HorizontalAlignment="Left" 
-                       Margin="20,20,0,0">
-                <!-- 뒤로가기 버튼 -->
-                <Button x:Name="BackButton" 
-                        Content="← 뒤로" 
-                        Width="80" 
-                        Height="40" 
-                        Margin="0,0,10,0"
-                        Background="Transparent" 
-                        BorderThickness="1" 
-                        BorderBrush="#4285F4"
-                        Foreground="#4285F4" 
-                        FontSize="14" 
-                        FontWeight="Bold"
-                        Click="BackButton_Click"/>
-                <Button x:Name="CellButton" 
-                        Content="Cell" 
-                        Width="80" 
-                        Height="40" 
-                        Margin="0,0,10,0"
-                        Background="White" 
-                        Foreground="#4285F4" 
-                        FontSize="14" 
-                        FontWeight="Bold"
-                        Click="CellButton_Click"/>
-                <Button x:Name="TotalButton" 
-                        Content="Total" 
-                        Width="80" 
-                        Height="40"
-                        Background="Transparent" 
-                        BorderThickness="1"
-                        BorderBrush="#E1E5E9"
-                        Foreground="#666666" 
-                        FontSize="14" 
-                        FontWeight="Bold"
-                        Click="TotalButton_Click"/>
+                        <!-- 탭 버튼들 (영역 위쪽) -->
+                        <Border Grid.Row="0" 
+                                Background="{DynamicResource DynamicBackgroundColor}" 
+                                CornerRadius="8,8,0,0" 
+                                Height="40">
+                            <StackPanel Orientation="Horizontal" 
+                                        VerticalAlignment="Center" 
+                                        Margin="12,0">
+                                <Button x:Name="GraphTab" 
+                                        Content="📊 Graph" 
+                                        Style="{StaticResource TabButtonStyle}"
+                                        FontSize="13" 
+                                        Margin="0,0,4,0"
+                                        Click="GraphTab_Click"/>
+                                <Button x:Name="TotalTab" 
+                                        Content="📈 Total" 
+                                        Style="{StaticResource ActiveTabButtonStyle}"
+                                        FontSize="13"
+                                        Click="TotalTab_Click"/>
+                        </StackPanel>
+                    </Border>
+                    
+                        <!-- 콘텐츠 영역 -->
+                        <Border Grid.Row="1" 
+                                Background="{DynamicResource DynamicSurfaceColor}" 
+                                CornerRadius="0,0,8,8">
+                            <Grid Margin="12">
+                                <Grid x:Name="GraphContent" Visibility="Collapsed">
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock Text="📊" 
+                                                   FontSize="40" 
+                                                   HorizontalAlignment="Center" 
+                                                   Margin="0,0,0,12"/>
+                                        <TextBlock Text="Graph 영역" 
+                                                   FontSize="16" 
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                   HorizontalAlignment="Center" 
+                                                   Margin="0,0,0,6"/>
+                                        <TextBlock Text="데이터 시각화를 위한 그래프가 표시됩니다" 
+                                                   FontSize="13" 
+                                                   Foreground="{DynamicResource DynamicTextSecondaryColor}"
+                                                   HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                    </Grid>
+                                <Grid x:Name="TotalContent" Visibility="Visible">
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock Text="📈" 
+                                                   FontSize="40" 
+                                                   HorizontalAlignment="Center" 
+                                                   Margin="0,0,0,12"/>
+                                        <TextBlock Text="Total 영역" 
+                                                   FontSize="16" 
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                   HorizontalAlignment="Center" 
+                                                   Margin="0,0,0,6"/>
+                                        <TextBlock Text="전체 데이터 요약 정보가 표시됩니다" 
+                                                   FontSize="13" 
+                                                   Foreground="{DynamicResource DynamicTextSecondaryColor}"
+                                                   HorizontalAlignment="Center"/>
             </StackPanel>
-            <!-- Cell 뷰 -->
-            <Grid x:Name="CellView" Grid.Row="1" Visibility="Visible" Margin="20,20,20,20">
+                                    </Grid>
+                                    </Grid>
+                                </Border>
+                    </Grid>
+                    </Border>
+                    
+                <!-- IPVS 판정 현황 카드 (가운데) -->
+                <Border Grid.Column="1" 
+                        Background="{DynamicResource DynamicCardColor}" 
+                        BorderBrush="{DynamicResource DynamicBorderColor}" 
+                        BorderThickness="1" 
+                        CornerRadius="6"
+                        Margin="4,0,4,0">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" 
+                                        Opacity="0.08" 
+                                        BlurRadius="16" 
+                                        ShadowDepth="4" 
+                                        Direction="270"/>
+                    </Border.Effect>
+                    <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 
-                <!-- Cell 뷰 헤더 -->
-                <TextBlock Grid.Row="0" 
-                          Text="Cell별 IPVS 데이터" 
-                          FontSize="24" 
+                        <!-- 헤더 -->
+                        <Border Grid.Row="0" 
+                                Background="{DynamicResource DynamicBackgroundColor}" 
+                                CornerRadius="6,6,0,0"
+                                Height="36">
+                            <TextBlock Text="📊 IPVS 판정 현황" 
+                                       FontSize="13" 
                           FontWeight="Bold" 
-                          Foreground="#2C3E50" 
-                          Margin="0,0,0,20"/>
-                
-                <!-- Cell 데이터 테이블 -->
+                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                       VerticalAlignment="Center" 
+                                       Margin="8,0"/>
+                        </Border>
+                        
+                        <!-- 콘텐츠 영역 -->
                 <Border Grid.Row="1" 
-                        Background="White" 
-                        BorderBrush="#E1E5E9" 
-                        BorderThickness="1" 
-                        CornerRadius="10">
+                                Background="{DynamicResource DynamicSurfaceColor}" 
+                                CornerRadius="0,0,6,6">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         
-                        <!-- 테이블 헤더 -->
+                                <!-- 표 헤더 -->
                         <Border Grid.Row="0" 
-                                Background="#F8F9FA" 
-                                CornerRadius="10,10,0,0">
+                                        Background="{DynamicResource DynamicBackgroundColor}" 
+                                        CornerRadius="6,6,0,0" 
+                                        Height="36"
+                                        VerticalAlignment="Top">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="100"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                
-                                <TextBlock Grid.Column="0" Text="Cell ID" FontWeight="Bold" Padding="15,10" HorizontalAlignment="Center"/>
-                                <TextBlock Grid.Column="1" Text="Point 1" FontWeight="Bold" Padding="15,10" HorizontalAlignment="Center"/>
-                                <TextBlock Grid.Column="2" Text="Point 2" FontWeight="Bold" Padding="15,10" HorizontalAlignment="Center"/>
-                                <TextBlock Grid.Column="3" Text="Point 3" FontWeight="Bold" Padding="15,10" HorizontalAlignment="Center"/>
-                                <TextBlock Grid.Column="4" Text="Point 4" FontWeight="Bold" Padding="15,10" HorizontalAlignment="Center"/>
-                                <TextBlock Grid.Column="5" Text="Point 5" FontWeight="Bold" Padding="15,10" HorizontalAlignment="Center"/>
+                                        <TextBlock Grid.Column="0" 
+                                                   Text="" 
+                                                   FontSize="14" 
+                                                   FontWeight="SemiBold" 
+                                                   Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                   HorizontalAlignment="Center" 
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" 
+                                                   Text="수량" 
+                                                   FontSize="14" 
+                                                   FontWeight="SemiBold" 
+                                                   Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                   HorizontalAlignment="Center" 
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" 
+                                                   Text="발생률" 
+                                                   FontSize="14" 
+                                                   FontWeight="SemiBold" 
+                                                   Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                   HorizontalAlignment="Center" 
+                                                   VerticalAlignment="Center"/>
                             </Grid>
                         </Border>
                         
-                        <!-- 테이블 데이터 -->
-                        <ScrollViewer Grid.Row="1">
-                            <StackPanel>
-                                <Border BorderBrush="#E1E5E9" BorderThickness="0,1,0,0">
+                                <!-- 표 데이터 -->
+                                <Grid Grid.Row="1" 
+                                      Background="{DynamicResource DynamicSurfaceColor}">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    
+                                    <!-- Total 행 -->
+                                    <Border Grid.Row="0" 
+                                            Background="{DynamicResource DynamicSurfaceColor}" 
+                                            BorderBrush="{DynamicResource DynamicBorderColor}" 
+                                            BorderThickness="0,0,0,1">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="100"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        
-                                        <TextBlock Grid.Column="0" Text="Cell-001" Padding="15,10" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="450.1" Padding="15,10" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="2" Text="448.5" Padding="15,10" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="3" Text="452.3" Padding="15,10" HorizontalAlignment="Center" FontWeight="Bold" Foreground="#4285F4"/>
-                                        <TextBlock Grid.Column="4" Text="449.8" Padding="15,10" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="5" Text="451.2" Padding="15,10" HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="0" 
+                                                       Text="Total" 
+                                                       FontSize="14" 
+                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                       HorizontalAlignment="Center" 
+                                                       VerticalAlignment="Center"
+                                                       Margin="8,0"/>
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="" 
+                                                       FontSize="14" 
+                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                       HorizontalAlignment="Center" 
+                                                       VerticalAlignment="Center"
+                                                       Margin="8,0"/>
+                                            <TextBlock Grid.Column="2" 
+                                                       Text="" 
+                                                       FontSize="14" 
+                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                       HorizontalAlignment="Center" 
+                                                       VerticalAlignment="Center"
+                                                       Margin="8,0"/>
                                     </Grid>
                                 </Border>
                                 
-                                <Border BorderBrush="#E1E5E9" BorderThickness="0,1,0,0">
+                                    <!-- PTN 행 -->
+                                    <Border Grid.Row="1" 
+                                            Background="{DynamicResource DynamicSurfaceColor}" 
+                                            BorderBrush="{DynamicResource DynamicBorderColor}" 
+                                            BorderThickness="0,0,0,1">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="100"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        
-                                        <TextBlock Grid.Column="0" Text="Cell-002" Padding="15,10" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="447.9" Padding="15,10" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="2" Text="446.2" Padding="15,10" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="3" Text="450.8" Padding="15,10" HorizontalAlignment="Center" FontWeight="Bold" Foreground="#4285F4"/>
-                                        <TextBlock Grid.Column="4" Text="448.1" Padding="15,10" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="5" Text="449.5" Padding="15,10" HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="0" 
+                                                       Text="PTN" 
+                                                       FontSize="14" 
+                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                       HorizontalAlignment="Center" 
+                                                       VerticalAlignment="Center"
+                                                       Margin="8,0"/>
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="" 
+                                                       FontSize="14" 
+                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                       HorizontalAlignment="Center" 
+                                                       VerticalAlignment="Center"
+                                                       Margin="8,0"/>
+                                            <TextBlock Grid.Column="2" 
+                                                       Text="" 
+                                                       FontSize="14" 
+                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                       HorizontalAlignment="Center" 
+                                                       VerticalAlignment="Center"
+                                                       Margin="8,0"/>
                                     </Grid>
                                 </Border>
                                 
-                                <Border BorderBrush="#E1E5E9" BorderThickness="0,1,0,0">
+                                    <!-- R/J 행 -->
+                                    <Border Grid.Row="2" 
+                                            Background="{DynamicResource DynamicSurfaceColor}" 
+                                            BorderBrush="{DynamicResource DynamicBorderColor}" 
+                                            BorderThickness="0,0,0,1">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="100"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        
-                                        <TextBlock Grid.Column="0" Text="Cell-003" Padding="15,10" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="453.2" Padding="15,10" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="2" Text="451.6" Padding="15,10" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="3" Text="455.1" Padding="15,10" HorizontalAlignment="Center" FontWeight="Bold" Foreground="#4285F4"/>
-                                        <TextBlock Grid.Column="4" Text="452.4" Padding="15,10" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="5" Text="453.8" Padding="15,10" HorizontalAlignment="Center"/>
+                                            <TextBlock Grid.Column="0" 
+                                                       Text="R/J" 
+                                                       FontSize="14" 
+                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                       HorizontalAlignment="Center" 
+                                                       VerticalAlignment="Center"
+                                                       Margin="8,0"/>
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="" 
+                                                       FontSize="14" 
+                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                       HorizontalAlignment="Center" 
+                                                       VerticalAlignment="Center"
+                                                       Margin="8,0"/>
+                                            <TextBlock Grid.Column="2" 
+                                                       Text="" 
+                                                       FontSize="14" 
+                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                       HorizontalAlignment="Center" 
+                                                       VerticalAlignment="Center"
+                                                       Margin="8,0"/>
+                                        </Grid>
+                                    </Border>
+                                    
+                                    <!-- OK 행 -->
+                                    <Border Grid.Row="3" 
+                                            Background="{DynamicResource DynamicSurfaceColor}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" 
+                                                       Text="OK" 
+                                                       FontSize="14" 
+                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                       HorizontalAlignment="Center" 
+                                                       VerticalAlignment="Center"
+                                                       Margin="8,0"/>
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="" 
+                                                       FontSize="14" 
+                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                       HorizontalAlignment="Center" 
+                                                       VerticalAlignment="Center"
+                                                       Margin="8,0"/>
+                                            <TextBlock Grid.Column="2" 
+                                                       Text="" 
+                                                       FontSize="14" 
+                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                                       HorizontalAlignment="Center" 
+                                                       VerticalAlignment="Center"
+                                                       Margin="8,0"/>
                                     </Grid>
                                 </Border>
-                            </StackPanel>
-                        </ScrollViewer>
+                                </Grid>
                     </Grid>
                 </Border>
             </Grid>
-            
-            <!-- Total 뷰 -->
-            <Grid x:Name="TotalView" Grid.Row="1" Visibility="Collapsed" Margin="20,20,20,20">
+                </Border>
+                
+                <!-- 컨트롤 패널 카드 (오른쪽) -->
+                <Border Grid.Column="2" 
+                        Background="{DynamicResource DynamicCardColor}" 
+                        BorderBrush="{DynamicResource DynamicBorderColor}" 
+                            BorderThickness="1" 
+                        CornerRadius="6"
+                        Margin="2,0,0,0">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" 
+                                        Opacity="0.08" 
+                                        BlurRadius="16" 
+                                        ShadowDepth="4" 
+                                        Direction="270"/>
+                    </Border.Effect>
+                    <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 
-                <!-- Total 뷰 헤더 -->
-                <TextBlock Grid.Row="0" 
-                          Text="전체 IPVS 데이터 요약" 
-                          FontSize="24" 
-                          FontWeight="Bold" 
-                          Foreground="#2C3E50" 
-                          Margin="0,0,0,20"/>
-                
-                <!-- Total 데이터 카드들 -->
-                <Grid Grid.Row="1">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="1*"/>
-                        <ColumnDefinition Width="1*"/>
-                        <ColumnDefinition Width="1*"/>
-                        <ColumnDefinition Width="1*"/>
-                    </Grid.ColumnDefinitions>
-                    
-                    <!-- 평균 휘도 카드 -->
-                    <Border Grid.Column="0" 
-                            Background="White" 
-                            BorderBrush="#E1E5E9" 
-                            BorderThickness="1" 
-                            CornerRadius="10" 
-                            Margin="0,0,10,0">
-                        <StackPanel Margin="20">
-                            <TextBlock Text="평균 휘도" FontSize="16" FontWeight="Bold" Foreground="#666666" Margin="0,0,0,10"/>
-                            <TextBlock Text="450.8" FontSize="32" FontWeight="Bold" Foreground="#4285F4" HorizontalAlignment="Center"/>
-                            <TextBlock Text="cd/m²" FontSize="14" Foreground="#666666" HorizontalAlignment="Center" Margin="0,5,0,0"/>
-                        </StackPanel>
+                        <!-- 컨트롤 패널 헤더 -->
+                        <Border Grid.Row="0" 
+                                Background="{DynamicResource DynamicBackgroundColor}" 
+                                CornerRadius="6,6,0,0" 
+                                Height="36">
+                            <TextBlock Text="⚙️ 컨트롤 패널" 
+                                       FontSize="13" 
+                                       FontWeight="SemiBold" 
+                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                       VerticalAlignment="Center" 
+                                       Margin="8,0"/>
                     </Border>
                     
-                    <!-- 표준편차 카드 -->
-                    <Border Grid.Column="1" 
-                            Background="White" 
-                            BorderBrush="#E1E5E9" 
-                            BorderThickness="1" 
-                            CornerRadius="10" 
-                            Margin="5,0">
-                        <StackPanel Margin="20">
-                            <TextBlock Text="표준편차" FontSize="16" FontWeight="Bold" Foreground="#666666" Margin="0,0,0,10"/>
-                            <TextBlock Text="2.1" FontSize="32" FontWeight="Bold" Foreground="#4285F4" HorizontalAlignment="Center"/>
-                            <TextBlock Text="σ" FontSize="14" Foreground="#666666" HorizontalAlignment="Center" Margin="0,5,0,0"/>
-                        </StackPanel>
+                        <!-- 컨트롤 버튼들 - 동적 크기 조절 -->
+                        <Grid Grid.Row="1" Margin="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            
+                            <!-- Set Params, Set Path 버튼 -->
+                            <Grid Grid.Row="0" Margin="0,4,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0"
+                                        Content="⚙️ Set Params" 
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        FontSize="10"
+                                        Height="50"
+                                        Margin="0,0,4,0"/>
+                                <Button Grid.Column="1" 
+                                        Content="📁 Set Path" 
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        FontSize="10"
+                                        Height="50"
+                                        Margin="4,0,0,0"/>
+                            </Grid>
+                            
+                            <!-- Zone 선택 버튼들 - Test Start 바로 위에 배치 -->
+                            <StackPanel x:Name="ZoneButtonsPanel" 
+                                        Grid.Row="1"
+                                        Orientation="Horizontal" 
+                                        HorizontalAlignment="Center"
+                                        Margin="0,4,0,4"/>
+                            
+                            <!-- Test Start 버튼 - 남은 공간을 모두 사용 -->
+                            <Button Grid.Row="2"
+                                    Content="🚀 Test Start!!" 
+                                    Style="{StaticResource ModernButtonStyle}"
+                                    FontSize="20"
+                                    Height="60"
+                                    VerticalAlignment="Center"
+                                    Margin="0,4,0,4"/>
+                        </Grid>
+                    </Grid>
                     </Border>
-                    
-                    <!-- 균일도 카드 -->
-                    <Border Grid.Column="2" 
-                            Background="White" 
-                            BorderBrush="#E1E5E9" 
-                            BorderThickness="1" 
-                            CornerRadius="10" 
-                            Margin="5,0">
-                        <StackPanel Margin="20">
-                            <TextBlock Text="균일도" FontSize="16" FontWeight="Bold" Foreground="#666666" Margin="0,0,0,10"/>
-                            <TextBlock Text="98.5" FontSize="32" FontWeight="Bold" Foreground="#4285F4" HorizontalAlignment="Center"/>
-                            <TextBlock Text="%" FontSize="14" Foreground="#666666" HorizontalAlignment="Center" Margin="0,5,0,0"/>
-                        </StackPanel>
-                    </Border>
-                    
-                    <!-- 판정 결과 카드 -->
-                    <Border Grid.Column="3" 
-                            Background="White" 
-                            BorderBrush="#E1E5E9" 
-                            BorderThickness="1" 
-                            CornerRadius="10" 
-                            Margin="10,0,0,0">
-                        <StackPanel Margin="20">
-                            <TextBlock Text="판정 결과" FontSize="16" FontWeight="Bold" Foreground="#666666" Margin="0,0,0,10"/>
-                            <TextBlock Text="PASS" FontSize="32" FontWeight="Bold" Foreground="#34A853" HorizontalAlignment="Center"/>
-                            <TextBlock Text="OK" FontSize="14" Foreground="#666666" HorizontalAlignment="Center" Margin="0,5,0,0"/>
-                        </StackPanel>
-                    </Border>
-                </Grid>
             </Grid>
         </Grid>
     </Grid>

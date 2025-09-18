@@ -38,10 +38,10 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#F1F3F4"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#4285F4"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#8B5CF6"/>
                                 <Setter TargetName="border" Property="Effect">
                                     <Setter.Value>
-                                        <DropShadowEffect Color="#4285F4" 
+                                        <DropShadowEffect Color="#8B5CF6" 
                                                         BlurRadius="10" 
                                                         ShadowDepth="0" 
                                                         Opacity="0.3"/>
@@ -49,8 +49,8 @@
                                 </Setter>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#E8F0FE"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#1A73E8"/>
+                                <Setter TargetName="border" Property="Background" Value="#F3F0FF"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#8B5CF6"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -146,7 +146,7 @@
         <!-- 커스텀 타이틀바 -->
         <Border x:Name="TitleBar" 
                 Grid.Row="0" 
-                Background="#87CEEB" 
+                Background="#8B5CF6" 
                 CornerRadius="0,0,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -172,7 +172,7 @@
                     <Border x:Name="ModeToggleContainer" 
                            Width="60" 
                            Height="24" 
-                           Background="#87CEEB" 
+                           Background="#8B5CF6" 
                            CornerRadius="12" 
                            Margin="0,0,5,0">
                         <Grid>
@@ -290,7 +290,7 @@
             <Border x:Name="CharacteristicsTooltip" 
                     Grid.Column="0"
                     Background="White"
-                    BorderBrush="#4285F4"
+                    BorderBrush="#8B5CF6"
                     BorderThickness="2"
                     CornerRadius="10"
                     Padding="20"
@@ -336,8 +336,8 @@
                         <!-- 중심점 원 -->
                         <Ellipse Canvas.Left="135" Canvas.Top="75" 
                                 Width="30" Height="30" 
-                                Fill="#4285F4" 
-                                Stroke="#1A73E8" 
+                                Fill="#8B5CF6" 
+                                Stroke="#8B5CF6" 
                                 StrokeThickness="3"/>
                         <!-- 계측기 -->
                         <Path Canvas.Left="165" Canvas.Top="60" 
@@ -364,7 +364,7 @@
             <Border x:Name="IPVSTooltip" 
                     Grid.Column="1"
                     Background="White"
-                    BorderBrush="#4285F4"
+                    BorderBrush="#8B5CF6"
                     BorderThickness="2"
                     CornerRadius="10"
                     Padding="20"
@@ -420,8 +420,8 @@
                                 StrokeThickness="2"/>
                         <Ellipse Canvas.Left="134" Canvas.Top="75" 
                                 Width="22" Height="22" 
-                                Fill="#4285F4" 
-                                Stroke="#1A73E8" 
+                                Fill="#8B5CF6" 
+                                Stroke="#8B5CF6" 
                                 StrokeThickness="3"/>
                         <Ellipse Canvas.Left="171" Canvas.Top="75" 
                                 Width="22" Height="22" 
@@ -512,7 +512,7 @@
             <Border x:Name="ManualTooltip" 
                     Grid.Column="0"
                     Background="White"
-                    BorderBrush="#4285F4"
+                    BorderBrush="#8B5CF6"
                     BorderThickness="2"
                     CornerRadius="10"
                     Padding="20"
@@ -546,7 +546,7 @@
             <Border x:Name="LUTTooltip" 
                     Grid.Column="1"
                     Background="White"
-                    BorderBrush="#4285F4"
+                    BorderBrush="#8B5CF6"
                     BorderThickness="2"
                     CornerRadius="10"
                     Padding="20"
@@ -580,7 +580,7 @@
             <Border x:Name="SettingsTooltip" 
                     Grid.Column="2"
                     Background="White"
-                    BorderBrush="#4285F4"
+                    BorderBrush="#8B5CF6"
                     BorderThickness="2"
                     CornerRadius="10"
                     Padding="20"

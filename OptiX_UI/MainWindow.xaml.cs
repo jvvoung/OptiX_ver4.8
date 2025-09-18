@@ -198,18 +198,18 @@ public partial class MainWindow : Window
         // 창 배경
         this.Background = new SolidColorBrush(Color.FromRgb(248, 249, 250));
         
-        // 타이틀바
+        // 타이틀바 - 보라색 유지
         var titleBar = (Border)this.FindName("TitleBar");
         if (titleBar != null)
         {
-            titleBar.Background = new SolidColorBrush(Color.FromRgb(135, 206, 235));
+            titleBar.Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
         }
         
-        // 모드 토글 컨테이너
+        // 모드 토글 컨테이너 - 보라색 유지
         var modeContainer = (Border)this.FindName("ModeToggleContainer");
         if (modeContainer != null)
         {
-            modeContainer.Background = new SolidColorBrush(Color.FromRgb(135, 206, 235));
+            modeContainer.Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
         }
         
         // 버튼 스타일 업데이트
@@ -217,6 +217,16 @@ public partial class MainWindow : Window
         
         // 툴팁 스타일 업데이트
         UpdateTooltipStyles(false);
+        
+        // 현재 페이지 다크모드 상태 업데이트
+        if (currentPage is OpticPage opticPage)
+        {
+            opticPage.SetDarkMode(false);
+        }
+        else if (currentPage is IPVSPage ipvsPage)
+        {
+            ipvsPage.SetDarkMode(false);
+        }
     }
 
     private void SetDarkMode()
@@ -224,20 +234,20 @@ public partial class MainWindow : Window
         isDarkMode = true;
         
         // 창 배경
-        this.Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
+        this.Background = new SolidColorBrush(Color.FromRgb(15, 23, 42)); // #0F172A
         
-        // 타이틀바
+        // 타이틀바 - 다크모드에서도 보라색 유지
         var titleBar = (Border)this.FindName("TitleBar");
         if (titleBar != null)
         {
-            titleBar.Background = new SolidColorBrush(Color.FromRgb(45, 45, 45));
+            titleBar.Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
         }
         
-        // 모드 토글 컨테이너
+        // 모드 토글 컨테이너 - 다크모드에서도 보라색 유지
         var modeContainer = (Border)this.FindName("ModeToggleContainer");
         if (modeContainer != null)
         {
-            modeContainer.Background = new SolidColorBrush(Color.FromRgb(45, 45, 45));
+            modeContainer.Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
         }
         
         // 버튼 스타일 업데이트
@@ -245,6 +255,16 @@ public partial class MainWindow : Window
         
         // 툴팁 스타일 업데이트
         UpdateTooltipStyles(true);
+        
+        // 현재 페이지 다크모드 상태 업데이트
+        if (currentPage is OpticPage opticPage)
+        {
+            opticPage.SetDarkMode(true);
+        }
+        else if (currentPage is IPVSPage ipvsPage)
+        {
+            ipvsPage.SetDarkMode(true);
+        }
     }
 
     private void UpdateButtonStyles(bool isDark)
@@ -492,6 +512,9 @@ public partial class MainWindow : Window
         var opticPage = new OpticPage();
         opticPage.BackRequested += (s, e) => ShowMainPage();
         
+        // 현재 다크모드 상태를 OpticPage에 전달
+        opticPage.SetDarkMode(isDarkMode);
+        
         var mainContentGrid = (Grid)this.FindName("MainContent");
         if (mainContentGrid != null)
         {
@@ -522,6 +545,9 @@ public partial class MainWindow : Window
         // IPVS 페이지 생성 및 표시
         var ipvsPage = new IPVSPage();
         ipvsPage.BackRequested += (s, e) => ShowMainPage();
+        
+        // 현재 다크모드 상태를 IPVSPage에 전달
+        ipvsPage.SetDarkMode(isDarkMode);
         
         var mainContentGrid = (Grid)this.FindName("MainContent");
         if (mainContentGrid != null)
@@ -722,31 +748,7 @@ public partial class MainWindow : Window
 
         try
         {
-            // 창 크기 및 위치 로드
-            string widthStr = iniManager.ReadValue("Window", "Width", "1200");
-            string heightStr = iniManager.ReadValue("Window", "Height", "800");
-            string xStr = iniManager.ReadValue("Window", "X", "100");
-            string yStr = iniManager.ReadValue("Window", "Y", "100");
-            string isMaximizedStr = iniManager.ReadValue("Window", "IsMaximized", "False");
-
-            if (double.TryParse(widthStr, out double width) && double.TryParse(heightStr, out double height))
-            {
-                this.Width = Math.Max(width, MinWidth);
-                this.Height = Math.Max(height, MinHeight);
-            }
-
-            if (double.TryParse(xStr, out double x) && double.TryParse(yStr, out double y))
-            {
-                this.Left = x;
-                this.Top = y;
-            }
-
-            if (bool.TryParse(isMaximizedStr, out bool isMaximized) && isMaximized)
-            {
-                this.WindowState = WindowState.Maximized;
-                this.isMaximized = true;
-                UpdateMaximizeButton();
-            }
+            // 창 크기 및 위치 설정 제거됨 - 하드코딩된 기본값 사용
 
             // 테마 설정 로드
             string isDarkModeStr = iniManager.ReadValue("Theme", "IsDarkMode", "False");
@@ -755,21 +757,7 @@ public partial class MainWindow : Window
                 SetDarkMode();
             }
 
-            // 타이틀바 색상 로드
-            string titleBarColor = iniManager.ReadValue("Theme", "TitleBarColor", "#87CEEB");
-            var titleBar = (Border)this.FindName("TitleBar");
-            if (titleBar != null)
-            {
-                try
-                {
-                    titleBar.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(titleBarColor));
-                }
-                catch
-                {
-                    // 색상 파싱 실패 시 기본값 사용
-                    titleBar.Background = new SolidColorBrush(Color.FromRgb(135, 206, 235));
-                }
-            }
+            // 타이틀바 색상 설정 제거됨 - XAML에서 하드코딩된 보라색 사용
 
             System.Diagnostics.Debug.WriteLine("INI 설정이 성공적으로 로드되었습니다.");
         }

@@ -19,6 +19,7 @@ namespace OptiX
         
         private IniFileManager iniManager;
         private ObservableCollection<DataTableItem> dataItems;
+        private bool isDarkMode = false;
         
         public OpticPage()
         {
@@ -26,6 +27,7 @@ namespace OptiX
             InitializeIniManager();
             LoadDataFromIni();
             InitializeDataTable();
+            LoadThemeFromIni();
         }
 
         private void InitializeIniManager()
@@ -85,6 +87,81 @@ namespace OptiX
             CreateZoneButtons();
         }
 
+        private void LoadThemeFromIni()
+        {
+            try
+            {
+                string darkModeStr = iniManager.ReadValue("Theme", "IsDarkMode", "False");
+                isDarkMode = bool.Parse(darkModeStr);
+                ApplyTheme();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"테마 설정을 읽는 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ApplyTheme()
+        {
+            if (isDarkMode)
+            {
+                // 다크모드 색상 적용
+                UpdateDynamicColors(true);
+                UpdateTableColors(true);
+            }
+            else
+            {
+                // 라이트모드 색상 적용
+                UpdateDynamicColors(false);
+                UpdateTableColors(false);
+            }
+        }
+
+        private void UpdateDynamicColors(bool isDark)
+        {
+            // 동적 색상 팔레트 업데이트
+            if (isDark)
+            {
+                // 다크모드 색상으로 변경
+                Resources["DynamicBackgroundColor"] = new SolidColorBrush(Color.FromRgb(15, 23, 42)); // #0F172A
+                Resources["DynamicSurfaceColor"] = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
+                Resources["DynamicCardColor"] = new SolidColorBrush(Color.FromRgb(51, 65, 85)); // #334155
+                Resources["DynamicBorderColor"] = new SolidColorBrush(Color.FromRgb(71, 85, 105)); // #475569
+                Resources["DynamicTextPrimaryColor"] = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
+                Resources["DynamicTextSecondaryColor"] = new SolidColorBrush(Color.FromRgb(203, 213, 225)); // #CBD5E1
+                Resources["DynamicTextMutedColor"] = new SolidColorBrush(Color.FromRgb(148, 163, 184)); // #94A3B8
+            }
+            else
+            {
+                // 라이트모드 색상으로 변경
+                Resources["DynamicBackgroundColor"] = new SolidColorBrush(Color.FromRgb(248, 250, 252)); // #F8FAFC
+                Resources["DynamicSurfaceColor"] = new SolidColorBrush(Color.FromRgb(255, 255, 255)); // #FFFFFF
+                Resources["DynamicCardColor"] = new SolidColorBrush(Color.FromRgb(255, 255, 255)); // #FFFFFF
+                Resources["DynamicBorderColor"] = new SolidColorBrush(Color.FromRgb(226, 232, 240)); // #E2E8F0
+                Resources["DynamicTextPrimaryColor"] = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
+                Resources["DynamicTextSecondaryColor"] = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748B
+                Resources["DynamicTextMutedColor"] = new SolidColorBrush(Color.FromRgb(148, 163, 184)); // #94A3B8
+            }
+        }
+
+        private void UpdateTableColors(bool isDark)
+        {
+            // 테이블을 다시 생성하여 올바른 색상 적용
+            CreateCustomTable();
+        }
+
+        public void ToggleDarkMode()
+        {
+            isDarkMode = !isDarkMode;
+            ApplyTheme();
+        }
+        
+        public void SetDarkMode(bool darkMode)
+        {
+            isDarkMode = darkMode;
+            ApplyTheme();
+        }
+
         private void CreateZoneButtons()
         {
             // 기존 Zone 버튼들 제거
@@ -96,34 +173,28 @@ namespace OptiX
                 string zoneCountStr = iniManager.ReadValue("MTP", "Zone", "2");
                 int zoneCount = int.Parse(zoneCountStr);
 
-                // Zone 개수만큼 동그라미 버튼 생성
+                // Zone 개수만큼 모던 버튼 생성
                 for (int i = 1; i <= zoneCount; i++)
                 {
                     var zoneButton = new Button
                     {
                         Content = i.ToString(),
-                        MinWidth = 40, // 원래 크기
-                        Width = double.NaN, // 자동 크기 조정
-                        Height = 40, // 원래 크기
-                        FontSize = 16, // 원래 크기
+                        MinWidth = 28,
+                        MinHeight = 28,
+                        FontSize = 12,
                         FontWeight = FontWeights.Bold,
-                        Margin = new Thickness(8, 0, 8, 0), // 원래 크기
+                        Margin = new Thickness(3, 0, 3, 0),
                         Tag = i
                     };
 
-                    // 동그라미 모양으로 만들기
-                    zoneButton.Template = CreateCircleButtonTemplate();
-                    
                     // 첫 번째 버튼은 활성화 상태
                     if (i == 1)
                     {
-                        zoneButton.Background = new SolidColorBrush(Color.FromRgb(32, 178, 170));
-                        zoneButton.Foreground = Brushes.White;
+                        zoneButton.Style = (Style)FindResource("ActiveZoneButtonStyle");
                     }
                     else
                     {
-                        zoneButton.Background = new SolidColorBrush(Color.FromRgb(225, 229, 233));
-                        zoneButton.Foreground = new SolidColorBrush(Color.FromRgb(102, 102, 102));
+                        zoneButton.Style = (Style)FindResource("ZoneButtonStyle");
                     }
 
                     zoneButton.Click += ZoneButton_Click;
@@ -196,8 +267,8 @@ namespace OptiX
                     // Zone 열 (행 병합) - 실제 데이터 개수만큼 병합
                     var zoneBorder = new Border
                     {
-                        Background = Brushes.White,
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
+                        Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                        BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
                         BorderThickness = new Thickness(0, 0, 1, 1)
                     };
                     var zoneText = new TextBlock
@@ -206,7 +277,8 @@ namespace OptiX
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
                         FontWeight = FontWeights.Bold,
-                        FontSize = 14
+                        FontSize = 14,
+                        Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
                     };
                     zoneBorder.Child = zoneText;
                     Grid.SetRow(zoneBorder, DataTableGrid.RowDefinitions.Count - groupItems.Count);
@@ -217,8 +289,8 @@ namespace OptiX
                     // Cell ID 열 (행 병합) - 실제 데이터 개수만큼 병합
                     var cellIdBorder = new Border
                     {
-                        Background = Brushes.White,
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
+                        Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                        BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
                         BorderThickness = new Thickness(0, 0, 1, 1)
                     };
                     var cellIdText = new TextBlock
@@ -226,7 +298,8 @@ namespace OptiX
                         Text = firstItem.CellId,
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
-                        FontSize = 14
+                        FontSize = 14,
+                        Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
                     };
                     cellIdBorder.Child = cellIdText;
                     Grid.SetRow(cellIdBorder, DataTableGrid.RowDefinitions.Count - groupItems.Count);
@@ -237,8 +310,8 @@ namespace OptiX
                     // Inner ID 열 (행 병합) - 실제 데이터 개수만큼 병합
                     var innerIdBorder = new Border
                     {
-                        Background = Brushes.White,
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
+                        Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                        BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
                         BorderThickness = new Thickness(0, 0, 1, 1)
                     };
                     var innerIdText = new TextBlock
@@ -246,7 +319,8 @@ namespace OptiX
                         Text = firstItem.InnerId,
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
-                        FontSize = 14
+                        FontSize = 14,
+                        Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
                     };
                     innerIdBorder.Child = innerIdText;
                     Grid.SetRow(innerIdBorder, DataTableGrid.RowDefinitions.Count - groupItems.Count);
@@ -257,8 +331,8 @@ namespace OptiX
                     // Error Name 열 (행 병합) - 실제 데이터 개수만큼 병합
                     var errorNameBorder = new Border
                     {
-                        Background = Brushes.White,
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
+                        Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                        BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
                         BorderThickness = new Thickness(0, 0, 1, 1)
                     };
                     var errorNameText = new TextBlock
@@ -266,7 +340,8 @@ namespace OptiX
                         Text = firstItem.ErrorName,
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
-                        FontSize = 14
+                        FontSize = 14,
+                        Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
                     };
                     errorNameBorder.Child = errorNameText;
                     Grid.SetRow(errorNameBorder, DataTableGrid.RowDefinitions.Count - groupItems.Count);
@@ -277,8 +352,8 @@ namespace OptiX
                     // Tact 열 (행 병합) - 실제 데이터 개수만큼 병합
                     var tactBorder = new Border
                     {
-                        Background = Brushes.White,
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
+                        Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                        BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
                         BorderThickness = new Thickness(0, 0, 1, 1)
                     };
                     var tactText = new TextBlock
@@ -286,7 +361,8 @@ namespace OptiX
                         Text = firstItem.Tact,
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
-                        FontSize = 14
+                        FontSize = 14,
+                        Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
                     };
                     tactBorder.Child = tactText;
                     Grid.SetRow(tactBorder, DataTableGrid.RowDefinitions.Count - groupItems.Count);
@@ -297,8 +373,8 @@ namespace OptiX
                     // 판정 열 (행 병합) - 실제 데이터 개수만큼 병합
                     var judgmentBorder = new Border
                     {
-                        Background = Brushes.White,
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
+                        Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                        BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
                         BorderThickness = new Thickness(0, 0, 0, 1)
                     };
                     var judgmentText = new TextBlock
@@ -306,7 +382,8 @@ namespace OptiX
                         Text = firstItem.Judgment,
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
-                        FontSize = 14
+                        FontSize = 14,
+                        Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
                     };
                     judgmentBorder.Child = judgmentText;
                     Grid.SetRow(judgmentBorder, DataTableGrid.RowDefinitions.Count - groupItems.Count);
@@ -323,8 +400,8 @@ namespace OptiX
                         // 항목 열
                         var categoryBorder = new Border
                         {
-                            Background = Brushes.White,
-                            BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
+                            Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                            BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
                             BorderThickness = new Thickness(0, 0, 1, 1)
                         };
                         var categoryText = new TextBlock
@@ -332,7 +409,8 @@ namespace OptiX
                             Text = item.Category,
                             HorizontalAlignment = HorizontalAlignment.Center,
                             VerticalAlignment = VerticalAlignment.Center,
-                            FontSize = 14
+                            FontSize = 14,
+                            Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
                         };
                         categoryBorder.Child = categoryText;
                         Grid.SetRow(categoryBorder, currentRow);
@@ -346,8 +424,8 @@ namespace OptiX
                         {
                             var border = new Border
                             {
-                                Background = Brushes.White,
-                                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
+                                Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                                BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
                                 BorderThickness = new Thickness(0, 0, 1, 1)
                             };
                             var text = new TextBlock
@@ -355,7 +433,8 @@ namespace OptiX
                                 Text = values[j],
                                 HorizontalAlignment = HorizontalAlignment.Center,
                                 VerticalAlignment = VerticalAlignment.Center,
-                                FontSize = 14
+                                FontSize = 14,
+                                Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
                             };
                             border.Child = text;
                             Grid.SetRow(border, currentRow);
@@ -373,257 +452,32 @@ namespace OptiX
         
         private void CreateHeaderRow()
         {
-            // Zone
-            Border zoneHeader = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(32, 178, 170)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
-                BorderThickness = new Thickness(0, 0, 1, 1)
-            };
-            TextBlock zoneHeaderText = new TextBlock
-            {
-                Text = "Zone",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.White,
-                FontWeight = FontWeights.Bold,
-                FontSize = 14
-            };
-            zoneHeader.Child = zoneHeaderText;
-            Grid.SetRow(zoneHeader, 0);
-            Grid.SetColumn(zoneHeader, 0);
-            DataTableGrid.Children.Add(zoneHeader);
+            string[] headers = { "Zone", "Cell ID", "Inner ID", "항목", "x", "y", "L", "전류", "효율", "Error Name", "Tact", "판정" };
             
-            // Cell ID
-            Border cellIdHeader = new Border
+            for (int i = 0; i < headers.Length; i++)
             {
-                Background = new SolidColorBrush(Color.FromRgb(32, 178, 170)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
-                BorderThickness = new Thickness(0, 0, 1, 1)
-            };
-            TextBlock cellIdHeaderText = new TextBlock
-            {
-                Text = "Cell ID",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.White,
-                FontWeight = FontWeights.Bold,
-                FontSize = 14
-            };
-            cellIdHeader.Child = cellIdHeaderText;
-            Grid.SetRow(cellIdHeader, 0);
-            Grid.SetColumn(cellIdHeader, 1);
-            DataTableGrid.Children.Add(cellIdHeader);
-            
-            // Inner ID
-            Border innerIdHeader = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(32, 178, 170)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
-                BorderThickness = new Thickness(0, 0, 1, 1)
-            };
-            TextBlock innerIdHeaderText = new TextBlock
-            {
-                Text = "Inner ID",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.White,
-                FontWeight = FontWeights.Bold,
-                FontSize = 14
-            };
-            innerIdHeader.Child = innerIdHeaderText;
-            Grid.SetRow(innerIdHeader, 0);
-            Grid.SetColumn(innerIdHeader, 2);
-            DataTableGrid.Children.Add(innerIdHeader);
-            
-            // 항목
-            Border categoryHeader = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(32, 178, 170)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
-                BorderThickness = new Thickness(0, 0, 1, 1)
-            };
-            TextBlock categoryHeaderText = new TextBlock
-            {
-                Text = "항목",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.White,
-                FontWeight = FontWeights.Bold,
-                FontSize = 14
-            };
-            categoryHeader.Child = categoryHeaderText;
-            Grid.SetRow(categoryHeader, 0);
-            Grid.SetColumn(categoryHeader, 3);
-            DataTableGrid.Children.Add(categoryHeader);
-            
-            // x
-            Border xHeader = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(32, 178, 170)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
-                BorderThickness = new Thickness(0, 0, 1, 1)
-            };
-            TextBlock xHeaderText = new TextBlock
-            {
-                Text = "x",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.White,
-                FontWeight = FontWeights.Bold,
-                FontSize = 14
-            };
-            xHeader.Child = xHeaderText;
-            Grid.SetRow(xHeader, 0);
-            Grid.SetColumn(xHeader, 4);
-            DataTableGrid.Children.Add(xHeader);
-            
-            // y
-            Border yHeader = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(32, 178, 170)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
-                BorderThickness = new Thickness(0, 0, 1, 1)
-            };
-            TextBlock yHeaderText = new TextBlock
-            {
-                Text = "y",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.White,
-                FontWeight = FontWeights.Bold,
-                FontSize = 14
-            };
-            yHeader.Child = yHeaderText;
-            Grid.SetRow(yHeader, 0);
-            Grid.SetColumn(yHeader, 5);
-            DataTableGrid.Children.Add(yHeader);
-            
-            // L
-            Border lHeader = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(32, 178, 170)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
-                BorderThickness = new Thickness(0, 0, 1, 1)
-            };
-            TextBlock lHeaderText = new TextBlock
-            {
-                Text = "L",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.White,
-                FontWeight = FontWeights.Bold,
-                FontSize = 14
-            };
-            lHeader.Child = lHeaderText;
-            Grid.SetRow(lHeader, 0);
-            Grid.SetColumn(lHeader, 6);
-            DataTableGrid.Children.Add(lHeader);
-            
-            // 전류
-            Border currentHeader = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(32, 178, 170)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
-                BorderThickness = new Thickness(0, 0, 1, 1)
-            };
-            TextBlock currentHeaderText = new TextBlock
-            {
-                Text = "전류",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.White,
-                FontWeight = FontWeights.Bold,
-                FontSize = 14
-            };
-            currentHeader.Child = currentHeaderText;
-            Grid.SetRow(currentHeader, 0);
-            Grid.SetColumn(currentHeader, 7);
-            DataTableGrid.Children.Add(currentHeader);
-            
-            // 효율
-            Border efficiencyHeader = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(32, 178, 170)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
-                BorderThickness = new Thickness(0, 0, 1, 1)
-            };
-            TextBlock efficiencyHeaderText = new TextBlock
-            {
-                Text = "효율",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.White,
-                FontWeight = FontWeights.Bold,
-                FontSize = 14
-            };
-            efficiencyHeader.Child = efficiencyHeaderText;
-            Grid.SetRow(efficiencyHeader, 0);
-            Grid.SetColumn(efficiencyHeader, 8);
-            DataTableGrid.Children.Add(efficiencyHeader);
-            
-            // Error Name
-            Border errorNameHeader = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(32, 178, 170)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
-                BorderThickness = new Thickness(0, 0, 1, 1)
-            };
-            TextBlock errorNameHeaderText = new TextBlock
-            {
-                Text = "Error Name",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.White,
-                FontWeight = FontWeights.Bold,
-                FontSize = 14
-            };
-            errorNameHeader.Child = errorNameHeaderText;
-            Grid.SetRow(errorNameHeader, 0);
-            Grid.SetColumn(errorNameHeader, 9);
-            DataTableGrid.Children.Add(errorNameHeader);
-            
-            // Tact
-            Border tactHeader = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(32, 178, 170)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
-                BorderThickness = new Thickness(0, 0, 1, 1)
-            };
-            TextBlock tactHeaderText = new TextBlock
-            {
-                Text = "Tact",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.White,
-                FontWeight = FontWeights.Bold,
-                FontSize = 14
-            };
-            tactHeader.Child = tactHeaderText;
-            Grid.SetRow(tactHeader, 0);
-            Grid.SetColumn(tactHeader, 10);
-            DataTableGrid.Children.Add(tactHeader);
-            
-            // 판정
-            Border judgmentHeader = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(32, 178, 170)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 229, 233)),
-                BorderThickness = new Thickness(0, 0, 0, 1)
-            };
-            TextBlock judgmentHeaderText = new TextBlock
-            {
-                Text = "판정",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.White,
-                FontWeight = FontWeights.Bold,
-                FontSize = 14
-            };
-            judgmentHeader.Child = judgmentHeaderText;
-            Grid.SetRow(judgmentHeader, 0);
-            Grid.SetColumn(judgmentHeader, 11);
-            DataTableGrid.Children.Add(judgmentHeader);
+                Border header = new Border
+                {
+                    Background = (SolidColorBrush)FindResource("PrimaryColor"),
+                    BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
+                    BorderThickness = new Thickness(0, 0, i == headers.Length - 1 ? 0 : 1, 1)
+                };
+                
+                TextBlock headerText = new TextBlock
+                {
+                    Text = headers[i],
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = Brushes.White,
+                    FontWeight = FontWeights.SemiBold,
+                    FontSize = 14
+                };
+                
+                header.Child = headerText;
+                Grid.SetRow(header, 0);
+                Grid.SetColumn(header, i);
+                DataTableGrid.Children.Add(header);
+            }
         }
 
         private void BackButton_Click(object sender, RoutedEventArgs e)
@@ -634,12 +488,10 @@ namespace OptiX
         private void GraphTab_Click(object sender, RoutedEventArgs e)
         {
             // Graph 탭 활성화
-            GraphTab.Background = new SolidColorBrush(Color.FromRgb(32, 178, 170)); // #20B2AA
-            GraphTab.Foreground = Brushes.White;
+            GraphTab.Style = (Style)FindResource("ActiveTabButtonStyle");
             
             // Total 탭 비활성화
-            TotalTab.Background = new SolidColorBrush(Color.FromRgb(225, 229, 233)); // #E1E5E9
-            TotalTab.Foreground = new SolidColorBrush(Color.FromRgb(102, 102, 102)); // #666666
+            TotalTab.Style = (Style)FindResource("TabButtonStyle");
             
             // 콘텐츠 전환
             GraphContent.Visibility = Visibility.Visible;
@@ -649,12 +501,10 @@ namespace OptiX
         private void TotalTab_Click(object sender, RoutedEventArgs e)
         {
             // Total 탭 활성화
-            TotalTab.Background = new SolidColorBrush(Color.FromRgb(32, 178, 170)); // #20B2AA
-            TotalTab.Foreground = Brushes.White;
+            TotalTab.Style = (Style)FindResource("ActiveTabButtonStyle");
             
             // Graph 탭 비활성화
-            GraphTab.Background = new SolidColorBrush(Color.FromRgb(225, 229, 233)); // #E1E5E9
-            GraphTab.Foreground = new SolidColorBrush(Color.FromRgb(102, 102, 102)); // #666666
+            GraphTab.Style = (Style)FindResource("TabButtonStyle");
             
             // 콘텐츠 전환
             TotalContent.Visibility = Visibility.Visible;
@@ -668,13 +518,11 @@ namespace OptiX
             // 모든 Zone 버튼 비활성화
             foreach (Button button in ZoneButtonsPanel.Children.OfType<Button>())
             {
-                button.Background = new SolidColorBrush(Color.FromRgb(225, 229, 233));
-                button.Foreground = new SolidColorBrush(Color.FromRgb(102, 102, 102));
+                button.Style = (Style)FindResource("ZoneButtonStyle");
             }
             
             // 클릭된 버튼 활성화
-            clickedButton.Background = new SolidColorBrush(Color.FromRgb(32, 178, 170));
-            clickedButton.Foreground = new SolidColorBrush(Colors.White);
+            clickedButton.Style = (Style)FindResource("ActiveZoneButtonStyle");
         }
     }
 

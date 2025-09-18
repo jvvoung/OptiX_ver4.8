@@ -16,13 +16,11 @@
   <Target Name="PostBuildRelease" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
     <Exec Command="if not exist ..\publish mkdir ..\publish" />
     <Exec Command="xcopy /Y /E bin\Release\net8.0-windows7.0\*.* ..\publish\" />
-    <Exec Command="if exist ..\OptiX.ini copy ..\OptiX.ini ..\publish\" />
   </Target>
 
   <Target Name="PostBuildDebug" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
     <Exec Command="if not exist ..\publish_debug mkdir ..\publish_debug" />
     <Exec Command="xcopy /Y /E bin\Debug\net8.0-windows7.0\*.* ..\publish_debug\" />
-    <Exec Command="if exist ..\OptiX.ini copy ..\OptiX.ini ..\publish_debug\" />
   </Target>
 
 </Project>
