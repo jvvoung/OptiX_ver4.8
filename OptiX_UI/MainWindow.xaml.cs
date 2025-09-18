@@ -9,6 +9,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using System.IO;
 
 namespace OptiX;
 
@@ -23,11 +24,19 @@ public partial class MainWindow : Window
     private bool isIPVSHovered = false;
     private bool isDarkMode = false;
     private UserControl? currentPage;
+    private bool isMaximized = false;
+    private bool isResizing = false;
+    private Point resizeStartPoint;
+    private Size resizeStartSize;
+    private string resizeDirection = "";
+    private IniFileManager? iniManager;
 
     public MainWindow()
     {
         InitializeComponent();
         InitializeTimers();
+        InitializeIniManager();
+        LoadSettingsFromIni();
     }
 
     private void InitializeTimers()
@@ -74,6 +83,11 @@ public partial class MainWindow : Window
     private void MinimizeButton_Click(object sender, RoutedEventArgs e)
     {
         this.WindowState = WindowState.Minimized;
+    }
+
+    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        ToggleMaximize();
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)
@@ -434,13 +448,19 @@ public partial class MainWindow : Window
             titleText.Foreground = isDark ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Colors.White);
         }
         
-        // 최소화/닫기 버튼 텍스트 색상 업데이트
+        // 최소화/최대화/닫기 버튼 텍스트 색상 업데이트
         var minimizeButton = (Button)this.FindName("MinimizeButton");
+        var maximizeButton = (Button)this.FindName("MaximizeButton");
         var closeButton = (Button)this.FindName("CloseButton");
         
         if (minimizeButton != null)
         {
             minimizeButton.Foreground = isDark ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Colors.White);
+        }
+        
+        if (maximizeButton != null)
+        {
+            maximizeButton.Foreground = isDark ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Colors.White);
         }
         
         if (closeButton != null)
@@ -530,5 +550,237 @@ public partial class MainWindow : Window
         {
             mainPageContent.Visibility = Visibility.Visible;
         }
+    }
+
+    private void ToggleMaximize()
+    {
+        if (isMaximized)
+        {
+            // 복원
+            this.WindowState = WindowState.Normal;
+            isMaximized = false;
+            UpdateMaximizeButton();
+        }
+        else
+        {
+            // 최대화
+            this.WindowState = WindowState.Maximized;
+            isMaximized = true;
+            UpdateMaximizeButton();
+        }
+    }
+
+    private void UpdateMaximizeButton()
+    {
+        var maximizeButton = (Button)this.FindName("MaximizeButton");
+        if (maximizeButton != null)
+        {
+            maximizeButton.Content = isMaximized ? "❐" : "□";
+        }
+    }
+
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+        
+        // 창 상태가 변경될 때 최대화 상태 업데이트
+        if (this.WindowState == WindowState.Maximized)
+        {
+            isMaximized = true;
+        }
+        else if (this.WindowState == WindowState.Normal)
+        {
+            isMaximized = false;
+        }
+        
+        UpdateMaximizeButton();
+    }
+
+    private void ResizeHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (isMaximized) return; // 최대화 상태에서는 크기 조정 불가
+        
+        isResizing = true;
+        resizeStartPoint = e.GetPosition(this);
+        resizeStartSize = new Size(this.Width, this.Height);
+        
+        var handle = sender as Border;
+        if (handle != null)
+        {
+            resizeDirection = handle.Name switch
+            {
+                "TopResizeHandle" => "Top",
+                "BottomResizeHandle" => "Bottom",
+                "LeftResizeHandle" => "Left",
+                "RightResizeHandle" => "Right",
+                "TopLeftResizeHandle" => "TopLeft",
+                "TopRightResizeHandle" => "TopRight",
+                "BottomLeftResizeHandle" => "BottomLeft",
+                "BottomRightResizeHandle" => "BottomRight",
+                _ => ""
+            };
+            
+            // 클릭한 상태에서만 커서 변경
+            this.Cursor = resizeDirection switch
+            {
+                "Top" or "Bottom" => Cursors.SizeNS,
+                "Left" or "Right" => Cursors.SizeWE,
+                "TopLeft" or "BottomRight" => Cursors.SizeNWSE,
+                "TopRight" or "BottomLeft" => Cursors.SizeNESW,
+                _ => Cursors.Arrow
+            };
+        }
+        
+        this.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void ResizeHandle_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!isResizing || isMaximized) return;
+        
+        var currentPoint = e.GetPosition(this);
+        var deltaX = currentPoint.X - resizeStartPoint.X;
+        var deltaY = currentPoint.Y - resizeStartPoint.Y;
+        
+        // 부드러운 크기 조정을 위해 직접 계산
+        var newWidth = resizeStartSize.Width;
+        var newHeight = resizeStartSize.Height;
+        var newLeft = this.Left;
+        var newTop = this.Top;
+        
+        switch (resizeDirection)
+        {
+            case "Top":
+                newHeight = Math.Max(MinHeight, resizeStartSize.Height - deltaY);
+                newTop = this.Top + (resizeStartSize.Height - newHeight);
+                break;
+            case "Bottom":
+                newHeight = Math.Max(MinHeight, resizeStartSize.Height + deltaY);
+                break;
+            case "Left":
+                newWidth = Math.Max(MinWidth, resizeStartSize.Width - deltaX);
+                newLeft = this.Left + (resizeStartSize.Width - newWidth);
+                break;
+            case "Right":
+                newWidth = Math.Max(MinWidth, resizeStartSize.Width + deltaX);
+                break;
+            case "TopLeft":
+                newWidth = Math.Max(MinWidth, resizeStartSize.Width - deltaX);
+                newHeight = Math.Max(MinHeight, resizeStartSize.Height - deltaY);
+                newLeft = this.Left + (resizeStartSize.Width - newWidth);
+                newTop = this.Top + (resizeStartSize.Height - newHeight);
+                break;
+            case "TopRight":
+                newWidth = Math.Max(MinWidth, resizeStartSize.Width + deltaX);
+                newHeight = Math.Max(MinHeight, resizeStartSize.Height - deltaY);
+                newTop = this.Top + (resizeStartSize.Height - newHeight);
+                break;
+            case "BottomLeft":
+                newWidth = Math.Max(MinWidth, resizeStartSize.Width - deltaX);
+                newHeight = Math.Max(MinHeight, resizeStartSize.Height + deltaY);
+                newLeft = this.Left + (resizeStartSize.Width - newWidth);
+                break;
+            case "BottomRight":
+                newWidth = Math.Max(MinWidth, resizeStartSize.Width + deltaX);
+                newHeight = Math.Max(MinHeight, resizeStartSize.Height + deltaY);
+                break;
+        }
+        
+        // 즉시 크기 업데이트
+        this.Width = newWidth;
+        this.Height = newHeight;
+        this.Left = newLeft;
+        this.Top = newTop;
+        
+        e.Handled = true;
+    }
+
+    private void ResizeHandle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (isResizing)
+        {
+            isResizing = false;
+            this.Cursor = Cursors.Arrow; // 커서를 기본 화살표로 되돌리기
+            this.ReleaseMouseCapture();
+            e.Handled = true;
+        }
+    }
+
+    private void InitializeIniManager()
+    {
+        string iniPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OptiX.ini");
+        iniManager = new IniFileManager(iniPath);
+        
+        // INI 파일이 없으면 기본 파일 생성
+            // INI 파일이 없으면 기본값 사용
+    }
+
+    private void LoadSettingsFromIni()
+    {
+        if (iniManager == null) return;
+
+        try
+        {
+            // 창 크기 및 위치 로드
+            string widthStr = iniManager.ReadValue("Window", "Width", "1200");
+            string heightStr = iniManager.ReadValue("Window", "Height", "800");
+            string xStr = iniManager.ReadValue("Window", "X", "100");
+            string yStr = iniManager.ReadValue("Window", "Y", "100");
+            string isMaximizedStr = iniManager.ReadValue("Window", "IsMaximized", "False");
+
+            if (double.TryParse(widthStr, out double width) && double.TryParse(heightStr, out double height))
+            {
+                this.Width = Math.Max(width, MinWidth);
+                this.Height = Math.Max(height, MinHeight);
+            }
+
+            if (double.TryParse(xStr, out double x) && double.TryParse(yStr, out double y))
+            {
+                this.Left = x;
+                this.Top = y;
+            }
+
+            if (bool.TryParse(isMaximizedStr, out bool isMaximized) && isMaximized)
+            {
+                this.WindowState = WindowState.Maximized;
+                this.isMaximized = true;
+                UpdateMaximizeButton();
+            }
+
+            // 테마 설정 로드
+            string isDarkModeStr = iniManager.ReadValue("Theme", "IsDarkMode", "False");
+            if (bool.TryParse(isDarkModeStr, out bool darkMode) && darkMode)
+            {
+                SetDarkMode();
+            }
+
+            // 타이틀바 색상 로드
+            string titleBarColor = iniManager.ReadValue("Theme", "TitleBarColor", "#87CEEB");
+            var titleBar = (Border)this.FindName("TitleBar");
+            if (titleBar != null)
+            {
+                try
+                {
+                    titleBar.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(titleBarColor));
+                }
+                catch
+                {
+                    // 색상 파싱 실패 시 기본값 사용
+                    titleBar.Background = new SolidColorBrush(Color.FromRgb(135, 206, 235));
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine("INI 설정이 성공적으로 로드되었습니다.");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"INI 설정 로드 오류: {ex.Message}");
+        }
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
     }
 }

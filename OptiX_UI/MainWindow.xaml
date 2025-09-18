@@ -9,7 +9,10 @@
         Background="#F8F9FA"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
-        AllowsTransparency="True">
+        AllowsTransparency="True"
+        ResizeMode="CanResizeWithGrip"
+        MinWidth="800"
+        MinHeight="600">
     
     <Window.Resources>
         <!-- 모던 스타일 정의 -->
@@ -62,6 +65,83 @@
             <RowDefinition Height="2*"/>
             <RowDefinition Height="1*"/>
         </Grid.RowDefinitions>
+        
+        <!-- 크기 조정 핸들들 - 커서는 클릭 시에만 변경 -->
+        <!-- 상단 크기 조정 핸들 -->
+        <Border x:Name="TopResizeHandle" 
+                Grid.Row="0" 
+                Height="15" 
+                Background="Transparent" 
+                MouseLeftButtonDown="ResizeHandle_MouseLeftButtonDown"
+                MouseMove="ResizeHandle_MouseMove"
+                MouseLeftButtonUp="ResizeHandle_MouseLeftButtonUp"/>
+        
+        <!-- 하단 크기 조정 핸들 -->
+        <Border x:Name="BottomResizeHandle" 
+                Grid.Row="2" 
+                Height="15" 
+                Background="Transparent" 
+                MouseLeftButtonDown="ResizeHandle_MouseLeftButtonDown"
+                MouseMove="ResizeHandle_MouseMove"
+                MouseLeftButtonUp="ResizeHandle_MouseLeftButtonUp"/>
+        
+        <!-- 좌측 크기 조정 핸들 -->
+        <Border x:Name="LeftResizeHandle" 
+                Grid.Row="0" Grid.RowSpan="3"
+                Width="15" 
+                Background="Transparent" 
+                MouseLeftButtonDown="ResizeHandle_MouseLeftButtonDown"
+                MouseMove="ResizeHandle_MouseMove"
+                MouseLeftButtonUp="ResizeHandle_MouseLeftButtonUp"/>
+        
+        <!-- 우측 크기 조정 핸들 -->
+        <Border x:Name="RightResizeHandle" 
+                Grid.Row="0" Grid.RowSpan="3"
+                Width="15" 
+                Background="Transparent" 
+                MouseLeftButtonDown="ResizeHandle_MouseLeftButtonDown"
+                MouseMove="ResizeHandle_MouseMove"
+                MouseLeftButtonUp="ResizeHandle_MouseLeftButtonUp"
+                HorizontalAlignment="Right"/>
+        
+        <!-- 모서리 크기 조정 핸들들 -->
+        <!-- 좌상단 모서리 -->
+        <Border x:Name="TopLeftResizeHandle" 
+                Grid.Row="0"
+                Width="20" Height="20" 
+                Background="Transparent" 
+                MouseLeftButtonDown="ResizeHandle_MouseLeftButtonDown"
+                MouseMove="ResizeHandle_MouseMove"
+                MouseLeftButtonUp="ResizeHandle_MouseLeftButtonUp"/>
+        
+        <!-- 우상단 모서리 -->
+        <Border x:Name="TopRightResizeHandle" 
+                Grid.Row="0"
+                Width="20" Height="20" 
+                Background="Transparent" 
+                MouseLeftButtonDown="ResizeHandle_MouseLeftButtonDown"
+                MouseMove="ResizeHandle_MouseMove"
+                MouseLeftButtonUp="ResizeHandle_MouseLeftButtonUp"
+                HorizontalAlignment="Right"/>
+        
+        <!-- 좌하단 모서리 -->
+        <Border x:Name="BottomLeftResizeHandle" 
+                Grid.Row="2"
+                Width="20" Height="20" 
+                Background="Transparent" 
+                MouseLeftButtonDown="ResizeHandle_MouseLeftButtonDown"
+                MouseMove="ResizeHandle_MouseMove"
+                MouseLeftButtonUp="ResizeHandle_MouseLeftButtonUp"/>
+        
+        <!-- 우하단 모서리 -->
+        <Border x:Name="BottomRightResizeHandle" 
+                Grid.Row="2"
+                Width="20" Height="20" 
+                Background="Transparent" 
+                MouseLeftButtonDown="ResizeHandle_MouseLeftButtonDown"
+                MouseMove="ResizeHandle_MouseMove"
+                MouseLeftButtonUp="ResizeHandle_MouseLeftButtonUp"
+                HorizontalAlignment="Right"/>
         
         <!-- 커스텀 타이틀바 -->
         <Border x:Name="TitleBar" 
@@ -134,6 +214,16 @@
                            FontSize="14" 
                            FontWeight="Bold"
                            Click="MinimizeButton_Click"/>
+                    <Button x:Name="MaximizeButton" 
+                           Content="□" 
+                           Width="40" 
+                           Height="30" 
+                           Background="Transparent" 
+                           BorderThickness="0" 
+                           Foreground="White" 
+                           FontSize="14" 
+                           FontWeight="Bold"
+                           Click="MaximizeButton_Click"/>
                     <Button x:Name="CloseButton" 
                            Content="✕" 
                            Width="40" 
