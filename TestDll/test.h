@@ -1,24 +1,23 @@
 #pragma once
-#include "pch.h"
-#include <iostream>
-#include <vector>
-#include <algorithm>
-#include <string>
+#ifdef __cplusplus
+extern "C" {
+#endif
+    struct input {
+        char CELL_ID[256];
+        char INNER_ID[256];
+        int total_point;
+        int cur_point;
+    };
 
-using namespace std;
+    struct pattern {
+        int x, y, L, cur, eff;
+    };
 
-struct input {
-	string name;
-	int total_point;
-	int cur_point;
-};
+    struct output {
+        struct pattern data[7][17]; // struct 키워드 명시
+    };
 
-struct pattern {
-	int x, y, L, cur, eff;
-};
-
-struct output {
-	pattern data[7][3];
-};
-
-extern "C" __declspec(dllexport) int test(input* in, output* out);
+    __declspec(dllexport) int test(struct input* in, struct output* out);
+#ifdef __cplusplus
+}
+#endif

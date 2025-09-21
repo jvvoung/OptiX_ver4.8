@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "OptiX_UI": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

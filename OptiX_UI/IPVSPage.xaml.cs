@@ -7,13 +7,14 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
+using OptiX.Models;
 
 namespace OptiX
 {
     /// <summary>
     /// IPVSPage.xaml에 대한 상호 작용 논리
     /// </summary>
-    public partial class IPVSPage : UserControl
+    public partial class IPVSPage : System.Windows.Controls.UserControl
     {
         public event EventHandler? BackRequested;
         
@@ -90,8 +91,8 @@ namespace OptiX
         {
             try
             {
-                string darkModeStr = iniManager.ReadValue("Theme", "IsDarkMode", "False");
-                isDarkMode = bool.Parse(darkModeStr);
+                string darkModeStr = iniManager.ReadValue("Theme", "IsDarkMode", "F");
+                isDarkMode = darkModeStr.ToUpper() == "T";
                 ApplyTheme();
             }
             catch (Exception ex)
@@ -499,6 +500,25 @@ namespace OptiX
             
             // 클릭된 버튼 활성화
             clickedButton.Style = (Style)FindResource("ActiveZoneButtonStyle");
+        }
+
+        private void SetPathButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var pathSettingWindow = new PathSettingWindow("IPVS_PATHS", isDarkMode); // 현재 테마 상태 전달
+                pathSettingWindow.Owner = Application.Current.MainWindow;
+                pathSettingWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+
+                if (pathSettingWindow.ShowDialog() == true)
+                {
+                    MessageBox.Show("IPVS 경로 설정이 완료되었습니다.", "알림", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"경로 설정 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }

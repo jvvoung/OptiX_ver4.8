@@ -134,5 +134,105 @@ namespace OptiX
             return File.Exists(_filePath);
         }
 
+        // INI 파일에 값 쓰기
+        public void WriteValue(string section, string key, string value)
+        {
+            try
+            {
+                // INI 파일이 존재하지 않으면 생성
+                if (!File.Exists(_filePath))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(_filePath));
+                    File.Create(_filePath).Close();
+                }
+
+                // 파일 내용 읽기
+                List<string> lines = new List<string>();
+                if (File.Exists(_filePath))
+                {
+                    lines.AddRange(File.ReadAllLines(_filePath));
+                }
+
+                // 섹션 찾기 또는 생성
+                int sectionIndex = FindSectionIndex(lines, section);
+                if (sectionIndex == -1)
+                {
+                    // 섹션이 없으면 추가
+                    if (lines.Count > 0 && !string.IsNullOrWhiteSpace(lines[lines.Count - 1]))
+                    {
+                        lines.Add(""); // 빈 줄 추가
+                    }
+                    lines.Add($"[{section}]");
+                    sectionIndex = lines.Count - 1;
+                }
+
+                // 키 찾기 또는 생성
+                int keyIndex = FindKeyIndex(lines, sectionIndex, key);
+                if (keyIndex == -1)
+                {
+                    // 키가 없으면 섹션 다음에 추가
+                    lines.Insert(sectionIndex + 1, $"{key}={value}");
+                }
+                else
+                {
+                    // 키가 있으면 값 업데이트
+                    lines[keyIndex] = $"{key}={value}";
+                }
+
+                // 파일에 쓰기
+                File.WriteAllLines(_filePath, lines);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"INI 파일 쓰기 오류: {ex.Message}");
+                throw;
+            }
+        }
+
+        // 섹션 인덱스 찾기
+        private int FindSectionIndex(List<string> lines, string section)
+        {
+            for (int i = 0; i < lines.Count; i++)
+            {
+                string line = lines[i].Trim();
+                if (line.StartsWith("[") && line.EndsWith("]"))
+                {
+                    string currentSection = line.Substring(1, line.Length - 2);
+                    if (currentSection.Equals(section, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return i;
+                    }
+                }
+            }
+            return -1;
+        }
+
+        // 키 인덱스 찾기 (특정 섹션 내에서)
+        private int FindKeyIndex(List<string> lines, int sectionIndex, string key)
+        {
+            for (int i = sectionIndex + 1; i < lines.Count; i++)
+            {
+                string line = lines[i].Trim();
+                
+                // 다음 섹션을 만나면 중단
+                if (line.StartsWith("[") && line.EndsWith("]"))
+                {
+                    break;
+                }
+
+                // 키=값 형태인지 확인
+                if (line.Contains("="))
+                {
+                    int equalIndex = line.IndexOf('=');
+                    string currentKey = line.Substring(0, equalIndex).Trim();
+                    if (currentKey.Equals(key, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return i;
+                    }
+                }
+            }
+            return -1;
+        }
+
     }
 }

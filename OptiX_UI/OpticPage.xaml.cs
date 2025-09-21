@@ -1,125 +1,65 @@
 using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Media;
+using OptiX.ViewModels;
 
 namespace OptiX
 {
-    /// <summary>
-    /// OpticPage.xaml에 대한 상호 작용 논리
-    /// </summary>
     public partial class OpticPage : UserControl
     {
-        public event EventHandler? BackRequested;
-        
-        private IniFileManager iniManager;
-        private ObservableCollection<DataTableItem> dataItems;
-        private bool isDarkMode = false;
+        public event EventHandler BackRequested;
+        private OpticPageViewModel viewModel;
         
         public OpticPage()
         {
             InitializeComponent();
-            InitializeIniManager();
-            LoadDataFromIni();
-            InitializeDataTable();
-            LoadThemeFromIni();
-        }
+            viewModel = new OpticPageViewModel();
+            DataContext = viewModel;
 
-        private void InitializeIniManager()
-        {
-            string iniPath = @"D:\OptiX\Recipe\OptiX.ini";
-            iniManager = new IniFileManager(iniPath);
-        }
-
-        private void LoadDataFromIni()
-        {
-            try
-            {
-                // MTP 섹션에서 Zone과 Category 읽기
-                string zoneCountStr = iniManager.ReadValue("MTP", "Zone", "2");
-                string categoriesStr = iniManager.ReadValue("MTP", "Category", "R,G,B");
-
-                int zoneCount = int.Parse(zoneCountStr);
-                string[] categories = categoriesStr.Split(',');
-
-                dataItems = new ObservableCollection<DataTableItem>();
-
-                // Zone과 Category에 따라 데이터 생성
-                for (int zone = 1; zone <= zoneCount; zone++)
+            // DataItems 변경 감지 (원래대로)
+            viewModel.PropertyChanged += (s, e) => {
+                if (e.PropertyName == nameof(viewModel.DataItems))
                 {
-                    for (int i = 0; i < categories.Length; i++)
-                    {
-                        string category = categories[i].Trim();
-                        dataItems.Add(new DataTableItem
-                        {
-                            Zone = zone.ToString(), // 모든 행에 Zone 표시 (그룹화를 위해)
-                            InnerId = "", // Inner ID는 빈 값으로 설정
-                            CellId = "", // Cell ID는 빈 값으로 설정
-                            Category = category,
-                            X = "",
-                            Y = "",
-                            L = "",
-                            Current = "",
-                            Efficiency = "",
-                            ErrorName = "",
-                            Tact = "",
-                            Judgment = "",
-                            IsFirstInGroup = i == 0, // 그룹의 첫 번째 행인지 표시
-                            GroupSize = categories.Length // 그룹 크기
-                        });
-                    }
+                    // DataItems가 변경되었을 때만 테이블 다시 그리기
+                    CreateDataRows();
                 }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"INI 파일을 읽는 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            };
+
+            // 테이블 생성 및 Zone 버튼 생성
+            Loaded += (s, e) => {
+                CreateCustomTable();
+                CreateZoneButtons();
+            };
         }
 
-        private void InitializeDataTable()
+        public void SetDarkMode(bool isDarkMode)
         {
-            CreateCustomTable();
-            CreateZoneButtons();
-        }
-
-        private void LoadThemeFromIni()
-        {
-            try
+            // ViewModel에 다크모드 상태 전달
+            if (viewModel != null)
             {
-                string darkModeStr = iniManager.ReadValue("Theme", "IsDarkMode", "False");
-                isDarkMode = bool.Parse(darkModeStr);
-                ApplyTheme();
+                viewModel.IsDarkMode = isDarkMode;
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"테마 설정을 읽는 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void ApplyTheme()
-        {
+            
+            // IPVSPage와 동일한 방식으로 다크모드 적용
             if (isDarkMode)
             {
-                // 다크모드 색상 적용
                 UpdateDynamicColors(true);
-                UpdateTableColors(true);
             }
             else
             {
-                // 라이트모드 색상 적용
                 UpdateDynamicColors(false);
-                UpdateTableColors(false);
             }
+            
+            // 테이블과 Zone 버튼을 다시 생성하여 올바른 색상 적용 (IPVSPage와 동일)
+            CreateCustomTable();
+            CreateZoneButtons();
         }
-
+        
         private void UpdateDynamicColors(bool isDark)
         {
-            // 동적 색상 팔레트 업데이트
+            // IPVSPage와 동일한 동적 색상 팔레트 업데이트
             if (isDark)
             {
                 // 다크모드 색상으로 변경
@@ -144,36 +84,252 @@ namespace OptiX
             }
         }
 
-        private void UpdateTableColors(bool isDark)
+        private void CreateCustomTable()
         {
-            // 테이블을 다시 생성하여 올바른 색상 적용
-            CreateCustomTable();
+            try
+            {
+                // 기존 내용 클리어
+                DataTableGrid.RowDefinitions.Clear();
+                DataTableGrid.Children.Clear();
+
+                // 헤더 행 추가
+                CreateHeaderRow();
+
+                // 데이터 행들 추가
+                CreateDataRows();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"커스텀 테이블 생성 오류: {ex.Message}");
+            }
         }
 
-        public void ToggleDarkMode()
+        private void CreateHeaderRow()
         {
-            isDarkMode = !isDarkMode;
-            ApplyTheme();
+            // 헤더 행 정의
+            DataTableGrid.RowDefinitions.Add(new RowDefinition { Height = new System.Windows.GridLength(45) });
+
+            string[] headers = { "Zone", "Inner ID", "Cell ID", "Category", "X", "Y", "L", "Current", "Efficiency", "Error Name", "Tact", "Judgment" };
+            
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var headerBorder = new Border
+                {
+                    Background = (System.Windows.Media.SolidColorBrush)FindResource("PrimaryColor"),
+                    BorderBrush = (System.Windows.Media.SolidColorBrush)FindResource("PrimaryColor"),
+                    BorderThickness = new System.Windows.Thickness(1),
+                    Child = new TextBlock
+                    {
+                        Text = headers[i],
+                        HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                        VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                        FontWeight = System.Windows.FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(Colors.White),
+                        FontSize = 13
+                    }
+                };
+
+                Grid.SetColumn(headerBorder, i);
+                Grid.SetRow(headerBorder, 0);
+                DataTableGrid.Children.Add(headerBorder);
+            }
         }
-        
-        public void SetDarkMode(bool darkMode)
+
+        private void CreateDataRows()
         {
-            isDarkMode = darkMode;
-            ApplyTheme();
+            if (viewModel?.DataItems == null || viewModel.DataItems.Count == 0) return;
+
+            System.Diagnostics.Debug.WriteLine($"CreateDataRows: 전체 아이템 개수 = {viewModel.DataItems.Count}");
+
+            // 기존 데이터 행들만 제거 (헤더는 유지)
+            var existingDataChildren = DataTableGrid.Children.Cast<UIElement>()
+                .Where(child => Grid.GetRow(child) > 0).ToList();
+
+            foreach (var child in existingDataChildren)
+            {
+                DataTableGrid.Children.Remove(child);
+            }
+
+            // 기존 행 정의들 제거 (헤더 행은 유지)
+            while (DataTableGrid.RowDefinitions.Count > 1)
+            {
+                DataTableGrid.RowDefinitions.RemoveAt(DataTableGrid.RowDefinitions.Count - 1);
+            }
+
+            // Zone별로 그룹화 (모든 Zone 표시)
+            var groupedData = viewModel.DataItems.GroupBy(item => item.Zone).ToList();
+
+            foreach (var zoneGroup in groupedData)
+            {
+                var zoneItems = zoneGroup.ToList();
+                var firstItem = zoneItems.First();
+
+                // 각 Zone의 카테고리 개수만큼 행 생성
+                for (int i = 0; i < zoneItems.Count; i++)
+                {
+                    DataTableGrid.RowDefinitions.Add(new RowDefinition { Height = new System.Windows.GridLength(32) });
+                    int currentRow = DataTableGrid.RowDefinitions.Count - 1;
+                    var currentItem = zoneItems[i];
+
+                    // Zone 컬럼 (첫 번째 행에서만 표시, RowSpan 적용)
+                    if (i == 0)
+                    {
+                        var zoneBorder = new Border
+                        {
+                            Background = (System.Windows.Media.SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                            BorderBrush = (System.Windows.Media.SolidColorBrush)FindResource("DynamicBorderColor"),
+                            BorderThickness = new System.Windows.Thickness(1),
+                            Child = new TextBlock
+                            {
+                                Text = firstItem.Zone,
+                                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                                VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                                FontWeight = System.Windows.FontWeights.SemiBold,
+                                Foreground = (System.Windows.Media.SolidColorBrush)FindResource("DynamicTextPrimaryColor")
+                            }
+                        };
+                        Grid.SetColumn(zoneBorder, 0);
+                        Grid.SetRow(zoneBorder, currentRow);
+                        Grid.SetRowSpan(zoneBorder, zoneItems.Count);
+                        DataTableGrid.Children.Add(zoneBorder);
+                    }
+
+                    // Inner ID 컬럼 (첫 번째 행에서만 표시, RowSpan 적용)
+                    if (i == 0)
+                    {
+                        var innerIdBorder = new Border
+                        {
+                            Background = (System.Windows.Media.SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                            BorderBrush = (System.Windows.Media.SolidColorBrush)FindResource("DynamicBorderColor"),
+                            BorderThickness = new System.Windows.Thickness(1),
+                            Child = new TextBlock
+                            {
+                                Text = firstItem.InnerId,
+                                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                                VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                                FontWeight = System.Windows.FontWeights.Medium,
+                                Foreground = (System.Windows.Media.SolidColorBrush)FindResource("DynamicTextPrimaryColor")
+                            }
+                        };
+                        Grid.SetColumn(innerIdBorder, 1);
+                        Grid.SetRow(innerIdBorder, currentRow);
+                        Grid.SetRowSpan(innerIdBorder, zoneItems.Count);
+                        DataTableGrid.Children.Add(innerIdBorder);
+                    }
+
+                    // Cell ID 컬럼 (첫 번째 행에서만 표시, RowSpan 적용)
+                    if (i == 0)
+                    {
+                        var cellIdBorder = new Border
+                        {
+                            Background = (System.Windows.Media.SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                            BorderBrush = (System.Windows.Media.SolidColorBrush)FindResource("DynamicBorderColor"),
+                            BorderThickness = new System.Windows.Thickness(1),
+                            Child = new TextBlock
+                            {
+                                Text = firstItem.CellId,
+                                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                                VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                                FontWeight = System.Windows.FontWeights.Medium,
+                                Foreground = (System.Windows.Media.SolidColorBrush)FindResource("DynamicTextPrimaryColor")
+                            }
+                        };
+                        Grid.SetColumn(cellIdBorder, 2);
+                        Grid.SetRow(cellIdBorder, currentRow);
+                        Grid.SetRowSpan(cellIdBorder, zoneItems.Count);
+                        DataTableGrid.Children.Add(cellIdBorder);
+                    }
+
+                    // Category 컬럼 (각 행마다 개별 표시)
+                    var categoryBorder = new Border
+                    {
+                        Background = (System.Windows.Media.SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                        BorderBrush = (System.Windows.Media.SolidColorBrush)FindResource("DynamicBorderColor"),
+                        BorderThickness = new System.Windows.Thickness(1),
+                        Child = new TextBlock
+                        {
+                            Text = currentItem.Category,
+                            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                            VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                            FontWeight = System.Windows.FontWeights.Medium,
+                            Foreground = (System.Windows.Media.SolidColorBrush)FindResource("DynamicTextPrimaryColor")
+                        }
+                    };
+                    Grid.SetColumn(categoryBorder, 3);
+                    Grid.SetRow(categoryBorder, currentRow);
+                    DataTableGrid.Children.Add(categoryBorder);
+
+                    // X, Y, L, Current, Efficiency 컬럼들 (각 행마다 개별 표시)
+                    string[] dataValues = { currentItem.X, currentItem.Y, currentItem.L, currentItem.Current, currentItem.Efficiency };
+                    int[] dataColumns = { 4, 5, 6, 7, 8 };
+
+                    for (int j = 0; j < dataValues.Length; j++)
+                    {
+                        var dataBorder = new Border
+                        {
+                            Background = (System.Windows.Media.SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                            BorderBrush = (System.Windows.Media.SolidColorBrush)FindResource("DynamicBorderColor"),
+                            BorderThickness = new System.Windows.Thickness(1),
+                            Child = new TextBlock
+                            {
+                                Text = dataValues[j],
+                                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                                VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                                FontWeight = System.Windows.FontWeights.Normal,
+                                Foreground = (System.Windows.Media.SolidColorBrush)FindResource("DynamicTextPrimaryColor")
+                            }
+                        };
+                        Grid.SetColumn(dataBorder, dataColumns[j]);
+                        Grid.SetRow(dataBorder, currentRow);
+                        DataTableGrid.Children.Add(dataBorder);
+                    }
+
+                    // Error Name, Tact, Judgment 컬럼들 (첫 번째 행에서만 표시, RowSpan 적용)
+                    if (i == 0)
+                    {
+                        string[] mergedValues = { firstItem.ErrorName, firstItem.Tact, firstItem.Judgment };
+                        int[] mergedColumns = { 9, 10, 11 };
+
+                        for (int k = 0; k < mergedValues.Length; k++)
+                        {
+                            var mergedBorder = new Border
+                            {
+                                Background = (System.Windows.Media.SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                                BorderBrush = (System.Windows.Media.SolidColorBrush)FindResource("DynamicBorderColor"),
+                                BorderThickness = new System.Windows.Thickness(1),
+                                Child = new TextBlock
+                                {
+                                    Text = mergedValues[k],
+                                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                                    VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                                    FontWeight = System.Windows.FontWeights.Medium,
+                                    Foreground = (System.Windows.Media.SolidColorBrush)FindResource("DynamicTextPrimaryColor")
+                                }
+                            };
+                            Grid.SetColumn(mergedBorder, mergedColumns[k]);
+                            Grid.SetRow(mergedBorder, currentRow);
+                            Grid.SetRowSpan(mergedBorder, zoneItems.Count);
+                            DataTableGrid.Children.Add(mergedBorder);
+                        }
+                    }
+                }
+            }
         }
 
         private void CreateZoneButtons()
         {
-            // 기존 Zone 버튼들 제거
-            ZoneButtonsPanel.Children.Clear();
-
             try
             {
-                // INI 파일에서 Zone 개수 읽기
-                string zoneCountStr = iniManager.ReadValue("MTP", "Zone", "2");
+                var zoneButtonsPanel = this.FindName("ZoneButtonsPanel") as StackPanel;
+                if (zoneButtonsPanel == null) return;
+
+                // 기존 버튼들 제거
+                zoneButtonsPanel.Children.Clear();
+
+                // INI에서 Zone 개수 읽기
+                string zoneCountStr = viewModel.iniManager.ReadValue("MTP", "Zone", "2");
                 int zoneCount = int.Parse(zoneCountStr);
 
-                // Zone 개수만큼 모던 버튼 생성
                 for (int i = 1; i <= zoneCount; i++)
                 {
                     var zoneButton = new Button
@@ -184,7 +340,7 @@ namespace OptiX
                         FontSize = 12,
                         FontWeight = FontWeights.Bold,
                         Margin = new Thickness(3, 0, 3, 0),
-                        Tag = i
+                        Tag = i - 1 // 0-based index
                     };
 
                     // 첫 번째 버튼은 활성화 상태
@@ -197,292 +353,41 @@ namespace OptiX
                         zoneButton.Style = (Style)FindResource("ZoneButtonStyle");
                     }
 
-                    zoneButton.Click += ZoneButton_Click;
-                    ZoneButtonsPanel.Children.Add(zoneButton);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Zone 버튼을 생성하는 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private ControlTemplate CreateCircleButtonTemplate()
-        {
-            var template = new ControlTemplate(typeof(Button));
-            
-            var border = new FrameworkElementFactory(typeof(Border));
-            border.Name = "border";
-            border.SetBinding(Border.BackgroundProperty, new Binding("Background") { RelativeSource = RelativeSource.TemplatedParent });
-            border.SetBinding(Border.BorderBrushProperty, new Binding("BorderBrush") { RelativeSource = RelativeSource.TemplatedParent });
-            border.SetBinding(Border.BorderThicknessProperty, new Binding("BorderThickness") { RelativeSource = RelativeSource.TemplatedParent });
-            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(20)); // 원래 크기
-            
-            var contentPresenter = new FrameworkElementFactory(typeof(ContentPresenter));
-            contentPresenter.SetBinding(ContentPresenter.ContentProperty, new Binding("Content") { RelativeSource = RelativeSource.TemplatedParent });
-            contentPresenter.SetBinding(ContentPresenter.HorizontalAlignmentProperty, new Binding("HorizontalContentAlignment") { RelativeSource = RelativeSource.TemplatedParent });
-            contentPresenter.SetBinding(ContentPresenter.VerticalAlignmentProperty, new Binding("VerticalContentAlignment") { RelativeSource = RelativeSource.TemplatedParent });
-            
-            border.AppendChild(contentPresenter);
-            template.VisualTree = border;
-            
-            return template;
-        }
-
-        private void CreateCustomTable()
-        {
-            try
-            {
-                // 기존 행들 제거
-                DataTableGrid.RowDefinitions.Clear();
-                DataTableGrid.Children.Clear();
-
-                // 헤더 행 추가
-                DataTableGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(40) });
-
-                // 헤더 생성
-                CreateHeaderRow();
-
-                // INI에서 카테고리 개수 읽기
-                string categoriesStr = iniManager.ReadValue("MTP", "Category", "R,G,B");
-                string[] categories = categoriesStr.Split(',');
-                int categoryCount = categories.Length;
-
-                // Zone별로 그룹화하여 처리 (빈 Zone 제외하지 않음)
-                var zoneGroups = dataItems.GroupBy(item => item.Zone).ToList();
-
-                foreach (var zoneGroup in zoneGroups)
-                {
-                    var groupItems = zoneGroup.ToList();
-
-                    // 실제 데이터 개수만큼 행 추가
-                    for (int i = 0; i < groupItems.Count; i++)
-                    {
-                        DataTableGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(32) });
-                    }
-
-                    // 첫 번째 행에서 병합된 셀들 생성
-                    var firstItem = groupItems.First();
-
-                    // Zone 열 (행 병합) - 실제 데이터 개수만큼 병합
-                    var zoneBorder = new Border
-                    {
-                        Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
-                        BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
-                        BorderThickness = new Thickness(0, 0, 1, 1)
-                    };
-                    var zoneText = new TextBlock
-                    {
-                        Text = firstItem.Zone,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        FontWeight = FontWeights.Bold,
-                        FontSize = 14,
-                        Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
-                    };
-                    zoneBorder.Child = zoneText;
-                    Grid.SetRow(zoneBorder, DataTableGrid.RowDefinitions.Count - groupItems.Count);
-                    Grid.SetColumn(zoneBorder, 0);
-                    Grid.SetRowSpan(zoneBorder, groupItems.Count);
-                    DataTableGrid.Children.Add(zoneBorder);
-
-                    // Cell ID 열 (행 병합) - 실제 데이터 개수만큼 병합
-                    var cellIdBorder = new Border
-                    {
-                        Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
-                        BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
-                        BorderThickness = new Thickness(0, 0, 1, 1)
-                    };
-                    var cellIdText = new TextBlock
-                    {
-                        Text = firstItem.CellId,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        FontSize = 14,
-                        Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
-                    };
-                    cellIdBorder.Child = cellIdText;
-                    Grid.SetRow(cellIdBorder, DataTableGrid.RowDefinitions.Count - groupItems.Count);
-                    Grid.SetColumn(cellIdBorder, 1);
-                    Grid.SetRowSpan(cellIdBorder, groupItems.Count);
-                    DataTableGrid.Children.Add(cellIdBorder);
-
-                    // Inner ID 열 (행 병합) - 실제 데이터 개수만큼 병합
-                    var innerIdBorder = new Border
-                    {
-                        Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
-                        BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
-                        BorderThickness = new Thickness(0, 0, 1, 1)
-                    };
-                    var innerIdText = new TextBlock
-                    {
-                        Text = firstItem.InnerId,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        FontSize = 14,
-                        Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
-                    };
-                    innerIdBorder.Child = innerIdText;
-                    Grid.SetRow(innerIdBorder, DataTableGrid.RowDefinitions.Count - groupItems.Count);
-                    Grid.SetColumn(innerIdBorder, 2);
-                    Grid.SetRowSpan(innerIdBorder, groupItems.Count);
-                    DataTableGrid.Children.Add(innerIdBorder);
-
-                    // Error Name 열 (행 병합) - 실제 데이터 개수만큼 병합
-                    var errorNameBorder = new Border
-                    {
-                        Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
-                        BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
-                        BorderThickness = new Thickness(0, 0, 1, 1)
-                    };
-                    var errorNameText = new TextBlock
-                    {
-                        Text = firstItem.ErrorName,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        FontSize = 14,
-                        Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
-                    };
-                    errorNameBorder.Child = errorNameText;
-                    Grid.SetRow(errorNameBorder, DataTableGrid.RowDefinitions.Count - groupItems.Count);
-                    Grid.SetColumn(errorNameBorder, 9);
-                    Grid.SetRowSpan(errorNameBorder, groupItems.Count);
-                    DataTableGrid.Children.Add(errorNameBorder);
-
-                    // Tact 열 (행 병합) - 실제 데이터 개수만큼 병합
-                    var tactBorder = new Border
-                    {
-                        Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
-                        BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
-                        BorderThickness = new Thickness(0, 0, 1, 1)
-                    };
-                    var tactText = new TextBlock
-                    {
-                        Text = firstItem.Tact,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        FontSize = 14,
-                        Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
-                    };
-                    tactBorder.Child = tactText;
-                    Grid.SetRow(tactBorder, DataTableGrid.RowDefinitions.Count - groupItems.Count);
-                    Grid.SetColumn(tactBorder, 10);
-                    Grid.SetRowSpan(tactBorder, groupItems.Count);
-                    DataTableGrid.Children.Add(tactBorder);
-
-                    // 판정 열 (행 병합) - 실제 데이터 개수만큼 병합
-                    var judgmentBorder = new Border
-                    {
-                        Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
-                        BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
-                        BorderThickness = new Thickness(0, 0, 0, 1)
-                    };
-                    var judgmentText = new TextBlock
-                    {
-                        Text = firstItem.Judgment,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        FontSize = 14,
-                        Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
-                    };
-                    judgmentBorder.Child = judgmentText;
-                    Grid.SetRow(judgmentBorder, DataTableGrid.RowDefinitions.Count - groupItems.Count);
-                    Grid.SetColumn(judgmentBorder, 11);
-                    Grid.SetRowSpan(judgmentBorder, groupItems.Count);
-                    DataTableGrid.Children.Add(judgmentBorder);
-
-                    // 각 행별로 항목, x, y, L, 전류, 효율 열들 생성 - 실제 데이터 개수만큼
-                    for (int i = 0; i < groupItems.Count; i++)
-                    {
-                        var item = groupItems[i];
-                        int currentRow = DataTableGrid.RowDefinitions.Count - groupItems.Count + i;
-
-                        // 항목 열
-                        var categoryBorder = new Border
+                    zoneButton.Click += (s, e) => {
+                        if (s is Button btn && btn.Tag is int zoneIndex)
                         {
-                            Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
-                            BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
-                            BorderThickness = new Thickness(0, 0, 1, 1)
-                        };
-                        var categoryText = new TextBlock
-                        {
-                            Text = item.Category,
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            VerticalAlignment = VerticalAlignment.Center,
-                            FontSize = 14,
-                            Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
-                        };
-                        categoryBorder.Child = categoryText;
-                        Grid.SetRow(categoryBorder, currentRow);
-                        Grid.SetColumn(categoryBorder, 3);
-                        DataTableGrid.Children.Add(categoryBorder);
+                            viewModel.CurrentZone = zoneIndex;
 
-                        // x, y, L, 전류, 효율 열들
-                        string[] values = { item.X, item.Y, item.L, item.Current, item.Efficiency };
-
-                        for (int j = 0; j < values.Length; j++)
-                        {
-                            var border = new Border
+                            // 모든 Zone 버튼 스타일 초기화
+                            foreach (var child in zoneButtonsPanel.Children)
                             {
-                                Background = (SolidColorBrush)FindResource("DynamicSurfaceColor"),
-                                BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
-                                BorderThickness = new Thickness(0, 0, 1, 1)
-                            };
-                            var text = new TextBlock
-                            {
-                                Text = values[j],
-                                HorizontalAlignment = HorizontalAlignment.Center,
-                                VerticalAlignment = VerticalAlignment.Center,
-                                FontSize = 14,
-                                Foreground = (SolidColorBrush)FindResource("DynamicTextPrimaryColor")
-                            };
-                            border.Child = text;
-                            Grid.SetRow(border, currentRow);
-                            Grid.SetColumn(border, 4 + j);
-                            DataTableGrid.Children.Add(border);
+                                if (child is Button childBtn)
+                                {
+                                    childBtn.Style = (Style)FindResource("ZoneButtonStyle");
+                                }
+                            }
+
+                            // 선택된 버튼 스타일 변경
+                            btn.Style = (Style)FindResource("ActiveZoneButtonStyle");
+
+                            // CreateCustomTable() 호출 제거 - 테이블을 다시 그리지 않음
+                            System.Diagnostics.Debug.WriteLine($"Zone {zoneIndex + 1} 선택됨. 테이블 재생성 안함.");
                         }
-                    }
+                    };
+
+                    zoneButtonsPanel.Children.Add(zoneButton);
+                }
+
+                // 첫 번째 Zone을 기본 선택
+                if (zoneButtonsPanel.Children.Count > 0)
+                {
+                    viewModel.CurrentZone = 0;
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"테이블 생성 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"Zone 버튼 생성 오류: {ex.Message}");
             }
-        }
-        
-        private void CreateHeaderRow()
-        {
-            string[] headers = { "Zone", "Cell ID", "Inner ID", "항목", "x", "y", "L", "전류", "효율", "Error Name", "Tact", "판정" };
-            
-            for (int i = 0; i < headers.Length; i++)
-            {
-                Border header = new Border
-                {
-                    Background = (SolidColorBrush)FindResource("PrimaryColor"),
-                    BorderBrush = (SolidColorBrush)FindResource("DynamicBorderColor"),
-                    BorderThickness = new Thickness(0, 0, i == headers.Length - 1 ? 0 : 1, 1)
-                };
-                
-                TextBlock headerText = new TextBlock
-                {
-                    Text = headers[i],
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Foreground = Brushes.White,
-                    FontWeight = FontWeights.SemiBold,
-                    FontSize = 14
-                };
-                
-                header.Child = headerText;
-                Grid.SetRow(header, 0);
-                Grid.SetColumn(header, i);
-                DataTableGrid.Children.Add(header);
-            }
-        }
-
-        private void BackButton_Click(object sender, RoutedEventArgs e)
-        {
-            BackRequested?.Invoke(this, EventArgs.Empty);
         }
 
         private void GraphTab_Click(object sender, RoutedEventArgs e)
@@ -510,38 +415,5 @@ namespace OptiX
             TotalContent.Visibility = Visibility.Visible;
             GraphContent.Visibility = Visibility.Collapsed;
         }
-
-        private void ZoneButton_Click(object sender, RoutedEventArgs e)
-        {
-            Button clickedButton = sender as Button;
-            
-            // 모든 Zone 버튼 비활성화
-            foreach (Button button in ZoneButtonsPanel.Children.OfType<Button>())
-            {
-                button.Style = (Style)FindResource("ZoneButtonStyle");
-            }
-            
-            // 클릭된 버튼 활성화
-            clickedButton.Style = (Style)FindResource("ActiveZoneButtonStyle");
-        }
-    }
-
-    // 데이터 테이블 아이템 클래스
-    public class DataTableItem
-    {
-        public string Zone { get; set; } = "";
-        public string InnerId { get; set; } = "";
-        public string CellId { get; set; } = "";
-        public string Category { get; set; } = "";
-        public string X { get; set; } = "";
-        public string Y { get; set; } = "";
-        public string L { get; set; } = "";
-        public string Current { get; set; } = "";
-        public string Efficiency { get; set; } = "";
-        public string ErrorName { get; set; } = "";
-        public string Tact { get; set; } = "";
-        public string Judgment { get; set; } = "";
-        public bool IsFirstInGroup { get; set; } = false;
-        public int GroupSize { get; set; } = 1;
     }
 }

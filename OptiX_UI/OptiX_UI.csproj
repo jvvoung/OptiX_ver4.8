@@ -11,6 +11,7 @@
     <AssemblyName>OptiX</AssemblyName>
     <RootNamespace>OptiX</RootNamespace>
     <PublishDir>publish</PublishDir>
+    <ApplicationIcon>OptixIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <Target Name="PostBuildRelease" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">

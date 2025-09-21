@@ -640,10 +640,10 @@
                                             Background="{DynamicResource DynamicSurfaceColor}">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" 
                                                        Text="OK" 
                                                        FontSize="14" 
@@ -721,17 +721,18 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                     <Button Grid.Column="0"
-                                        Content="⚙️ Set Params" 
+                                        Content="⚙️ Setting" 
                                         Style="{StaticResource SecondaryButtonStyle}"
                                         FontSize="10"
                                         Height="50"
                                         Margin="0,0,4,0"/>
                                 <Button Grid.Column="1" 
-                                        Content="📁 Set Path" 
+                                        Content="📁 Path" 
                                         Style="{StaticResource SecondaryButtonStyle}"
                                         FontSize="10"
                                         Height="50"
-                                        Margin="4,0,0,0"/>
+                                        Margin="4,0,0,0"
+                                        Click="SetPathButton_Click"/>
                             </Grid>
                             
                             <!-- Zone 선택 버튼들 - Test Start 바로 위에 배치 -->

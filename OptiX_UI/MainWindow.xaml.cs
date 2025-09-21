@@ -557,7 +557,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ShowMainPage()
+    public void ShowMainPage()
     {
         // 기존 페이지 제거
         if (currentPage != null)
@@ -770,5 +770,26 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
+    }
+
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+        {
+            // 더블클릭 시 최대화/복원 토글
+            if (WindowState == WindowState.Maximized)
+            {
+                WindowState = WindowState.Normal;
+            }
+            else
+            {
+                WindowState = WindowState.Maximized;
+            }
+        }
+        else
+        {
+            // 단일 클릭 시 창 드래그
+            DragMove();
+        }
     }
 }

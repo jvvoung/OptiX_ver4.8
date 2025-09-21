@@ -1,0 +1,183 @@
+<Window x:Class="OptiX.CellIdInputWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cell ID &amp; Inner ID 설정"
+        Height="300"
+        Width="400"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    
+    <Window.Resources>
+        <!-- 동적 색상 팔레트 -->
+        <SolidColorBrush x:Key="DynamicWindowBackground" Color="#F8FAFC"/>
+        <SolidColorBrush x:Key="DynamicCardBackground" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="DynamicBorderColor" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="DynamicTextColor" Color="#1E293B"/>
+        <SolidColorBrush x:Key="DynamicInputBackground" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="DynamicInputBorder" Color="#D1D5DB"/>
+        <SolidColorBrush x:Key="DynamicSecondaryButtonBackground" Color="#F3F4F6"/>
+        <SolidColorBrush x:Key="DynamicSecondaryButtonText" Color="#374151"/>
+        
+        <Style x:Key="ModernButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#8B5CF6"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="6" 
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#7C3AED"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#6D28D9"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource DynamicSecondaryButtonBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DynamicSecondaryButtonText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DynamicBorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" 
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource DynamicInputBackground}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource DynamicBorderColor}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    
+    <Grid Background="{DynamicResource DynamicWindowBackground}">
+        <Border Background="{DynamicResource DynamicCardBackground}"
+                BorderBrush="{DynamicResource DynamicBorderColor}"
+                BorderThickness="1"
+                CornerRadius="12"
+                Margin="20"
+                Padding="0">
+            <Border.Effect>
+                <DropShadowEffect Color="#000000" Opacity="0.1" BlurRadius="20" ShadowDepth="8" Direction="270"/>
+            </Border.Effect>
+            <Grid Margin="24">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" 
+                           Text="Cell ID &amp; Inner ID 설정" 
+                           FontSize="18" 
+                           FontWeight="Bold" 
+                           Foreground="{DynamicResource DynamicTextColor}" 
+                           Margin="0,0,0,16"
+                           HorizontalAlignment="Center"/>
+
+                <!-- Cell ID 입력 -->
+                <Grid Grid.Row="1" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" 
+                               Text="Cell ID:" 
+                               VerticalAlignment="Center" 
+                               Margin="0,0,8,0"
+                               Foreground="{DynamicResource DynamicTextColor}"
+                               FontSize="14"/>
+                    <TextBox Grid.Column="1" 
+                             x:Name="CellIdTextBox"
+                             FontSize="14"
+                             Height="35"
+                             VerticalAlignment="Center"
+                             Background="{DynamicResource DynamicInputBackground}" 
+                             BorderBrush="{DynamicResource DynamicInputBorder}"
+                             Foreground="{DynamicResource DynamicTextColor}"
+                             BorderThickness="1" 
+                             Padding="8,4"/>
+                </Grid>
+
+                <!-- Inner ID 입력 -->
+                <Grid Grid.Row="2" Margin="0,0,0,24">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" 
+                               Text="Inner ID:" 
+                               VerticalAlignment="Center" 
+                               Margin="0,0,8,0"
+                               Foreground="{DynamicResource DynamicTextColor}"
+                               FontSize="14"/>
+                    <TextBox Grid.Column="1" 
+                             x:Name="InnerIdTextBox"
+                             FontSize="14"
+                             Height="35"
+                             VerticalAlignment="Center"
+                             Background="{DynamicResource DynamicInputBackground}" 
+                             BorderBrush="{DynamicResource DynamicInputBorder}"
+                             Foreground="{DynamicResource DynamicTextColor}"
+                             BorderThickness="1" 
+                             Padding="8,4"/>
+                </Grid>
+
+                <!-- 버튼들 -->
+                <StackPanel Grid.Row="3" 
+                            Orientation="Horizontal" 
+                            HorizontalAlignment="Center" 
+                            Margin="0,0,0,0">
+                    <Button x:Name="SaveButton"
+                            Content="💾 저장" 
+                            Style="{StaticResource ModernButtonStyle}"
+                            FontSize="14"
+                            Height="40"
+                            Width="100"
+                            Margin="0,0,8,0"
+                            Click="SaveButton_Click"/>
+                    <Button x:Name="CancelButton"
+                            Content="❌ 취소" 
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            FontSize="14"
+                            Height="40"
+                            Width="100"
+                            Click="CancelButton_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
