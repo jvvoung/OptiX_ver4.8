@@ -321,6 +321,8 @@ namespace OptiX.ViewModels
                 {
                     // 현재 Zone 번호를 Setting 창에 전달 (1-based)
                     int currentZoneNumber = CurrentZone + 1;
+                    
+                    
                     var settingWindow = new CellIdInputWindow(currentZoneNumber, IsDarkMode); // 다크모드 상태 전달
                     settingWindow.Owner = System.Windows.Application.Current.MainWindow;
                     settingWindow.WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner;
