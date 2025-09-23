@@ -25,31 +25,51 @@ OptiX는 모던한 WPF 기반의 사용자 인터페이스를 제공하는 애�
 
 ## 기술 스택
 
-- **.NET 8.0**
+- **.NET Framework 4.8**
 - **WPF (Windows Presentation Foundation)**
-- **C#**
+- **C# 8.0**
+- **Visual Studio 2022**
 
 ## 실행 방법
 
-1. .NET 8.0 SDK가 설치되어 있어야 합니다.
-2. 프로젝트 디렉토리에서 다음 명령어를 실행합니다:
+1. .NET Framework 4.8이 설치되어 있어야 합니다.
+2. Visual Studio 2022에서 솔루션을 열고 빌드합니다.
+3. 또는 명령줄에서 MSBuild를 사용합니다:
 
 ```bash
-dotnet restore
-dotnet build
-dotnet run
+msbuild OptiX.sln /p:Configuration=Release /p:Platform=x64
 ```
+
+4. 빌드된 실행 파일은 `publish` 폴더에서 찾을 수 있습니다.
 
 ## 프로젝트 구조
 
 ```
-OptiX/
-├── App.xaml                 # 애플리케이션 정의
-├── App.xaml.cs             # 애플리케이션 코드
-├── MainWindow.xaml         # 메인 윈도우 UI
-├── MainWindow.xaml.cs      # 메인 윈도우 코드
-├── OptiX.csproj           # 프로젝트 파일
-└── README.md              # 프로젝트 설명
+OptiX_ver4.8/
+├── OptiX_UI/                    # WPF UI 프로젝트
+│   ├── MainWindow.xaml          # 메인 윈도우 UI
+│   ├── MainWindow.xaml.cs       # 메인 윈도우 코드
+│   ├── OpticPage.xaml           # 특성 검사 페이지
+│   ├── OpticPage.xaml.cs        # 특성 검사 페이지 코드
+│   ├── IPVSPage.xaml            # IPVS 검사 페이지
+│   ├── IPVSPage.xaml.cs         # IPVS 검사 페이지 코드
+│   ├── CellIdInputWindow.xaml   # Cell ID 입력 창
+│   ├── CellIdInputWindow.xaml.cs # Cell ID 입력 창 코드
+│   ├── PathSettingWindow.xaml   # 경로 설정 창
+│   ├── PathSettingWindow.xaml.cs # 경로 설정 창 코드
+│   ├── ViewModels/              # MVVM 뷰모델
+│   │   └── OpticPageViewModel.cs
+│   ├── Models/                  # 데이터 모델
+│   │   └── DataTableItem.cs
+│   └── OptiX_UI.csproj         # UI 프로젝트 파일
+├── TestDll/                     # C++ DLL 프로젝트
+│   ├── test.h                   # 헤더 파일
+│   ├── test.cpp                 # 소스 파일
+│   └── TestDll.vcxproj          # DLL 프로젝트 파일
+├── publish/                     # 릴리즈 빌드 출력
+├── publish_debug/               # 디버그 빌드 출력
+├── OptiX.sln                    # 솔루션 파일
+└── README.md                    # 프로젝트 설명
 ```
 
 ## 특징
@@ -61,9 +81,10 @@ OptiX/
 
 ## 개발 환경
 
-- Visual Studio 2022 또는 Visual Studio Code
-- .NET 8.0 SDK
+- Visual Studio 2022
+- .NET Framework 4.8
 - Windows 10/11
+- MSBuild
 
 ## 라이선스
 
