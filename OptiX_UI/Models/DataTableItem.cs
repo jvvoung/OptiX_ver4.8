@@ -20,73 +20,73 @@ namespace OptiX.Models
         public string Category
         {
             get => category;
-            set => SetProperty(ref category, value);
+            set => SetProperty(ref category, value, "Category");
         }
 
         public string X
         {
             get => x;
-            set => SetProperty(ref x, value);
+            set => SetProperty(ref x, value, "X");
         }
 
         public string Y
         {
             get => y;
-            set => SetProperty(ref y, value);
+            set => SetProperty(ref y, value, "Y");
         }
 
         public string L
         {
             get => l;
-            set => SetProperty(ref l, value);
+            set => SetProperty(ref l, value, "L");
         }
 
         public string Current
         {
             get => current;
-            set => SetProperty(ref current, value);
+            set => SetProperty(ref current, value, "Current");
         }
 
         public string Efficiency
         {
             get => efficiency;
-            set => SetProperty(ref efficiency, value);
+            set => SetProperty(ref efficiency, value, "Efficiency");
         }
 
         public string Zone
         {
             get => zone;
-            set => SetProperty(ref zone, value);
+            set => SetProperty(ref zone, value, "Zone");
         }
 
         public string InnerId
         {
             get => innerId;
-            set => SetProperty(ref innerId, value);
+            set => SetProperty(ref innerId, value, "InnerId");
         }
 
         public string CellId
         {
             get => cellId;
-            set => SetProperty(ref cellId, value);
+            set => SetProperty(ref cellId, value, "CellId");
         }
 
         public string ErrorName
         {
             get => errorName;
-            set => SetProperty(ref errorName, value);
+            set => SetProperty(ref errorName, value, "ErrorName");
         }
 
         public string Tact
         {
             get => tact;
-            set => SetProperty(ref tact, value);
+            set => SetProperty(ref tact, value, "Tact");
         }
 
         public string Judgment
         {
             get => judgment;
-            set => SetProperty(ref judgment, value);
+            set => SetProperty(ref judgment, value, "Judgment");
         }
 
         public bool IsFirstInGroup { get; set; }
@@ -96,10 +96,11 @@ namespace OptiX.Models
 
         protected virtual void OnPropertyChanged(string propertyName)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            if (PropertyChanged != null)
+                PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        protected bool SetProperty<T>(ref T field, T value, [System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
+        protected bool SetProperty<T>(ref T field, T value, string propertyName)
         {
             if (System.Collections.Generic.EqualityComparer<T>.Default.Equals(field, value)) return false;
             field = value;

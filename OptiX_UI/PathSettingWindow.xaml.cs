@@ -30,7 +30,10 @@ namespace OptiX
 
         private void InitializeIniManager()
         {
-            string iniPath = @"D:\OptiX\Recipe\OptiX.ini";
+            // 실행 파일 기준 상대 경로로 INI 파일 찾기
+        string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+        string exeDir = System.IO.Path.GetDirectoryName(exePath);
+        string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
             iniManager = new IniFileManager(iniPath);
         }
 

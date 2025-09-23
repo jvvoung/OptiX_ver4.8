@@ -131,6 +131,8 @@
             <Setter Property="Padding" Value="12,8"/>
             <Setter Property="Height" Value="40"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="SelectionBrush" Value="{StaticResource PrimaryLightColor}"/>
+            <Setter Property="SelectionTextBrush" Value="White"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
@@ -252,7 +254,7 @@
                                        FontSize="14"/>
                             <TextBox Grid.Column="1" 
                                      x:Name="CellIdTextBox"
-                                     Style="{StaticResource ModernTextBoxStyle}"/>
+                                     Style="{StaticResource PortTextBoxStyle}"/>
                         </Grid>
                         
                         <!-- Inner ID -->
@@ -268,7 +270,7 @@
                                        FontSize="14"/>
                             <TextBox Grid.Column="1" 
                                      x:Name="InnerIdTextBox"
-                                     Style="{StaticResource ModernTextBoxStyle}"/>
+                                     Style="{StaticResource PortTextBoxStyle}"/>
                         </Grid>
                     </Grid>
                 </Border>
@@ -330,13 +332,30 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         
-                        <!-- Port 연결 제목 -->
-                        <TextBlock Grid.Row="0" 
-                                   Text="Port 연결" 
-                                   FontSize="16" 
-                                   FontWeight="SemiBold" 
-                                   Foreground="{DynamicResource DynamicTextColor}" 
-                                   Margin="0,0,0,12"/>
+                        <!-- Port 연결 제목과 Connect 버튼 -->
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <TextBlock Grid.Column="0" 
+                                       Text="Port 연결" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold" 
+                                       Foreground="{DynamicResource DynamicTextColor}" 
+                                       VerticalAlignment="Center"/>
+                            
+                            <Button Grid.Column="1"
+                                    x:Name="ConnectButton"
+                                    Content="🔗 Connect"
+                                    Style="{StaticResource ModernButtonStyle}"
+                                    FontSize="11"
+                                    Height="28"
+                                    Width="90"
+                                    Padding="6,2"
+                                    Click="ConnectButton_Click"/>
+                        </Grid>
                         
                         <!-- Port 테이블 -->
                         <ScrollViewer Grid.Row="1" 

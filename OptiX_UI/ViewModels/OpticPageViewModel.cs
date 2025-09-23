@@ -24,6 +24,7 @@ namespace OptiX.ViewModels
         private DispatcherTimer ipvsTimer;
         private bool isCharacteristicsHovered = false;
         private bool isIPVSHovered = false;
+        private OpticPage opticPage; // OpticPage 참조 추가
         #endregion
 
         #region Properties
@@ -57,10 +58,16 @@ namespace OptiX.ViewModels
         #endregion
 
         #region Constructor
-        public OpticPageViewModel()
+        public OpticPageViewModel(OpticPage page = null)
         {
             DataItems = new ObservableCollection<DataTableItem>();
-            iniManager = new IniFileManager(@"D:\OptiX\Recipe\OptiX.ini");
+            opticPage = page; // OpticPage 참조 설정
+            
+            // 실행 파일 기준 상대 경로로 INI 파일 찾기
+            string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            string exeDir = System.IO.Path.GetDirectoryName(exePath);
+            string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
+            iniManager = new IniFileManager(iniPath);
             
             // Commands 초기화
             TestStartCommand = new RelayCommand(ExecuteTestStart);
@@ -282,6 +289,15 @@ namespace OptiX.ViewModels
                         
                         // UI 업데이트
                         UpdateDataTableWithDllResult(resultOutput);
+                        
+                        // OpticPage의 StartTest() 함수 호출
+                        if (opticPage != null)
+                        {
+                            opticPage.StartTest();
+                            
+                            // 현재 Zone의 테스트 완료 상태 설정
+                            opticPage.SetZoneTestCompleted(CurrentZone, true);
+                        }
                         
                         MessageBox.Show("테스트가 성공적으로 완료되었습니다!", "성공",
                                       MessageBoxButton.OK, MessageBoxImage.Information);

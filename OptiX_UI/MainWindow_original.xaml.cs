@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text;
+﻿using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -12,26 +11,25 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 using System.IO;
 
-namespace OptiX
-{
+namespace OptiX;
 
 /// <summary>
 /// Interaction logic for MainWindow.xaml
 /// </summary>
 public partial class MainWindow : Window
 {
-    private DispatcherTimer characteristicsTimer;
-    private DispatcherTimer ipvsTimer;
+    private DispatcherTimer? characteristicsTimer;
+    private DispatcherTimer? ipvsTimer;
     private bool isCharacteristicsHovered = false;
     private bool isIPVSHovered = false;
     private bool isDarkMode = false;
-    private UserControl currentPage;
+    private UserControl? currentPage;
     private bool isMaximized = false;
     private bool isResizing = false;
     private Point resizeStartPoint;
     private Size resizeStartSize;
     private string resizeDirection = "";
-    private IniFileManager iniManager;
+    private IniFileManager? iniManager;
 
     public MainWindow()
     {
@@ -196,30 +194,30 @@ public partial class MainWindow : Window
     private void SetLightMode()
     {
         isDarkMode = false;
-
+        
         // 창 배경
         this.Background = new SolidColorBrush(Color.FromRgb(248, 249, 250));
-
+        
         // 타이틀바 - 보라색 유지
         var titleBar = (Border)this.FindName("TitleBar");
         if (titleBar != null)
         {
             titleBar.Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
         }
-
+        
         // 모드 토글 컨테이너 - 보라색 유지
         var modeContainer = (Border)this.FindName("ModeToggleContainer");
         if (modeContainer != null)
         {
             modeContainer.Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
         }
-
+        
         // 버튼 스타일 업데이트
         UpdateButtonStyles(false);
-
+        
         // 툴팁 스타일 업데이트
         UpdateTooltipStyles(false);
-
+        
         // 현재 페이지 다크모드 상태 업데이트
         if (currentPage is OpticPage opticPage)
         {
@@ -234,30 +232,30 @@ public partial class MainWindow : Window
     private void SetDarkMode()
     {
         isDarkMode = true;
-
+        
         // 창 배경
         this.Background = new SolidColorBrush(Color.FromRgb(15, 23, 42)); // #0F172A
-
+        
         // 타이틀바 - 다크모드에서도 보라색 유지
         var titleBar = (Border)this.FindName("TitleBar");
         if (titleBar != null)
         {
             titleBar.Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
         }
-
+        
         // 모드 토글 컨테이너 - 다크모드에서도 보라색 유지
         var modeContainer = (Border)this.FindName("ModeToggleContainer");
         if (modeContainer != null)
         {
             modeContainer.Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
         }
-
+        
         // 버튼 스타일 업데이트
         UpdateButtonStyles(true);
-
+        
         // 툴팁 스타일 업데이트
         UpdateTooltipStyles(true);
-
+        
         // 현재 페이지 다크모드 상태 업데이트
         if (currentPage is OpticPage opticPage)
         {
@@ -273,7 +271,7 @@ public partial class MainWindow : Window
     {
         // 모든 버튼의 스타일을 업데이트
         var buttons = new[] { CharacteristicsButton, IPVSButton };
-
+        
         foreach (var button in buttons)
         {
             if (button != null)
@@ -292,10 +290,10 @@ public partial class MainWindow : Window
                 }
             }
         }
-
+        
         // 하단 버튼들도 업데이트
         UpdateBottomButtonStyles(isDark);
-
+        
         // 타이틀바 텍스트 업데이트
         UpdateTitleBarText(isDark);
     }
@@ -304,7 +302,7 @@ public partial class MainWindow : Window
     {
         // 하단 버튼들을 찾아서 스타일 업데이트
         var bottomButtons = new[] { "ManualButton", "LUTButton", "SettingsButton" };
-
+        
         foreach (var buttonName in bottomButtons)
         {
             var button = (Button)this.FindName(buttonName);
@@ -335,7 +333,7 @@ public partial class MainWindow : Window
             CharacteristicsTooltip.BorderBrush = new SolidColorBrush(Color.FromRgb(66, 133, 244));
             IPVSTooltip.Background = new SolidColorBrush(Colors.White);
             IPVSTooltip.BorderBrush = new SolidColorBrush(Color.FromRgb(66, 133, 244));
-
+            
             // 하단 툴팁도 흰색 배경으로 설정
             ManualTooltip.Background = new SolidColorBrush(Colors.White);
             ManualTooltip.BorderBrush = new SolidColorBrush(Color.FromRgb(66, 133, 244));
@@ -343,7 +341,7 @@ public partial class MainWindow : Window
             LUTTooltip.BorderBrush = new SolidColorBrush(Color.FromRgb(66, 133, 244));
             SettingsTooltip.Background = new SolidColorBrush(Colors.White);
             SettingsTooltip.BorderBrush = new SolidColorBrush(Color.FromRgb(66, 133, 244));
-
+            
             // 다크모드에서 툴팁 텍스트를 검은색으로 변경
             UpdateTooltipTextColors(true);
         }
@@ -353,7 +351,7 @@ public partial class MainWindow : Window
             CharacteristicsTooltip.BorderBrush = new SolidColorBrush(Color.FromRgb(66, 133, 244));
             IPVSTooltip.Background = new SolidColorBrush(Colors.White);
             IPVSTooltip.BorderBrush = new SolidColorBrush(Color.FromRgb(66, 133, 244));
-
+            
             // 하단 툴팁도 흰색 배경으로 설정
             ManualTooltip.Background = new SolidColorBrush(Colors.White);
             ManualTooltip.BorderBrush = new SolidColorBrush(Color.FromRgb(66, 133, 244));
@@ -361,7 +359,7 @@ public partial class MainWindow : Window
             LUTTooltip.BorderBrush = new SolidColorBrush(Color.FromRgb(66, 133, 244));
             SettingsTooltip.Background = new SolidColorBrush(Colors.White);
             SettingsTooltip.BorderBrush = new SolidColorBrush(Color.FromRgb(66, 133, 244));
-
+            
             // 라이트모드에서 툴팁 텍스트를 기본 색상으로 변경
             UpdateTooltipTextColors(false);
         }
@@ -372,31 +370,31 @@ public partial class MainWindow : Window
         // 특성 툴팁 텍스트 색상 업데이트
         var characteristicsTitle = FindTextBlockInTooltip(CharacteristicsTooltip, 0);
         var characteristicsDescription = FindTextBlockInTooltip(CharacteristicsTooltip, 1);
-
+        
         if (characteristicsTitle != null)
         {
             characteristicsTitle.Foreground = isDark ? new SolidColorBrush(Color.FromRgb(44, 62, 80)) : new SolidColorBrush(Color.FromRgb(44, 62, 80));
         }
-
+        
         if (characteristicsDescription != null)
         {
             characteristicsDescription.Foreground = isDark ? new SolidColorBrush(Color.FromRgb(102, 102, 102)) : new SolidColorBrush(Color.FromRgb(102, 102, 102));
         }
-
+        
         // IPVS 툴팁 텍스트 색상 업데이트
         var ipvsTitle = FindTextBlockInTooltip(IPVSTooltip, 0);
         var ipvsDescription = FindTextBlockInTooltip(IPVSTooltip, 1);
-
+        
         if (ipvsTitle != null)
         {
             ipvsTitle.Foreground = isDark ? new SolidColorBrush(Color.FromRgb(44, 62, 80)) : new SolidColorBrush(Color.FromRgb(44, 62, 80));
         }
-
+        
         if (ipvsDescription != null)
         {
             ipvsDescription.Foreground = isDark ? new SolidColorBrush(Color.FromRgb(102, 102, 102)) : new SolidColorBrush(Color.FromRgb(102, 102, 102));
         }
-
+        
         // 하단 툴팁 텍스트 색상 업데이트
         UpdateBottomTooltipTextColors(isDark);
     }
@@ -406,47 +404,47 @@ public partial class MainWindow : Window
         // Manual 툴팁 텍스트 색상 업데이트
         var manualTitle = FindTextBlockInTooltip(ManualTooltip, 0);
         var manualDescription = FindTextBlockInTooltip(ManualTooltip, 1);
-
+        
         if (manualTitle != null)
         {
             manualTitle.Foreground = isDark ? new SolidColorBrush(Color.FromRgb(44, 62, 80)) : new SolidColorBrush(Color.FromRgb(44, 62, 80));
         }
-
+        
         if (manualDescription != null)
         {
             manualDescription.Foreground = isDark ? new SolidColorBrush(Color.FromRgb(102, 102, 102)) : new SolidColorBrush(Color.FromRgb(102, 102, 102));
         }
-
+        
         // LUT 툴팁 텍스트 색상 업데이트
         var lutTitle = FindTextBlockInTooltip(LUTTooltip, 0);
         var lutDescription = FindTextBlockInTooltip(LUTTooltip, 1);
-
+        
         if (lutTitle != null)
         {
             lutTitle.Foreground = isDark ? new SolidColorBrush(Color.FromRgb(44, 62, 80)) : new SolidColorBrush(Color.FromRgb(44, 62, 80));
         }
-
+        
         if (lutDescription != null)
         {
             lutDescription.Foreground = isDark ? new SolidColorBrush(Color.FromRgb(102, 102, 102)) : new SolidColorBrush(Color.FromRgb(102, 102, 102));
         }
-
+        
         // 설정 툴팁 텍스트 색상 업데이트
         var settingsTitle = FindTextBlockInTooltip(SettingsTooltip, 0);
         var settingsDescription = FindTextBlockInTooltip(SettingsTooltip, 1);
-
+        
         if (settingsTitle != null)
         {
             settingsTitle.Foreground = isDark ? new SolidColorBrush(Color.FromRgb(44, 62, 80)) : new SolidColorBrush(Color.FromRgb(44, 62, 80));
         }
-
+        
         if (settingsDescription != null)
         {
             settingsDescription.Foreground = isDark ? new SolidColorBrush(Color.FromRgb(102, 102, 102)) : new SolidColorBrush(Color.FromRgb(102, 102, 102));
         }
     }
 
-    private TextBlock FindTextBlockInTooltip(Border tooltip, int rowIndex)
+    private TextBlock? FindTextBlockInTooltip(Border tooltip, int rowIndex)
     {
         if (tooltip?.Child is Grid grid)
         {
@@ -469,22 +467,22 @@ public partial class MainWindow : Window
         {
             titleText.Foreground = isDark ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Colors.White);
         }
-
+        
         // 최소화/최대화/닫기 버튼 텍스트 색상 업데이트
         var minimizeButton = (Button)this.FindName("MinimizeButton");
         var maximizeButton = (Button)this.FindName("MaximizeButton");
         var closeButton = (Button)this.FindName("CloseButton");
-
+        
         if (minimizeButton != null)
         {
             minimizeButton.Foreground = isDark ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Colors.White);
         }
-
+        
         if (maximizeButton != null)
         {
             maximizeButton.Foreground = isDark ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Colors.White);
         }
-
+        
         if (closeButton != null)
         {
             closeButton.Foreground = isDark ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Colors.White);
@@ -513,10 +511,10 @@ public partial class MainWindow : Window
         // Optic 페이지 생성 및 표시
         var opticPage = new OpticPage();
         opticPage.BackRequested += (s, e) => ShowMainPage();
-
+        
         // 현재 다크모드 상태를 OpticPage에 전달
         opticPage.SetDarkMode(isDarkMode);
-
+        
         var mainContentGrid = (Grid)this.FindName("MainContent");
         if (mainContentGrid != null)
         {
@@ -547,10 +545,10 @@ public partial class MainWindow : Window
         // IPVS 페이지 생성 및 표시
         var ipvsPage = new IPVSPage();
         ipvsPage.BackRequested += (s, e) => ShowMainPage();
-
+        
         // 현재 다크모드 상태를 IPVSPage에 전달
         ipvsPage.SetDarkMode(isDarkMode);
-
+        
         var mainContentGrid = (Grid)this.FindName("MainContent");
         if (mainContentGrid != null)
         {
@@ -610,7 +608,7 @@ public partial class MainWindow : Window
     protected override void OnStateChanged(EventArgs e)
     {
         base.OnStateChanged(e);
-
+        
         // 창 상태가 변경될 때 최대화 상태 업데이트
         if (this.WindowState == WindowState.Maximized)
         {
@@ -620,75 +618,45 @@ public partial class MainWindow : Window
         {
             isMaximized = false;
         }
-
+        
         UpdateMaximizeButton();
     }
 
     private void ResizeHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (isMaximized) return; // 최대화 상태에서는 크기 조정 불가
-
+        
         isResizing = true;
         resizeStartPoint = e.GetPosition(this);
         resizeStartSize = new Size(this.Width, this.Height);
-
+        
         var handle = sender as Border;
         if (handle != null)
         {
-            switch (handle.Name)
+            resizeDirection = handle.Name switch
             {
-                case "TopResizeHandle":
-                    resizeDirection = "Top";
-                    break;
-                case "BottomResizeHandle":
-                    resizeDirection = "Bottom";
-                    break;
-                case "LeftResizeHandle":
-                    resizeDirection = "Left";
-                    break;
-                case "RightResizeHandle":
-                    resizeDirection = "Right";
-                    break;
-                case "TopLeftResizeHandle":
-                    resizeDirection = "TopLeft";
-                    break;
-                case "TopRightResizeHandle":
-                    resizeDirection = "TopRight";
-                    break;
-                case "BottomLeftResizeHandle":
-                    resizeDirection = "BottomLeft";
-                    break;
-                case "BottomRightResizeHandle":
-                    resizeDirection = "BottomRight";
-                    break;
-                default:
-                    resizeDirection = "";
-                    break;
-            }
-
+                "TopResizeHandle" => "Top",
+                "BottomResizeHandle" => "Bottom",
+                "LeftResizeHandle" => "Left",
+                "RightResizeHandle" => "Right",
+                "TopLeftResizeHandle" => "TopLeft",
+                "TopRightResizeHandle" => "TopRight",
+                "BottomLeftResizeHandle" => "BottomLeft",
+                "BottomRightResizeHandle" => "BottomRight",
+                _ => ""
+            };
+            
             // 클릭한 상태에서만 커서 변경
-            if (resizeDirection == "Top" || resizeDirection == "Bottom")
+            this.Cursor = resizeDirection switch
             {
-                this.Cursor = Cursors.SizeNS;
-            }
-            else if (resizeDirection == "Left" || resizeDirection == "Right")
-            {
-                this.Cursor = Cursors.SizeWE;
-            }
-            else if (resizeDirection == "TopLeft" || resizeDirection == "BottomRight")
-            {
-                this.Cursor = Cursors.SizeNWSE;
-            }
-            else if (resizeDirection == "TopRight" || resizeDirection == "BottomLeft")
-            {
-                this.Cursor = Cursors.SizeNESW;
-            }
-            else
-            {
-                this.Cursor = Cursors.Arrow;
-            }
+                "Top" or "Bottom" => Cursors.SizeNS,
+                "Left" or "Right" => Cursors.SizeWE,
+                "TopLeft" or "BottomRight" => Cursors.SizeNWSE,
+                "TopRight" or "BottomLeft" => Cursors.SizeNESW,
+                _ => Cursors.Arrow
+            };
         }
-
+        
         this.CaptureMouse();
         e.Handled = true;
     }
@@ -696,17 +664,17 @@ public partial class MainWindow : Window
     private void ResizeHandle_MouseMove(object sender, MouseEventArgs e)
     {
         if (!isResizing || isMaximized) return;
-
+        
         var currentPoint = e.GetPosition(this);
         var deltaX = currentPoint.X - resizeStartPoint.X;
         var deltaY = currentPoint.Y - resizeStartPoint.Y;
-
+        
         // 부드러운 크기 조정을 위해 직접 계산
         var newWidth = resizeStartSize.Width;
         var newHeight = resizeStartSize.Height;
         var newLeft = this.Left;
         var newTop = this.Top;
-
+        
         switch (resizeDirection)
         {
             case "Top":
@@ -744,13 +712,13 @@ public partial class MainWindow : Window
                 newHeight = Math.Max(MinHeight, resizeStartSize.Height + deltaY);
                 break;
         }
-
+        
         // 즉시 크기 업데이트
         this.Width = newWidth;
         this.Height = newHeight;
         this.Left = newLeft;
         this.Top = newTop;
-
+        
         e.Handled = true;
     }
 
@@ -769,7 +737,7 @@ public partial class MainWindow : Window
     {
         string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
         iniManager = new IniFileManager(iniPath);
-
+        
         // INI 파일이 없으면 기본 파일 생성
             // INI 파일이 없으면 기본값 사용
     }
@@ -824,5 +792,4 @@ public partial class MainWindow : Window
             DragMove();
         }
     }
-}
 }

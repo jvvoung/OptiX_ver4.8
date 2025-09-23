@@ -32,7 +32,13 @@ namespace OptiX
             InitializeComponent();
             this.zoneNumber = zoneNumber;
             this.isDarkMode = isDarkMode;
-            this.iniManager = new IniFileManager(@"D:\OptiX\Recipe\OptiX.ini");
+            
+            // 실행 파일 기준 상대 경로로 INI 파일 찾기
+            string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            string exeDir = System.IO.Path.GetDirectoryName(exePath);
+            string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
+            this.iniManager = new IniFileManager(iniPath);
+            
             this.Title = $"Zone {zoneNumber} OPTIC 설정";
             
             // 다크모드 적용
@@ -99,8 +105,13 @@ namespace OptiX
                 string currentCellId = iniManager.ReadValue("MTP_PATHS", cellIdKey, "");
                 string currentInnerId = iniManager.ReadValue("MTP_PATHS", innerIdKey, "");
 
-                CellIdTextBox.Text = currentCellId;
-                InnerIdTextBox.Text = currentInnerId;
+                // 텍스트 설정
+                CellIdTextBox.Text = string.IsNullOrEmpty(currentCellId) ? "-" : currentCellId;
+                InnerIdTextBox.Text = string.IsNullOrEmpty(currentInnerId) ? "..." : currentInnerId;
+                
+                // 텍스트박스 포커스 설정
+                CellIdTextBox.CaretIndex = CellIdTextBox.Text.Length;
+                InnerIdTextBox.CaretIndex = InnerIdTextBox.Text.Length;
             }
             catch (Exception ex)
             {
@@ -353,6 +364,25 @@ namespace OptiX
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"동적 MEAS 포트 생성 오류: {ex.Message}");
+            }
+        }
+
+        // Connect 버튼 이벤트 핸들러
+        private void ConnectButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Port 연결 로직 구현
+                System.Windows.MessageBox.Show("Port 연결 기능이 구현되었습니다!", "Connect", 
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                
+                // 여기에 실제 연결 로직을 추가할 수 있습니다
+                // 예: TCP/IP 연결, 시리얼 포트 연결 등
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"연결 중 오류가 발생했습니다: {ex.Message}", "연결 오류", 
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
         }
 

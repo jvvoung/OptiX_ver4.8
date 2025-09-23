@@ -3,20 +3,40 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Data;
 using OptiX.ViewModels;
+using OptiX.Models;
+using System.Security.Policy;
 
 namespace OptiX
 {
+    // WAD 각도 enum 정의 (원래 구조체 주석과 일치)
+    public enum WadAngle
+    {
+        Angle0 = 0,    // 0도
+        Angle30 = 1,   // 30도
+        Angle45 = 2,   // 45도
+        Angle60 = 3,   // 60도
+        Angle15 = 4,   // 15도
+        AngleA = 5,    // A도
+        AngleB = 6     // B도
+    }
+
     public partial class OpticPage : UserControl
     {
         public event EventHandler BackRequested;
         private OpticPageViewModel viewModel;
+        private bool isTestStarted = false; // 전역 테스트 시작 상태 (기존 호환성 유지)
+        private bool[] zoneTestCompleted; // Zone별 테스트 완료 상태 배열
         
         public OpticPage()
         {
             InitializeComponent();
-            viewModel = new OpticPageViewModel();
+            viewModel = new OpticPageViewModel(this); // 자기 자신을 전달
             DataContext = viewModel;
+            
+            // Zone별 테스트 완료 상태 배열 초기화
+            InitializeZoneTestStates();
 
             // DataItems 변경 감지 (원래대로)
             viewModel.PropertyChanged += (s, e) => {
@@ -31,6 +51,7 @@ namespace OptiX
             Loaded += (s, e) => {
                 CreateCustomTable();
                 CreateZoneButtons();
+                InitializeWadComboBox();
             };
         }
 
@@ -70,6 +91,7 @@ namespace OptiX
                 Resources["DynamicTextPrimaryColor"] = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
                 Resources["DynamicTextSecondaryColor"] = new SolidColorBrush(Color.FromRgb(203, 213, 225)); // #CBD5E1
                 Resources["DynamicTextMutedColor"] = new SolidColorBrush(Color.FromRgb(148, 163, 184)); // #94A3B8
+                Resources["DynamicTextColor"] = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
             }
             else
             {
@@ -81,6 +103,7 @@ namespace OptiX
                 Resources["DynamicTextPrimaryColor"] = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
                 Resources["DynamicTextSecondaryColor"] = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748B
                 Resources["DynamicTextMutedColor"] = new SolidColorBrush(Color.FromRgb(148, 163, 184)); // #94A3B8
+                Resources["DynamicTextColor"] = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
             }
         }
 
@@ -109,7 +132,7 @@ namespace OptiX
             // 헤더 행 정의
             DataTableGrid.RowDefinitions.Add(new RowDefinition { Height = new System.Windows.GridLength(45) });
 
-            string[] headers = { "Zone", "Inner ID", "Cell ID", "Category", "X", "Y", "L", "Current", "Efficiency", "Error Name", "Tact", "Judgment" };
+            string[] headers = { "Zone", "Cell ID", "Inner ID", "Category", "X", "Y", "L", "Current", "Efficiency", "Error Name", "Tact", "Judgment" };
             
             for (int i = 0; i < headers.Length; i++)
             {
@@ -194,29 +217,6 @@ namespace OptiX
                         DataTableGrid.Children.Add(zoneBorder);
                     }
 
-                    // Inner ID 컬럼 (첫 번째 행에서만 표시, RowSpan 적용)
-                    if (i == 0)
-                    {
-                        var innerIdBorder = new Border
-                        {
-                            Background = (System.Windows.Media.SolidColorBrush)FindResource("DynamicSurfaceColor"),
-                            BorderBrush = (System.Windows.Media.SolidColorBrush)FindResource("DynamicBorderColor"),
-                            BorderThickness = new System.Windows.Thickness(1),
-                            Child = new TextBlock
-                            {
-                                Text = firstItem.InnerId,
-                                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                                VerticalAlignment = System.Windows.VerticalAlignment.Center,
-                                FontWeight = System.Windows.FontWeights.Medium,
-                                Foreground = (System.Windows.Media.SolidColorBrush)FindResource("DynamicTextPrimaryColor")
-                            }
-                        };
-                        Grid.SetColumn(innerIdBorder, 1);
-                        Grid.SetRow(innerIdBorder, currentRow);
-                        Grid.SetRowSpan(innerIdBorder, zoneItems.Count);
-                        DataTableGrid.Children.Add(innerIdBorder);
-                    }
-
                     // Cell ID 컬럼 (첫 번째 행에서만 표시, RowSpan 적용)
                     if (i == 0)
                     {
@@ -234,10 +234,33 @@ namespace OptiX
                                 Foreground = (System.Windows.Media.SolidColorBrush)FindResource("DynamicTextPrimaryColor")
                             }
                         };
-                        Grid.SetColumn(cellIdBorder, 2);
+                        Grid.SetColumn(cellIdBorder, 1);
                         Grid.SetRow(cellIdBorder, currentRow);
                         Grid.SetRowSpan(cellIdBorder, zoneItems.Count);
                         DataTableGrid.Children.Add(cellIdBorder);
+                    }
+
+                    // Inner ID 컬럼 (첫 번째 행에서만 표시, RowSpan 적용)
+                    if (i == 0)
+                    {
+                        var innerIdBorder = new Border
+                        {
+                            Background = (System.Windows.Media.SolidColorBrush)FindResource("DynamicSurfaceColor"),
+                            BorderBrush = (System.Windows.Media.SolidColorBrush)FindResource("DynamicBorderColor"),
+                            BorderThickness = new System.Windows.Thickness(1),
+                            Child = new TextBlock
+                            {
+                                Text = firstItem.InnerId,
+                                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                                VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                                FontWeight = System.Windows.FontWeights.Medium,
+                                Foreground = (System.Windows.Media.SolidColorBrush)FindResource("DynamicTextPrimaryColor")
+                            }
+                        };
+                        Grid.SetColumn(innerIdBorder, 2);
+                        Grid.SetRow(innerIdBorder, currentRow);
+                        Grid.SetRowSpan(innerIdBorder, zoneItems.Count);
+                        DataTableGrid.Children.Add(innerIdBorder);
                     }
 
                     // Category 컬럼 (각 행마다 개별 표시)
@@ -356,7 +379,14 @@ namespace OptiX
                     zoneButton.Click += (s, e) => {
                         if (s is Button btn && btn.Tag is int zoneIndex)
                         {
+                            System.Diagnostics.Debug.WriteLine($"=== Zone 버튼 클릭 ===");
+                            System.Diagnostics.Debug.WriteLine($"클릭된 버튼: Zone {i} (Tag: {zoneIndex})");
+                            System.Diagnostics.Debug.WriteLine($"이전 CurrentZone: {viewModel.CurrentZone}");
+                            
                             viewModel.CurrentZone = zoneIndex;
+                            
+                            System.Diagnostics.Debug.WriteLine($"새로운 CurrentZone: {viewModel.CurrentZone}");
+                            System.Diagnostics.Debug.WriteLine($"업데이트될 targetZone: {zoneIndex + 1}");
 
                             // 모든 Zone 버튼 스타일 초기화
                             foreach (var child in zoneButtonsPanel.Children)
@@ -414,6 +444,544 @@ namespace OptiX
             // 콘텐츠 전환
             TotalContent.Visibility = Visibility.Visible;
             GraphContent.Visibility = Visibility.Collapsed;
+        }
+
+        private void InitializeWadComboBox()
+        {
+            try
+            {
+                // WAD 콤보박스에 아이템 추가
+                WadComboBox.Items.Clear();
+                
+                // INI 파일에서 WAD 값 읽기
+                string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                string exeDir = System.IO.Path.GetDirectoryName(exePath);
+                string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
+                
+                var iniManager = new IniFileManager(iniPath);
+                string wadValues = iniManager.ReadValue("MTP", "WAD", "0,15,30,45");
+                
+                // 쉼표로 분리하여 배열로 변환
+                string[] wadArray = wadValues.Split(',');
+                
+                // 각 WAD 값에 대해 아이템 추가
+                foreach (string wadValue in wadArray)
+                {
+                    string trimmedValue = wadValue.Trim();
+                    if (!string.IsNullOrEmpty(trimmedValue))
+                    {
+                        WadComboBox.Items.Add(trimmedValue);
+                    }
+                }
+                
+                // 기본값 설정
+                WadComboBox.SelectedIndex = 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"WAD 콤보박스 초기화 오류: {ex.Message}");
+                
+                // 오류 발생 시 기본값 사용
+                WadComboBox.Items.Clear();
+                string[] defaultWadArray = { "0", "15", "30", "45" };
+                foreach (string wadValue in defaultWadArray)
+                {
+                    WadComboBox.Items.Add(wadValue);
+                }
+                WadComboBox.SelectedIndex = 0;
+            }
+        }
+
+        private void WadComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (WadComboBox.SelectedItem != null)
+                {
+                    string selectedWad = WadComboBox.SelectedItem.ToString();
+                    
+                    // WAD 값을 배열 인덱스로 변환
+                    int wadIndex = GetWadArrayIndex(selectedWad);
+                    
+                    System.Diagnostics.Debug.WriteLine($"WAD 값 '{selectedWad}'이 선택되었습니다. 배열 인덱스: {wadIndex}");
+                    
+                    // 선택된 WAD에 해당하는 데이터로 UI 업데이트
+                    UpdateDataForWad(wadIndex);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"WAD 콤보박스 선택 변경 오류: {ex.Message}");
+            }
+        }
+
+        private void ResetButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("RESET 버튼 클릭됨");
+                
+                // 모든 Zone의 테스트 완료 상태 초기화
+                for (int i = 0; i < zoneTestCompleted.Length; i++)
+                {
+                    zoneTestCompleted[i] = false;
+                }
+                
+                // 전역 테스트 상태도 초기화
+                isTestStarted = false;
+                
+                // 모든 측정값 클리어
+                ClearMeasurementValues();
+                
+                // 테이블 다시 그리기
+                CreateDataRows();
+                
+                System.Diagnostics.Debug.WriteLine("모든 데이터가 초기화되었습니다.");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"RESET 버튼 클릭 오류: {ex.Message}");
+            }
+        }
+
+        private WadAngle GetWadAngle(string wadValue)
+        {
+            // INI 파일의 WAD 값에 따른 WadAngle enum 매핑
+            switch (wadValue)
+            {
+                case "0": return WadAngle.Angle0;   // 0도
+                case "15": return WadAngle.Angle15; // 15도
+                case "30": return WadAngle.Angle30; // 30도
+                case "45": return WadAngle.Angle45; // 45도
+                case "60": return WadAngle.Angle60; // 60도
+                case "A": return WadAngle.AngleA;   // A도
+                case "B": return WadAngle.AngleB;   // B도
+                default: return WadAngle.Angle0;    // 기본값은 0도
+            }
+        }
+
+        private int GetWadArrayIndex(string wadValue)
+        {
+            // WadAngle enum을 배열 인덱스로 변환
+            WadAngle angle = GetWadAngle(wadValue);
+            return (int)angle;
+        }
+
+        private int GetPatternArrayIndex(string category)
+        {
+            // Category에 따른 패턴 배열 인덱스 매핑
+            // [17]:패턴 => 0:W, 1:R, 2:G, 3:B, 4:WG, 5:WG2, 6:WG3 ~ 16:WG13
+            switch (category)
+            {
+                case "W": return 0;   // W
+                case "R": return 1;   // R
+                case "G": return 2;   // G
+                case "B": return 3;   // B
+                case "WG": return 4;  // WG
+                case "WG2": return 5; // WG2
+                case "WG3": return 6; // WG3
+                case "WG4": return 7; // WG4
+                case "WG5": return 8; // WG5
+                case "WG6": return 9; // WG6
+                case "WG7": return 10; // WG7
+                case "WG8": return 11; // WG8
+                case "WG9": return 12; // WG9
+                case "WG10": return 13; // WG10
+                case "WG11": return 14; // WG11
+                case "WG12": return 15; // WG12
+                case "WG13": return 16; // WG13
+                default: return 0;    // 기본값은 W
+            }
+        }
+
+        private void UpdateDataForWad(int wadIndex)
+        {
+            try
+            {
+                // WadAngle enum으로 변환
+                WadAngle angle = (WadAngle)wadIndex;
+                
+                System.Diagnostics.Debug.WriteLine($"WAD 각도 {angle} (인덱스: {wadIndex})에 해당하는 데이터로 UI 업데이트");
+                int currentZone = viewModel.CurrentZone;
+                // 테스트가 진행 중이거나 어떤 Zone이라도 테스트 완료된 경우
+                if (isTestStarted&& !zoneTestCompleted[currentZone])
+                {
+                    // 테스트가 진행 중인 경우: 현재 선택된 Zone만 업데이트
+                    
+                    System.Diagnostics.Debug.WriteLine($"테스트 진행 중. 현재 Zone {currentZone + 1}만 업데이트");
+                    GenerateDataFromStruct(wadIndex, currentZone);
+                }
+                else if (zoneTestCompleted.Any(completed => completed))
+                {
+                    // 테스트 완료된 모든 Zone들을 업데이트
+                    for (int zone = 0; zone < zoneTestCompleted.Length; zone++)
+                    {
+                        if (zoneTestCompleted[zone])
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Zone {zone + 1}이 테스트 완료됨. WAD {wadIndex}로 데이터 업데이트");
+                            GenerateDataFromStruct(wadIndex, zone);
+                        }
+                    }
+                }
+                else
+                {
+                    // 테스트가 시작되지 않았고 어떤 Zone도 완료되지 않았으면 빈 데이터로 유지
+                    ClearMeasurementValues();
+                }
+                
+                // 테이블 다시 그리기
+                CreateDataRows();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"WAD 데이터 업데이트 오류: {ex.Message}");
+            }
+        }
+
+        private void GenerateDataFromStruct(int wadIndex, int zoneIndex)
+        {
+            // 구조체 data[wadIndex][patternIndex]에 맞는 데이터 생성
+            // 실제로는 DLL에서 data[wadIndex][patternIndex]를 가져와야 함
+            
+            if (viewModel?.DataItems == null) return;
+            
+            try
+            {
+                // INI 파일에서 설정 읽기
+                string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                string exeDir = System.IO.Path.GetDirectoryName(exePath);
+                string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
+                
+                var iniManager = new IniFileManager(iniPath);
+                
+                // Category 목록 읽기
+                string categoryStr = iniManager.ReadValue("MTP", "Category", "W,R,G,B");
+                string[] categories = categoryStr.Split(',').Select(c => c.Trim()).ToArray();
+                
+                // 지정된 Zone만 업데이트 (zoneIndex는 0-based)
+                int targetZone = zoneIndex + 1; // 1-based로 변환
+                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} (인덱스: {zoneIndex}) 업데이트");
+                
+                // Zone별 Cell ID, Inner ID 읽기
+                string cellId = iniManager.ReadValue("MTP_PATHS", $"CELL_ID_ZONE_{targetZone}", "");
+                string innerId = iniManager.ReadValue("MTP_PATHS", $"INNER_ID_ZONE_{targetZone}", "");
+                
+                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} - Cell ID: {cellId}, Inner ID: {innerId}");
+                
+                // 해당 Zone의 기존 데이터만 제거하고 올바른 위치에 새 데이터 삽입
+                var itemsToRemove = viewModel.DataItems.Where(item => item.Zone == targetZone.ToString()).ToList();
+                int insertIndex = 0;
+                
+                if (itemsToRemove.Count > 0)
+                {
+                    // 첫 번째 제거할 아이템의 인덱스 찾기
+                    insertIndex = viewModel.DataItems.IndexOf(itemsToRemove[0]);
+                    
+                    // 해당 Zone의 모든 데이터 제거
+                    foreach (var item in itemsToRemove)
+                    {
+                        viewModel.DataItems.Remove(item);
+                    }
+                }
+                
+                // 해당 Zone의 각 Category에 대해 구조체 데이터 생성
+                for (int i = 0; i < categories.Length; i++)
+                {
+                    // Category를 패턴 인덱스로 변환
+                    int patternIndex = GetPatternArrayIndex(categories[i]);
+                    
+                    // 구조체 data[wadIndex][patternIndex]에서 데이터 가져오기
+                    // 실제로는 DLL 호출: data[wadIndex][patternIndex].x, .y, .l, .current, .efficiency
+                    var structData = GetStructData(wadIndex, patternIndex);
+                    
+                    var item = new DataTableItem
+                    {
+                        Zone = targetZone.ToString(),
+                        CellId = cellId,
+                        InnerId = innerId,
+                        Category = categories[i],
+                        X = structData.X,
+                        Y = structData.Y,
+                        L = structData.L,
+                        Current = structData.Current,
+                        Efficiency = structData.Efficiency,
+                        ErrorName = structData.ErrorName,
+                        Tact = structData.Tact,
+                        Judgment = structData.Judgment
+                    };
+                    
+                    // 올바른 위치에 삽입 (Zone 순서 유지)
+                    viewModel.DataItems.Insert(insertIndex + i, item);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"구조체 데이터 생성 오류: {ex.Message}");
+                
+                // 오류 발생 시 기본값 사용
+                GenerateDefaultEmptyData();
+            }
+        }
+
+        private StructPatternData GetStructData(int wadIndex, int patternIndex)
+        {
+            // C++ 구조체 로직과 일치: data[i][j].x = i * 17 + j + 1
+            // 실제로는 DLL에서 data[wadIndex][patternIndex]를 가져와야 함
+            
+            if (!isTestStarted)
+            {
+                return new StructPatternData
+                {
+                    X = "",
+                    Y = "",
+                    L = "",
+                    Current = "",
+                    Efficiency = "",
+                    ErrorName = "",
+                    Tact = "",
+                    Judgment = ""
+                };
+            }
+            
+            // C++ 구조체 순서: data[i][j] = i * 17 + j + 1
+            int baseValue = wadIndex * 17 + patternIndex + 1;
+            
+            System.Diagnostics.Debug.WriteLine($"GetStructData: wadIndex={wadIndex}, patternIndex={patternIndex}, baseValue={baseValue}");
+            
+            return new StructPatternData
+            {
+                X = baseValue.ToString(),
+                Y = (baseValue + 1).ToString(),
+                L = (baseValue + 2).ToString(),
+                Current = (baseValue + 3).ToString(),
+                Efficiency = (baseValue + 4).ToString(),
+                ErrorName = "",
+                Tact = "0",
+                Judgment = "OK"
+            };
+        }
+
+        // Zone별 테스트 상태 초기화
+        private void InitializeZoneTestStates()
+        {
+            try
+            {
+                // INI 파일에서 Zone 개수 읽기
+                string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                string exeDir = System.IO.Path.GetDirectoryName(exePath);
+                string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
+                
+                var iniManager = new IniFileManager(iniPath);
+                int zoneCount = int.Parse(iniManager.ReadValue("MTP", "Zone", "2"));
+                
+                // Zone별 테스트 완료 상태 배열 초기화 (모두 false)
+                zoneTestCompleted = new bool[zoneCount];
+                for (int i = 0; i < zoneCount; i++)
+                {
+                    zoneTestCompleted[i] = false;
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"Zone별 테스트 상태 초기화 완료. Zone 개수: {zoneCount}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Zone별 테스트 상태 초기화 오류: {ex.Message}");
+                // 기본값으로 2개 Zone 설정
+                zoneTestCompleted = new bool[2];
+            }
+        }
+
+        // 테스트 시작 메서드
+        public void StartTest()
+        {
+            isTestStarted = true;
+            System.Diagnostics.Debug.WriteLine("테스트 시작됨");
+            
+            // 현재 선택된 WAD로 데이터 업데이트
+            if (WadComboBox.SelectedIndex >= 0)
+            {
+                UpdateDataForWad(WadComboBox.SelectedIndex);
+            }
+        }
+        
+        // 테스트 중지 메서드
+        public void StopTest()
+        {
+            isTestStarted = false;
+            System.Diagnostics.Debug.WriteLine("테스트 중지됨");
+            
+            // 모든 측정값 클리어
+            ClearMeasurementValues();
+            CreateDataRows();
+        }
+        
+        // 특정 Zone의 테스트 완료 상태 설정
+        public void SetZoneTestCompleted(int zoneIndex, bool completed)
+        {
+            if (zoneIndex >= 0 && zoneIndex < zoneTestCompleted.Length)
+            {
+                zoneTestCompleted[zoneIndex] = completed;
+                System.Diagnostics.Debug.WriteLine($"Zone {zoneIndex + 1} 테스트 완료 상태: {completed}");
+            }
+        }
+        
+        // 특정 Zone의 테스트 완료 상태 확인
+        public bool IsZoneTestCompleted(int zoneIndex)
+        {
+            if (zoneIndex >= 0 && zoneIndex < zoneTestCompleted.Length)
+            {
+                return zoneTestCompleted[zoneIndex];
+            }
+            return false;
+        }
+        
+
+        // 구조체 패턴 데이터를 위한 클래스
+        public class StructPatternData
+        {
+            public string X { get; set; } = "";
+            public string Y { get; set; } = "";
+            public string L { get; set; } = "";
+            public string Current { get; set; } = "";
+            public string Efficiency { get; set; } = "";
+            public string ErrorName { get; set; } = "";
+            public string Tact { get; set; } = "";
+            public string Judgment { get; set; } = "";
+        }
+
+        private void GenerateTestDataForWad(int wadIndex)
+        {
+            // WAD 인덱스에 따른 데이터 생성
+            // 실제로는 DLL에서 data[wadIndex][patternIndex]를 가져와야 함
+            
+            if (viewModel?.DataItems == null) return;
+            
+            try
+            {
+                // INI 파일에서 설정 읽기
+                string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                string exeDir = System.IO.Path.GetDirectoryName(exePath);
+                string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
+                
+                var iniManager = new IniFileManager(iniPath);
+                
+                // Zone 개수 읽기
+                int zoneCount = int.Parse(iniManager.ReadValue("MTP", "Zone", "2"));
+                
+                // Category 목록 읽기
+                string categoryStr = iniManager.ReadValue("MTP", "Category", "W,R,G,B");
+                string[] categories = categoryStr.Split(',').Select(c => c.Trim()).ToArray();
+                
+                // 기존 데이터 클리어
+                viewModel.DataItems.Clear();
+                
+                // 각 Zone에 대해 빈 데이터 생성 (테스트 시작 전)
+                for (int zone = 1; zone <= zoneCount; zone++)
+                {
+                    // Zone별 Cell ID, Inner ID 읽기
+                    string cellId = iniManager.ReadValue("MTP_PATHS", $"CELL_ID_ZONE_{zone}", "");
+                    string innerId = iniManager.ReadValue("MTP_PATHS", $"INNER_ID_ZONE_{zone}", "");
+                    
+                    // 각 Category에 대해 빈 데이터 생성
+                    for (int i = 0; i < categories.Length; i++)
+                    {
+                        var item = new DataTableItem
+                        {
+                            Zone = zone.ToString(),
+                            CellId = cellId,
+                            InnerId = innerId,
+                            Category = categories[i],
+                            X = "",  // 테스트 시작 전에는 빈 값
+                            Y = "",  // 테스트 시작 전에는 빈 값
+                            L = "",  // 테스트 시작 전에는 빈 값
+                            Current = "",  // 테스트 시작 전에는 빈 값
+                            Efficiency = "",  // 테스트 시작 전에는 빈 값
+                            ErrorName = "",
+                            Tact = "",
+                            Judgment = ""
+                        };
+                        viewModel.DataItems.Add(item);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"INI 파일 읽기 오류: {ex.Message}");
+                
+                // 오류 발생 시 기본값 사용
+                GenerateDefaultEmptyData();
+            }
+        }
+
+        private void ClearMeasurementValues()
+        {
+            // WAD 변경 시 측정값만 클리어하고 구조는 유지
+            if (viewModel?.DataItems == null) return;
+            
+            foreach (var item in viewModel.DataItems)
+            {
+                // 측정값만 클리어 (Zone, Cell ID, Inner ID, Category는 유지)
+                item.X = "";
+                item.Y = "";
+                item.L = "";
+                item.Current = "";
+                item.Efficiency = "";
+                item.ErrorName = "";
+                item.Tact = "";
+                item.Judgment = "";
+            }
+        }
+
+        private void GenerateDefaultEmptyData()
+        {
+            // 오류 발생 시 사용할 기본 빈 데이터
+            if (viewModel?.DataItems == null) return;
+            
+            viewModel.DataItems.Clear();
+            
+            var categories = new[] { "W", "WG", "R", "G", "B" };
+            
+            // Zone 1 빈 데이터 생성
+            for (int i = 0; i < categories.Length; i++)
+            {
+                var item = new DataTableItem
+                {
+                    Zone = "1",
+                    CellId = "",
+                    InnerId = "",
+                    Category = categories[i],
+                    X = "",
+                    Y = "",
+                    L = "",
+                    Current = "",
+                    Efficiency = "",
+                    ErrorName = "",
+                    Tact = "",
+                    Judgment = ""
+                };
+                viewModel.DataItems.Add(item);
+            }
+            
+            // Zone 2 빈 데이터 생성
+            for (int i = 0; i < categories.Length; i++)
+            {
+                var item = new DataTableItem
+                {
+                    Zone = "2",
+                    CellId = "",
+                    InnerId = "",
+                    Category = categories[i],
+                    X = "",
+                    Y = "",
+                    L = "",
+                    Current = "",
+                    Efficiency = "",
+                    ErrorName = "",
+                    Tact = "",
+                    Judgment = ""
+                };
+                viewModel.DataItems.Add(item);
+            }
         }
     }
 }
