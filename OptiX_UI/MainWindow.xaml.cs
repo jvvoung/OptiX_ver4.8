@@ -39,6 +39,12 @@ public partial class MainWindow : Window
         InitializeTimers();
         InitializeIniManager();
         LoadSettingsFromIni();
+        
+        // 언어 변경 이벤트 구독
+        LanguageManager.LanguageChanged += OnLanguageChanged;
+        
+        // 초기 언어 적용
+        ApplyLanguage();
     }
 
     private void InitializeTimers()
@@ -79,7 +85,21 @@ public partial class MainWindow : Window
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
         System.Diagnostics.Debug.WriteLine("설정 버튼 클릭됨");
-        MessageBox.Show("설정 버튼이 클릭되었습니다!", "설정", MessageBoxButton.OK, MessageBoxImage.Information);
+        
+        try
+        {
+            var settingsWindow = new MainSettingsWindow(isDarkMode);
+            settingsWindow.Owner = this;
+            settingsWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+
+            // Non-Modal로 열기 (메인 프로그램 계속 동작)
+            settingsWindow.Show();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"설정 창을 여는 중 오류가 발생했습니다: {ex.Message}", "오류", 
+                          MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void MinimizeButton_Click(object sender, RoutedEventArgs e)
@@ -512,7 +532,6 @@ public partial class MainWindow : Window
 
         // Optic 페이지 생성 및 표시
         var opticPage = new OpticPage();
-        opticPage.BackRequested += (s, e) => ShowMainPage();
 
         // 현재 다크모드 상태를 OpticPage에 전달
         opticPage.SetDarkMode(isDarkMode);
@@ -546,10 +565,15 @@ public partial class MainWindow : Window
 
         // IPVS 페이지 생성 및 표시
         var ipvsPage = new IPVSPage();
-        ipvsPage.BackRequested += (s, e) => ShowMainPage();
 
         // 현재 다크모드 상태를 IPVSPage에 전달
         ipvsPage.SetDarkMode(isDarkMode);
+        
+        // 현재 언어 상태를 IPVSPage에 전달
+        ipvsPage.ApplyLanguage();
+
+        // IPVSPage의 뒤로가기 이벤트 처리
+        ipvsPage.BackRequested += (s, e) => ShowMainPage();
 
         var mainContentGrid = (Grid)this.FindName("MainContent");
         if (mainContentGrid != null)
@@ -789,6 +813,10 @@ public partial class MainWindow : Window
                 SetDarkMode();
             }
 
+            // 언어 설정 로드
+            string currentLanguage = iniManager.ReadValue("Settings", "Language", "Korean");
+            LanguageManager.SetLanguage(currentLanguage);
+
             // 타이틀바 색상 설정 제거됨 - XAML에서 하드코딩된 보라색 사용
 
             System.Diagnostics.Debug.WriteLine("INI 설정이 성공적으로 로드되었습니다.");
@@ -801,7 +829,132 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        // 언어 변경 이벤트 구독 해제
+        LanguageManager.LanguageChanged -= OnLanguageChanged;
         base.OnClosed(e);
+    }
+
+    /// <summary>
+    /// 언어 변경 이벤트 핸들러
+    /// </summary>
+    private void OnLanguageChanged(object sender, EventArgs e)
+    {
+        ApplyLanguage();
+        
+        // 현재 페이지에도 언어 적용
+        if (currentPage is OpticPage opticPage)
+        {
+            opticPage.ApplyLanguage();
+        }
+        else if (currentPage is IPVSPage ipvsPage)
+        {
+            ipvsPage.ApplyLanguage();
+        }
+    }
+
+    /// <summary>
+    /// MainWindow에 언어 적용
+    /// </summary>
+    public void ApplyLanguage()
+    {
+        try
+        {
+            // 버튼 텍스트 업데이트
+            if (CharacteristicsButton != null)
+                CharacteristicsButton.Content = LanguageManager.GetText("MainWindow.Characteristics");
+            
+            if (IPVSButton != null)
+                IPVSButton.Content = LanguageManager.GetText("MainWindow.IPVS");
+            
+            if (ManualButton != null)
+                ManualButton.Content = LanguageManager.GetText("MainWindow.Manual");
+            
+            if (LUTButton != null)
+                LUTButton.Content = LanguageManager.GetText("MainWindow.LUT");
+            
+            if (SettingsButton != null)
+                SettingsButton.Content = LanguageManager.GetText("MainWindow.Settings");
+            
+            // 호버 툴팁 텍스트 업데이트
+            UpdateTooltipTexts();
+            
+            System.Diagnostics.Debug.WriteLine($"MainWindow 언어 적용 완료: {LanguageManager.CurrentLanguage}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"MainWindow 언어 적용 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 호버 툴팁 텍스트 업데이트
+    /// </summary>
+    private void UpdateTooltipTexts()
+    {
+        try
+        {
+            // Characteristics 툴팁 업데이트
+            if (CharacteristicsTooltip != null)
+            {
+                var titleTextBlock = FindVisualChild<TextBlock>(CharacteristicsTooltip, "CharacteristicsTooltipTitle");
+                if (titleTextBlock != null)
+                    titleTextBlock.Text = LanguageManager.GetText("MainWindow.CharacteristicsTooltip.Title");
+                
+                var descriptionTextBlock = FindVisualChild<TextBlock>(CharacteristicsTooltip, "CharacteristicsTooltipDescription");
+                if (descriptionTextBlock != null)
+                    descriptionTextBlock.Text = LanguageManager.GetText("MainWindow.CharacteristicsTooltip.Description");
+                
+                var centerPointTextBlock = FindVisualChild<TextBlock>(CharacteristicsTooltip, "CharacteristicsTooltipCenterPoint");
+                if (centerPointTextBlock != null)
+                    centerPointTextBlock.Text = LanguageManager.GetText("MainWindow.CharacteristicsTooltip.CenterPoint");
+            }
+            
+                // IPVS 툴팁 업데이트
+                if (IPVSTooltip != null)
+                {
+                    var titleTextBlock = FindVisualChild<TextBlock>(IPVSTooltip, "IPVSTooltipTitle");
+                    if (titleTextBlock != null)
+                        titleTextBlock.Text = LanguageManager.GetText("MainWindow.IPVSTooltip.Title");
+                    
+                    var descriptionTextBlock = FindVisualChild<TextBlock>(IPVSTooltip, "IPVSTooltipDescription");
+                    if (descriptionTextBlock != null)
+                        descriptionTextBlock.Text = LanguageManager.GetText("MainWindow.IPVSTooltip.Description");
+                }
+                
+                // 설정 툴팁 업데이트
+                if (SettingsTooltip != null)
+                {
+                    var titleTextBlock = FindVisualChild<TextBlock>(SettingsTooltip, "SettingsTooltipTitle");
+                    if (titleTextBlock != null)
+                        titleTextBlock.Text = LanguageManager.GetText("MainWindow.SettingsTooltip.Title");
+                    
+                    var descriptionTextBlock = FindVisualChild<TextBlock>(SettingsTooltip, "SettingsTooltipDescription");
+                    if (descriptionTextBlock != null)
+                        descriptionTextBlock.Text = LanguageManager.GetText("MainWindow.SettingsTooltip.Description");
+                }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"툴팁 텍스트 업데이트 오류: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 시각적 트리에서 특정 이름의 자식 요소 찾기
+    /// </summary>
+    private T FindVisualChild<T>(DependencyObject parent, string name) where T : DependencyObject
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T && (child as FrameworkElement)?.Name == name)
+                return child as T;
+            
+            var childOfChild = FindVisualChild<T>(child, name);
+            if (childOfChild != null)
+                return childOfChild;
+        }
+        return null;
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

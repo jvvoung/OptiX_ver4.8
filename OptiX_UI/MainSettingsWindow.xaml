@@ -1,0 +1,500 @@
+<Window x:Class="OptiX.MainSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="설정"
+        Height="700"
+        Width="600"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="White">
+    
+    <Window.Resources>
+        <!-- 보라색 컬러 팔레트 -->
+        <SolidColorBrush x:Key="PrimaryColor" Color="#8B5CF6"/>
+        <SolidColorBrush x:Key="PrimaryDarkColor" Color="#7C3AED"/>
+        <SolidColorBrush x:Key="BackgroundColor" Color="#F8FAFC"/>
+        <SolidColorBrush x:Key="CardColor" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextColor" Color="#1E293B"/>
+        <SolidColorBrush x:Key="TextSecondaryColor" Color="#64748B"/>
+        
+        <!-- 동적 색상 팔레트 -->
+        <SolidColorBrush x:Key="DynamicBackground" Color="#F8FAFC"/>
+        <SolidColorBrush x:Key="DynamicCardBackground" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="DynamicBorderColor" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="DynamicTextColor" Color="#1E293B"/>
+        <SolidColorBrush x:Key="DynamicInputBackground" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="DynamicInputBorder" Color="#D1D5DB"/>
+        
+        <!-- 모던 버튼 스타일 -->
+        <Style x:Key="ModernButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="15"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource PrimaryDarkColor}"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#8B5CF6" 
+                                                        BlurRadius="10" 
+                                                        ShadowDepth="0" 
+                                                        Opacity="0.3"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource PrimaryDarkColor}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- TCP/IP 버튼 스타일 -->
+        <Style x:Key="TcpIpButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="12,8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource PrimaryDarkColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource PrimaryDarkColor}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- Connect 버튼 스타일 -->
+        <Style x:Key="ConnectButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="12,8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource PrimaryDarkColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource PrimaryDarkColor}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- 세컨더리 버튼 스타일 -->
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource DynamicSurfaceColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DynamicBorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource DynamicTextPrimaryColor}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="MinHeight" Value="40"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="12,8">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000" 
+                                                Opacity="0.05" 
+                                                BlurRadius="4" 
+                                                ShadowDepth="1" 
+                                                Direction="270"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource PrimaryColor}"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#000000" 
+                                                        Opacity="0.1" 
+                                                        BlurRadius="8" 
+                                                        ShadowDepth="2" 
+                                                        Direction="270"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource PrimaryDarkColor}"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#000000" 
+                                                        Opacity="0.05" 
+                                                        BlurRadius="4" 
+                                                        ShadowDepth="1" 
+                                                        Direction="270"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- TextBox 스타일 -->
+        <Style x:Key="ModernTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource DynamicInputBackground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DynamicInputBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource DynamicTextColor}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" 
+                                          VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource PrimaryColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource PrimaryColor}"/>
+                                <Setter TargetName="border" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- 체크박스 스타일 -->
+        <Style x:Key="ModernCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource DynamicTextColor}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <Border x:Name="checkBorder"
+                                    Grid.Column="0"
+                                    Width="20"
+                                    Height="20"
+                                    Background="{DynamicResource DynamicInputBackground}"
+                                    BorderBrush="{DynamicResource DynamicInputBorder}"
+                                    BorderThickness="2"
+                                    CornerRadius="4"
+                                    Margin="0,0,8,0">
+                                <Path x:Name="checkMark"
+                                      Data="M 2,6 L 6,10 L 14,2"
+                                      Stroke="White"
+                                      StrokeThickness="2"
+                                      Visibility="Collapsed"/>
+                            </Border>
+                            
+                            <ContentPresenter Grid.Column="1"
+                                            VerticalAlignment="Center"/>
+                        </Grid>
+                        
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="checkBorder" Property="BorderBrush" Value="{StaticResource PrimaryColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="checkBorder" Property="Background" Value="{StaticResource PrimaryColor}"/>
+                                <Setter TargetName="checkBorder" Property="BorderBrush" Value="{StaticResource PrimaryColor}"/>
+                                <Setter TargetName="checkMark" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    
+    <Grid Background="{DynamicResource DynamicBackground}">
+        <Border Background="{DynamicResource DynamicCardBackground}"
+                BorderBrush="{DynamicResource DynamicBorderColor}"
+                BorderThickness="1"
+                CornerRadius="12"
+                Margin="20"
+                Padding="0">
+            <Border.Effect>
+                <DropShadowEffect Color="#000000" Opacity="0.1" BlurRadius="20" ShadowDepth="8" Direction="270"/>
+            </Border.Effect>
+            <Grid Margin="24">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Language 섹션 -->
+                <Border Grid.Row="0" 
+                        Background="{DynamicResource DynamicCardBackground}"
+                        BorderBrush="{DynamicResource DynamicBorderColor}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16"
+                        Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        
+                        <!-- Language 제목과 구분선 -->
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <TextBlock Grid.Column="0" 
+                                       Text="Language" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold" 
+                                       Foreground="{DynamicResource DynamicTextColor}" 
+                                       VerticalAlignment="Center"/>
+                            
+                            <!-- 구분선 -->
+                            <Rectangle Grid.Column="1" 
+                                       Height="1" 
+                                       Fill="{DynamicResource DynamicBorderColor}" 
+                                       VerticalAlignment="Center" 
+                                       Margin="12,0,0,0"/>
+                        </Grid>
+                        
+                        <!-- 언어 선택 체크박스들 -->
+                        <StackPanel Grid.Row="1">
+                            <CheckBox x:Name="KoreanCheckBox"
+                                      Content="한국어"
+                                      Style="{StaticResource ModernCheckBoxStyle}"/>
+                            <CheckBox x:Name="EnglishCheckBox"
+                                      Content="English"
+                                      Style="{StaticResource ModernCheckBoxStyle}"/>
+                            <CheckBox x:Name="VietnameseCheckBox"
+                                      Content="Vietnamese"
+                                      Style="{StaticResource ModernCheckBoxStyle}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Port 연결 섹션 -->
+                <Border Grid.Row="1" 
+                        Background="{DynamicResource DynamicCardBackground}"
+                        BorderBrush="{DynamicResource DynamicBorderColor}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16"
+                        Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        
+                        <!-- Port 연결 제목과 Connect 버튼 -->
+                        <Grid Grid.Row="0" Margin="0,0,0,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <TextBlock Grid.Column="0" 
+                                       Text="Port 연결" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold" 
+                                       Foreground="{DynamicResource DynamicTextColor}" 
+                                       VerticalAlignment="Center"/>
+                            
+                            <!-- 구분선 -->
+                            <Rectangle Grid.Column="1" 
+                                       Height="1" 
+                                       Fill="{DynamicResource DynamicBorderColor}" 
+                                       VerticalAlignment="Center" 
+                                       Margin="12,0,12,0"/>
+                            
+                            <!-- Connect 버튼 -->
+                            <Button Grid.Column="2"
+                                    x:Name="ConnectButton"
+                                    Content="Connect"
+                                    Style="{StaticResource ConnectButtonStyle}"
+                                    FontSize="12"
+                                    Height="32"
+                                    Width="80"
+                                    Padding="8,6"
+                                    Click="ConnectButton_Click"/>
+                        </Grid>
+                        
+                        <!-- TCP/IP 설정 -->
+                        <Grid Grid.Row="1" Margin="0,0,0,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- TCP/IP 버튼 -->
+                            <Button Grid.Column="0"
+                                    x:Name="TcpIpButton"
+                                    Content="TCP/IP"
+                                    Style="{StaticResource TcpIpButtonStyle}"
+                                    FontSize="12"
+                                    Height="36"
+                                    Width="80"
+                                    Padding="8,8"
+                                    Click="TcpIpButton_Click"/>
+                            
+                            <!-- TCP/IP 입력 필드 -->
+                            <TextBox Grid.Column="1" 
+                                     x:Name="TcpIpTextBox"
+                                     FontSize="12"
+                                     Height="36"
+                                     Padding="12,8"
+                                     Margin="12,0,0,0"
+                                     VerticalContentAlignment="Center"
+                                     Background="White"
+                                     Foreground="Black"
+                                     BorderBrush="#D1D5DB"
+                                     BorderThickness="1"
+                                     CaretBrush="Black"
+                                     SelectionBrush="#8B5CF6"
+                                     SelectionTextBrush="White"/>
+                        </Grid>
+                        
+                        
+                    </Grid>
+                </Border>
+
+                <!-- DLL 폴더 설정 카드 -->
+                <Border Grid.Row="3"
+                        Background="{DynamicResource DynamicCardBackground}"
+                        BorderBrush="{DynamicResource DynamicBorderColor}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="20"
+                        Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        
+                        <TextBlock Grid.Row="0" 
+                                   Text="DLL 폴더 설정" 
+                                   FontSize="16" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="{DynamicResource DynamicTextColor}"
+                                   Margin="0,0,0,16"/>
+                        
+                        <Grid Grid.Row="1" Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="70"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <Button Grid.Column="0" 
+                                    x:Name="DllFolderButton"
+                                    Content="📂 DLL" 
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    FontSize="10"
+                                    Height="48"
+                                    Foreground="{DynamicResource DynamicTextColor}"
+                                    Click="DllFolderButton_Click"/>
+                            
+                            <TextBox Grid.Column="1" 
+                                     x:Name="DllFolderTextBox"
+                                     Style="{StaticResource ModernTextBoxStyle}"
+                                     FontSize="11"
+                                     Height="48
+                                     "
+                                     VerticalScrollBarVisibility="Disabled"
+                                     HorizontalScrollBarVisibility="Disabled"
+                                     VerticalContentAlignment="Center"
+                                     Margin="6,0,0,0"
+                                     Text="DLL 폴더를 선택하세요" TextChanged="DllFolderTextBox_TextChanged" Cursor=""/>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- SAVE 버튼 -->
+                <Button Grid.Row="5"
+                        x:Name="SaveButton"
+                        Content="SAVE" 
+                        Style="{StaticResource ModernButtonStyle}"
+                        FontSize="14"
+                        Height="40"
+                        Width="120"
+                        Margin="0,16,0,0"
+                        Click="SaveButton_Click"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

@@ -1,7 +1,7 @@
 <Window x:Class="OptiX.CellIdInputWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="OPTIC 설정"
+        Title="Zone 1 OPTIC SETTING"
         Height="750"
         Width="650"
         WindowStartupLocation="CenterOwner"
@@ -213,7 +213,6 @@
             <Grid Margin="24">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
@@ -234,7 +233,8 @@
                         </Grid.RowDefinitions>
                         
                         <!-- Cell 정보 제목 -->
-                        <TextBlock Grid.Row="0" 
+                        <TextBlock x:Name="CellInfoTitle"
+                                   Grid.Row="0" 
                                    Text="Cell 정보" 
                                    FontSize="16" 
                                    FontWeight="SemiBold" 
@@ -275,51 +275,9 @@
                     </Grid>
                 </Border>
 
-                <!-- 파일 생성 여부 영역 -->
-                <Border Grid.Row="1" 
-                        Background="{DynamicResource DynamicCardBackground}"
-                        BorderBrush="{DynamicResource DynamicBorderColor}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="16"
-                        Margin="0,0,0,16">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        
-                        <!-- 파일 생성 여부 제목 -->
-                        <TextBlock Grid.Row="0" 
-                                   Text="파일 생성 여부" 
-                                   FontSize="16" 
-                                   FontWeight="SemiBold" 
-                                   Foreground="{DynamicResource DynamicTextColor}" 
-                                   Margin="0,0,0,12"/>
-                        
-                        <!-- 체크박스들 -->
-                        <StackPanel Grid.Row="1" 
-                                    Orientation="Horizontal" 
-                                    HorizontalAlignment="Center">
-                            <CheckBox x:Name="CimCheckBox"
-                                      Content="CIM"
-                                      Foreground="{DynamicResource DynamicTextColor}"
-                                      FontSize="14"
-                                      FontWeight="SemiBold"
-                                      Margin="0,0,32,0"
-                                      VerticalAlignment="Center"/>
-                            <CheckBox x:Name="EecpCheckBox"
-                                      Content="EECP"
-                                      Foreground="{DynamicResource DynamicTextColor}"
-                                      FontSize="14"
-                                      FontWeight="SemiBold"
-                                      VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
 
                 <!-- Port 연결 영역 -->
-                <Border Grid.Row="2" 
+                <Border Grid.Row="1" 
                         Background="{DynamicResource DynamicCardBackground}"
                         BorderBrush="{DynamicResource DynamicBorderColor}"
                         BorderThickness="1"
@@ -339,7 +297,8 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             
-                            <TextBlock Grid.Column="0" 
+                            <TextBlock x:Name="PortConnectionTitle"
+                                       Grid.Column="0" 
                                        Text="Port 연결" 
                                        FontSize="16" 
                                        FontWeight="SemiBold" 
@@ -371,28 +330,8 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 
-                                <!-- 왼쪽: TCP/IP, PG -->
+                                <!-- 왼쪽: PG -->
                                 <StackPanel Grid.Column="0" Margin="10">
-                                    <!-- TCP/IP 행 -->
-                                    <Grid Margin="0,0,0,8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="80"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" 
-                                                   Text="TCP/IP" 
-                                                   VerticalAlignment="Center" 
-                                                   HorizontalAlignment="Center"
-                                                   FontWeight="Bold"
-                                                   Background="{StaticResource PrimaryColor}"
-                                                   Foreground="White"
-                                                   Padding="8,4"/>
-                                        <TextBox Grid.Column="1" 
-                                                 x:Name="TcpIpTextBox"
-                                                 Style="{StaticResource PortTextBoxStyle}"
-                                                 Margin="4,0,0,0"/>
-                                    </Grid>
-                                    
                                     <!-- PG 행 -->
                                     <Grid Margin="0,0,0,8">
                                         <Grid.ColumnDefinitions>
@@ -423,7 +362,7 @@
                 </Border>
 
                 <!-- 버튼들 -->
-                <StackPanel Grid.Row="3" 
+                <StackPanel Grid.Row="2" 
                             Orientation="Horizontal" 
                             HorizontalAlignment="Center" 
                             Margin="0,16,0,0">
@@ -436,11 +375,11 @@
                             Margin="0,0,8,0"
                             Click="SaveButton_Click"/>
                     <Button x:Name="CancelButton"
-                            Content="❌ 취소" 
+                            Content="CANCEL" 
                             Style="{StaticResource SecondaryButtonStyle}"
-                            FontSize="14"
+                            FontSize="12"
                             Height="40"
-                            Width="100"
+                            Width="110"
                             Click="CancelButton_Click"/>
                 </StackPanel>
             </Grid>

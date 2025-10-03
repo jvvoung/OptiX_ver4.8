@@ -1,0 +1,302 @@
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Windows;
+using System.Diagnostics;
+
+namespace OptiX
+{
+    /// <summary>
+    /// DLL 관리 클래스 - 모든 DLL 함수 호출을 중앙 집중식으로 관리
+    /// </summary>
+    public static class DllManager
+    {
+        #region Private Fields
+        private static IntPtr _dllHandle = IntPtr.Zero;
+        private static string _dllPath = "";
+        private static bool _isInitialized = false;
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// DLL이 초기화되었는지 확인
+        /// </summary>
+        public static bool IsInitialized => _isInitialized;
+
+        /// <summary>
+        /// 현재 로드된 DLL 경로
+        /// </summary>
+        public static string DllPath => _dllPath;
+        #endregion
+
+        #region P/Invoke Declarations
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr LoadLibrary(string dllToLoad);
+
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr GetProcAddress(IntPtr hModule, string procedureName);
+
+        [DllImport("kernel32.dll")]
+        private static extern bool FreeLibrary(IntPtr hModule);
+        #endregion
+
+        #region DLL Management Methods
+        /// <summary>
+        /// DLL 초기화 (프로그램 시작 시 한 번 호출)
+        /// </summary>
+        public static bool Initialize()
+        {
+            try
+            {
+                // 기존 DLL이 로드되어 있다면 해제
+                if (_dllHandle != IntPtr.Zero)
+                {
+                    FreeLibrary(_dllHandle);
+                    _dllHandle = IntPtr.Zero;
+                }
+
+                // DLL 경로 가져오기
+                string dllFolder = GlobalDataManager.GetValue("Settings", "DLL_FOLDER", "");
+                if (string.IsNullOrEmpty(dllFolder))
+                {
+                    Debug.WriteLine("DllManager 초기화 실패: DLL 폴더 경로가 설정되지 않음");
+                    return false;
+                }
+
+                _dllPath = Path.Combine(dllFolder, "TestDll.dll");
+                if (!File.Exists(_dllPath))
+                {
+                    Debug.WriteLine($"DllManager 초기화 실패: DLL 파일을 찾을 수 없음 - {_dllPath}");
+                    return false;
+                }
+
+                // DLL 로드
+                _dllHandle = LoadLibrary(_dllPath);
+                if (_dllHandle == IntPtr.Zero)
+                {
+                    int error = Marshal.GetLastWin32Error();
+                    Debug.WriteLine($"DllManager 초기화 실패: DLL 로딩 실패 - 오류 코드: {error}");
+                    return false;
+                }
+
+                _isInitialized = true;
+                Debug.WriteLine($"DllManager 초기화 성공: {_dllPath}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DllManager 초기화 오류: {ex.Message}");
+                _isInitialized = false;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// DLL 재로드 (메인 설정창에서 SAVE 버튼 클릭 시 호출)
+        /// </summary>
+        public static bool Reload()
+        {
+            try
+            {
+                Debug.WriteLine("DllManager 재로드 시작...");
+                return Initialize();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DllManager 재로드 오류: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// DLL 해제
+        /// </summary>
+        public static void Dispose()
+        {
+            try
+            {
+                if (_dllHandle != IntPtr.Zero)
+                {
+                    FreeLibrary(_dllHandle);
+                    _dllHandle = IntPtr.Zero;
+                    _isInitialized = false;
+                    Debug.WriteLine("DllManager 해제 완료");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DllManager 해제 오류: {ex.Message}");
+            }
+        }
+        #endregion
+
+        #region DLL Function Call Methods
+        /// <summary>
+        /// DLL에서 함수 주소 가져오기
+        /// </summary>
+        /// <param name="functionName">함수 이름</param>
+        /// <returns>함수 주소</returns>
+        public static IntPtr GetFunctionAddress(string functionName)
+        {
+            if (!_isInitialized || _dllHandle == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("DLL이 초기화되지 않았습니다. Initialize()를 먼저 호출하세요.");
+            }
+
+            IntPtr functionAddress = GetProcAddress(_dllHandle, functionName);
+            if (functionAddress == IntPtr.Zero)
+            {
+                throw new InvalidOperationException($"함수를 찾을 수 없습니다: {functionName}");
+            }
+
+            return functionAddress;
+        }
+
+        /// <summary>
+        /// DLL 함수 호출 (델리게이트를 통한 안전한 호출)
+        /// </summary>
+        /// <typeparam name="T">델리게이트 타입</typeparam>
+        /// <param name="functionName">함수 이름</param>
+        /// <returns>함수 델리게이트</returns>
+        public static T GetFunction<T>(string functionName) where T : class
+        {
+            IntPtr functionAddress = GetFunctionAddress(functionName);
+            return Marshal.GetDelegateForFunctionPointer<T>(functionAddress);
+        }
+        #endregion
+
+        #region Specific DLL Functions
+        /// <summary>
+        /// TestDll의 test 함수 델리게이트 정의
+        /// 실제 DLL: int test(struct input* in, struct output* out)
+        /// </summary>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate int TestFunction(IntPtr input, IntPtr output);
+
+        /// <summary>
+        /// TestDll의 test 함수 호출
+        /// </summary>
+        /// <param name="input">입력 데이터</param>
+        /// <returns>테스트 결과와 성공 여부</returns>
+        public static (Output output, bool success) CallTestFunction(Input input)
+        {
+            if (!_isInitialized)
+            {
+                throw new InvalidOperationException("DLL이 초기화되지 않았습니다.");
+            }
+
+            try
+            {
+                // 구조체를 비관리 메모리에 마샬링
+                IntPtr inputPtr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Input)));
+                IntPtr outputPtr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Output)));
+
+                try
+                {
+                    // 입력 구조체를 비관리 메모리에 복사
+                    Marshal.StructureToPtr(input, inputPtr, false);
+
+                    // DLL 함수 호출
+                    var testFunc = GetFunction<TestFunction>("test");
+                    int result = testFunc(inputPtr, outputPtr);
+
+                    if (result == 1) // 성공
+                    {
+                        // 출력 구조체를 관리 메모리로 복사
+                        Output output = Marshal.PtrToStructure<Output>(outputPtr);
+                        return (output, true);
+                    }
+                    else
+                    {
+                        // 실패 시 빈 출력 반환
+                        Output emptyOutput = new Output { data = new Pattern[119] };
+                        return (emptyOutput, false);
+                    }
+                }
+                finally
+                {
+                    // 메모리 해제
+                    Marshal.FreeHGlobal(inputPtr);
+                    Marshal.FreeHGlobal(outputPtr);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"TestDll.test 함수 호출 오류: {ex.Message}");
+                throw;
+            }
+        }
+
+        #endregion
+
+        #region Utility Methods
+        /// <summary>
+        /// DLL 상태 정보 가져오기
+        /// </summary>
+        /// <returns>DLL 상태 정보</returns>
+        public static string GetStatus()
+        {
+            if (!_isInitialized)
+                return "DLL이 초기화되지 않음";
+
+            return $"DLL 로드됨: {_dllPath}";
+        }
+
+        /// <summary>
+        /// DLL 경로 유효성 검사
+        /// </summary>
+        /// <returns>유효한 경로인지 여부</returns>
+        public static bool ValidateDllPath()
+        {
+            string dllFolder = GlobalDataManager.GetValue("Settings", "DLL_FOLDER", "");
+            if (string.IsNullOrEmpty(dllFolder))
+                return false;
+
+            string fullPath = Path.Combine(dllFolder, "TestDll.dll");
+            return File.Exists(fullPath);
+        }
+        #endregion
+    }
+
+    #region DLL Structure Definitions
+    /// <summary>
+    /// DLL 입력 구조체 (struct input)
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct Input
+    {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string CELL_ID;
+        
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string INNER_ID;
+        
+        public int total_point;
+        public int cur_point;
+    }
+
+    /// <summary>
+    /// DLL에서 반환되는 데이터 구조체
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct Pattern
+    {
+        public double x;
+        public double y;
+        public double L;
+        public double cur;
+        public double eff;
+    }
+
+    /// <summary>
+    /// DLL에서 반환되는 출력 구조체
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct Output
+    {
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 119)]
+        public Pattern[] data; // 7 * 17 = 119
+    }
+
+    #endregion
+}

@@ -21,6 +21,8 @@ namespace OptiX
         private IniFileManager iniManager;
         private ObservableCollection<DataTableItem> dataItems;
         private bool isDarkMode = false;
+        private List<string> wadValues = new List<string>();
+        private int currentSelectedZone = 1; // 현재 선택된 Zone (기본값: 1)
         
         public IPVSPage()
         {
@@ -29,7 +31,12 @@ namespace OptiX
             LoadDataFromIni();
             InitializeDataTable();
             LoadThemeFromIni();
+            InitializeWAD();
+            
+            // 초기 언어 적용
+            Loaded += (s, e) => ApplyLanguage();
         }
+
 
         private void InitializeIniManager()
         {
@@ -44,9 +51,9 @@ namespace OptiX
         {
             try
             {
-                // IPVS 섹션에서 Zone과 MAX_POINT 읽기
-                string zoneCountStr = iniManager.ReadValue("IPVS", "Zone", "2");
-                string maxPointStr = iniManager.ReadValue("IPVS", "MAX_POINT", "5");
+                // Settings 섹션에서 IPVS_ZONE과 MAX_POINT 읽기
+                string zoneCountStr = GlobalDataManager.GetValue("Settings", "IPVS_ZONE", "2");
+                string maxPointStr = GlobalDataManager.GetValue("IPVS", "MAX_POINT", "5");
 
                 int zoneCount = int.Parse(zoneCountStr);
                 int maxPoint = int.Parse(maxPointStr);
@@ -58,11 +65,15 @@ namespace OptiX
                 {
                     for (int point = 1; point <= maxPoint; point++)
                     {
+                        // IPVS 섹션에서 Cell ID와 Inner ID 로드 (초기에는 빈 값)
+                        string cellId = ""; // IPVS는 TEST START 후에만 데이터 표시
+                        string innerId = ""; // IPVS는 TEST START 후에만 데이터 표시
+                        
                         dataItems.Add(new DataTableItem
                         {
                             Zone = zone.ToString(), // 모든 행에 Zone 표시 (그룹화를 위해)
-                            InnerId = "", // Inner ID는 빈 값으로 설정
-                            CellId = "", // Cell ID는 빈 값으로 설정
+                            InnerId = innerId, // MTP 섹션에서 로드한 Inner ID
+                            CellId = cellId, // MTP 섹션에서 로드한 Cell ID
                             Category = point.ToString(), // Point 값 (1, 2, 3, 4, 5)
                             X = "",
                             Y = "",
@@ -120,32 +131,6 @@ namespace OptiX
             }
         }
 
-        private void UpdateDynamicColors(bool isDark)
-        {
-            // 동적 색상 팔레트 업데이트
-            if (isDark)
-            {
-                // 다크모드 색상으로 변경
-                Resources["DynamicBackgroundColor"] = new SolidColorBrush(Color.FromRgb(15, 23, 42)); // #0F172A
-                Resources["DynamicSurfaceColor"] = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
-                Resources["DynamicCardColor"] = new SolidColorBrush(Color.FromRgb(51, 65, 85)); // #334155
-                Resources["DynamicBorderColor"] = new SolidColorBrush(Color.FromRgb(71, 85, 105)); // #475569
-                Resources["DynamicTextPrimaryColor"] = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
-                Resources["DynamicTextSecondaryColor"] = new SolidColorBrush(Color.FromRgb(203, 213, 225)); // #CBD5E1
-                Resources["DynamicTextMutedColor"] = new SolidColorBrush(Color.FromRgb(148, 163, 184)); // #94A3B8
-            }
-            else
-            {
-                // 라이트모드 색상으로 변경
-                Resources["DynamicBackgroundColor"] = new SolidColorBrush(Color.FromRgb(248, 250, 252)); // #F8FAFC
-                Resources["DynamicSurfaceColor"] = new SolidColorBrush(Color.FromRgb(255, 255, 255)); // #FFFFFF
-                Resources["DynamicCardColor"] = new SolidColorBrush(Color.FromRgb(255, 255, 255)); // #FFFFFF
-                Resources["DynamicBorderColor"] = new SolidColorBrush(Color.FromRgb(226, 232, 240)); // #E2E8F0
-                Resources["DynamicTextPrimaryColor"] = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
-                Resources["DynamicTextSecondaryColor"] = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748B
-                Resources["DynamicTextMutedColor"] = new SolidColorBrush(Color.FromRgb(148, 163, 184)); // #94A3B8
-            }
-        }
 
         private void UpdateTableColors(bool isDark)
         {
@@ -159,10 +144,50 @@ namespace OptiX
             ApplyTheme();
         }
         
-        public void SetDarkMode(bool darkMode)
+        public void SetDarkMode(bool isDarkMode)
         {
-            isDarkMode = darkMode;
-            ApplyTheme();
+            this.isDarkMode = isDarkMode;
+            
+            if (isDarkMode)
+            {
+                UpdateDynamicColors(true);
+            }
+            else
+            {
+                UpdateDynamicColors(false);
+            }
+            
+            // 테이블을 다시 생성하여 올바른 색상 적용
+            InitializeDataTable();
+        }
+        
+        private void UpdateDynamicColors(bool isDark)
+        {
+            // OPTIC 페이지와 동일한 동적 색상 팔레트 업데이트
+            if (isDark)
+            {
+                // 다크모드 색상으로 변경
+                Resources["DynamicBackgroundColor"] = new SolidColorBrush(Color.FromRgb(15, 23, 42)); // #0F172A
+                Resources["DynamicSurfaceColor"] = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
+                Resources["DynamicCardColor"] = new SolidColorBrush(Color.FromRgb(51, 65, 85)); // #334155
+                Resources["DynamicBorderColor"] = new SolidColorBrush(Color.FromRgb(71, 85, 105)); // #475569
+                Resources["DynamicTextPrimaryColor"] = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
+                Resources["DynamicTextSecondaryColor"] = new SolidColorBrush(Color.FromRgb(203, 213, 225)); // #CBD5E1
+                Resources["DynamicTextMutedColor"] = new SolidColorBrush(Color.FromRgb(148, 163, 184)); // #94A3B8
+                Resources["DynamicTextColor"] = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
+            }
+            else
+            {
+                // 라이트모드 색상으로 변경
+                Resources["DynamicBackgroundColor"] = new SolidColorBrush(Color.FromRgb(248, 250, 252)); // #F8FAFC
+                Resources["DynamicSurfaceColor"] = new SolidColorBrush(Color.FromRgb(255, 255, 255)); // #FFFFFF
+                Resources["DynamicCardColor"] = new SolidColorBrush(Color.FromRgb(255, 255, 255)); // #FFFFFF
+                Resources["DynamicBorderColor"] = new SolidColorBrush(Color.FromRgb(226, 232, 240)); // #E2E8F0
+                Resources["DynamicTextPrimaryColor"] = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
+                Resources["DynamicTextSecondaryColor"] = new SolidColorBrush(Color.FromRgb(71, 85, 105)); // #475569
+                Resources["DynamicTextMutedColor"] = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748B
+                Resources["DynamicTextColor"] = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
+            }
         }
 
         private void CreateZoneButtons()
@@ -172,8 +197,8 @@ namespace OptiX
 
             try
             {
-                // INI 파일에서 Zone 개수 읽기
-                string zoneCountStr = iniManager.ReadValue("IPVS", "Zone", "2");
+                // Settings에서 IPVS_ZONE 개수 읽기
+                string zoneCountStr = iniManager.ReadValue("Settings", "IPVS_ZONE", "2");
                 int zoneCount = int.Parse(zoneCountStr);
 
                 // Zone 개수만큼 모던 버튼 생성
@@ -187,7 +212,7 @@ namespace OptiX
                         FontSize = 12,
                         FontWeight = FontWeights.Bold,
                         Margin = new Thickness(3, 0, 3, 0),
-                        Tag = i
+                        Tag = i - 1  // 0-based index로 저장
                     };
 
                     // 첫 번째 버튼은 활성화 상태
@@ -465,6 +490,146 @@ namespace OptiX
             BackRequested?.Invoke(this, EventArgs.Empty);
         }
 
+        /// <summary>
+        /// IPVS Setting 버튼 클릭 - CellIdInputWindow 열기 (IPVS 섹션 사용)
+        /// </summary>
+        private void SettingButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // IPVS용 설정 창 열기 (현재 선택된 Zone, IPVS 섹션 사용)
+                var settingWindow = new CellIdInputWindow(currentSelectedZone, isDarkMode, "IPVS");
+                settingWindow.Owner = System.Windows.Application.Current.MainWindow;
+                settingWindow.WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner;
+
+                // Non-Modal로 열기 (메인 프로그램 계속 동작)
+                settingWindow.Show();
+                
+                System.Diagnostics.Debug.WriteLine($"IPVS Zone {currentSelectedZone} 설정 창 열림");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"IPVS 설정 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// IPVS Path 버튼 클릭 - PathSettingWindow 열기 (IPVS_PATHS 섹션 사용)
+        /// </summary>
+        private void PathButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // IPVS용 경로 설정 창 열기 (IPVS_PATHS 섹션 사용)
+                var pathWindow = new PathSettingWindow("IPVS_PATHS", isDarkMode);
+                pathWindow.Owner = System.Windows.Application.Current.MainWindow;
+                pathWindow.WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner;
+
+                // Non-Modal로 열기 (메인 프로그램 계속 동작)
+                pathWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"IPVS 경로 설정 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+
+        private void InitializeWAD()
+        {
+            try
+            {
+                // INI 파일에서 WAD 값들 읽어오기 (IPVS 섹션에서)
+                string wadString = iniManager.ReadValue("IPVS", "WAD", "0,15,30,45,60");
+                wadValues = wadString.Split(',').Select(x => x.Trim()).ToList();
+                
+                // 콤보박스에 WAD 값들 추가
+                WadComboBox.Items.Clear();
+                foreach (string wad in wadValues)
+                {
+                    WadComboBox.Items.Add(wad);
+                }
+                
+                // 첫 번째 값을 기본 선택으로 설정
+                if (WadComboBox.Items.Count > 0)
+                {
+                    WadComboBox.SelectedIndex = 0;
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"IPVS WAD 초기화 완료: {string.Join(", ", wadValues)}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"IPVS WAD 초기화 오류: {ex.Message}");
+                // 오류 시 기본값 설정
+                wadValues = new List<string> { "0", "15", "30", "45", "60" };
+                WadComboBox.Items.Clear();
+                foreach (string wad in wadValues)
+                {
+                    WadComboBox.Items.Add(wad);
+                }
+                if (WadComboBox.Items.Count > 0)
+                {
+                    WadComboBox.SelectedIndex = 0;
+                }
+            }
+        }
+
+        private void WadComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (WadComboBox.SelectedItem != null)
+                {
+                    string selectedWad = WadComboBox.SelectedItem.ToString();
+                    System.Diagnostics.Debug.WriteLine($"IPVS WAD 선택됨: {selectedWad}");
+                    
+                    // WAD 값이 변경되었을 때 필요한 작업 수행
+                    // 예: 데이터 테이블 업데이트, 그래프 업데이트 등
+                    UpdateDataTableForWAD(selectedWad);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"IPVS WAD 선택 변경 오류: {ex.Message}");
+            }
+        }
+
+        private void UpdateDataTableForWAD(string selectedWad)
+        {
+            try
+            {
+                // WAD 값에 따라 데이터 테이블 업데이트
+                // 여기에 WAD에 따른 데이터 처리 로직 구현
+                System.Diagnostics.Debug.WriteLine($"IPVS 데이터 테이블을 WAD {selectedWad}에 맞게 업데이트");
+                
+                // 예시: 데이터 테이블의 특정 컬럼 업데이트
+                // 실제 구현은 데이터 구조에 따라 달라질 수 있음
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"IPVS 데이터 테이블 업데이트 오류: {ex.Message}");
+            }
+        }
+
+        private void ResetButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // WAD 콤보박스를 첫 번째 값으로 리셋
+                if (WadComboBox.Items.Count > 0)
+                {
+                    WadComboBox.SelectedIndex = 0;
+                    System.Diagnostics.Debug.WriteLine("IPVS WAD가 리셋되었습니다.");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"IPVS WAD 리셋 오류: {ex.Message}");
+            }
+        }
+
+
         private void GraphTab_Click(object sender, RoutedEventArgs e)
         {
             // Graph 탭 활성화
@@ -495,6 +660,13 @@ namespace OptiX
         {
             Button clickedButton = sender as Button;
             
+            // 현재 선택된 Zone 업데이트 (Tag에서 0-based index를 가져와서 1-based로 변환)
+            if (clickedButton.Tag != null && int.TryParse(clickedButton.Tag.ToString(), out int zoneIndex))
+            {
+                currentSelectedZone = zoneIndex + 1; // 0-based → 1-based
+                System.Diagnostics.Debug.WriteLine($"IPVS Zone {currentSelectedZone} 선택됨");
+            }
+            
             // 모든 Zone 버튼 비활성화
             foreach (Button button in ZoneButtonsPanel.Children.OfType<Button>())
             {
@@ -505,22 +677,125 @@ namespace OptiX
             clickedButton.Style = (Style)FindResource("ActiveZoneButtonStyle");
         }
 
-        private void SetPathButton_Click(object sender, RoutedEventArgs e)
+
+        /// <summary>
+        /// IPVS Test Start 버튼 클릭 - IPVS 섹션에서 Cell ID와 Inner ID 로드
+        /// </summary>
+        private void TestStartButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                var pathSettingWindow = new PathSettingWindow("IPVS_PATHS", isDarkMode); // 현재 테마 상태 전달
-                pathSettingWindow.Owner = Application.Current.MainWindow;
-                pathSettingWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-
-                if (pathSettingWindow.ShowDialog() == true)
+                // IPVS 섹션에서 Cell ID와 Inner ID 로드하여 테이블 업데이트
+                string zoneCountStr = GlobalDataManager.GetValue("Settings", "IPVS_ZONE", "2");
+                string maxPointStr = GlobalDataManager.GetValue("IPVS", "MAX_POINT", "9");
+                
+                int zoneCount = int.Parse(zoneCountStr);
+                int maxPoint = int.Parse(maxPointStr);
+                
+                // 기존 데이터 업데이트
+                foreach (var item in dataItems)
                 {
-                    MessageBox.Show("IPVS 경로 설정이 완료되었습니다.", "알림", MessageBoxButton.OK, MessageBoxImage.Information);
+                    int zone = int.Parse(item.Zone);
+                    string cellId = GlobalDataManager.GetValue("IPVS", $"CELL_ID_ZONE_{zone}", "");
+                    string innerId = GlobalDataManager.GetValue("IPVS", $"INNER_ID_ZONE_{zone}", "");
+                    
+                    item.CellId = cellId;
+                    item.InnerId = innerId;
                 }
+                
+                // 테이블 다시 그리기
+                InitializeDataTable();
+                
+                MessageBox.Show("IPVS 테스트가 시작되었습니다!", "알림", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"경로 설정 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"IPVS 테스트 시작 중 오류가 발생했습니다: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// IPVSPage에 언어 적용
+        /// </summary>
+        public void ApplyLanguage()
+        {
+            try
+            {
+                // 뒤로가기 버튼
+                if (BackButton != null)
+                {
+                    var textBlock = BackButton.Content as TextBlock;
+                    if (textBlock != null)
+                        textBlock.Text = LanguageManager.GetText("IPVSPage.Back");
+                }
+
+                // WAD 라벨
+                var wadLabel = FindName("WadLabel") as System.Windows.Controls.TextBlock;
+                if (wadLabel != null)
+                    wadLabel.Text = LanguageManager.GetText("IPVSPage.WAD");
+
+                // RESET 버튼
+                if (ResetButton != null)
+                    ResetButton.Content = LanguageManager.GetText("IPVSPage.Reset");
+
+                // 컨트롤 패널 버튼들
+                var settingButton = FindName("SettingButton") as System.Windows.Controls.Button;
+                if (settingButton != null)
+                    settingButton.Content = LanguageManager.GetText("IPVSPage.Setting");
+
+                var pathButton = FindName("PathButton") as System.Windows.Controls.Button;
+                if (pathButton != null)
+                    pathButton.Content = LanguageManager.GetText("IPVSPage.Path");
+
+                var startButton = FindName("StartButton") as System.Windows.Controls.Button;
+                if (startButton != null)
+                    startButton.Content = LanguageManager.GetText("IPVSPage.Start");
+
+                var stopButton = FindName("StopButton") as System.Windows.Controls.Button;
+                if (stopButton != null)
+                    stopButton.Content = LanguageManager.GetText("IPVSPage.Stop");
+
+                var chartButton = FindName("ChartButton") as System.Windows.Controls.Button;
+                if (chartButton != null)
+                    chartButton.Content = LanguageManager.GetText("IPVSPage.Chart");
+
+                var reportButton = FindName("ReportButton") as System.Windows.Controls.Button;
+                if (reportButton != null)
+                    reportButton.Content = LanguageManager.GetText("IPVSPage.Report");
+
+                var exitButton = FindName("ExitButton") as System.Windows.Controls.Button;
+                if (exitButton != null)
+                    exitButton.Content = LanguageManager.GetText("IPVSPage.Exit");
+
+                // 특성 판정 현황 제목
+                var judgmentStatusTitle = FindName("JudgmentStatusTitle") as System.Windows.Controls.TextBlock;
+                if (judgmentStatusTitle != null)
+                    judgmentStatusTitle.Text = LanguageManager.GetText("IPVSPage.CharacteristicJudgmentStatus");
+
+                // 수량, 발생률 헤더
+                var quantityHeader = FindName("QuantityHeader") as System.Windows.Controls.TextBlock;
+                if (quantityHeader != null)
+                    quantityHeader.Text = LanguageManager.GetText("IPVSPage.Quantity");
+
+                var occurrenceRateHeader = FindName("OccurrenceRateHeader") as System.Windows.Controls.TextBlock;
+                if (occurrenceRateHeader != null)
+                    occurrenceRateHeader.Text = LanguageManager.GetText("IPVSPage.OccurrenceRate");
+
+                // 컨트롤 패널 제목
+                var controlPanelTitle = FindName("ControlPanelTitle") as System.Windows.Controls.TextBlock;
+                if (controlPanelTitle != null)
+                    controlPanelTitle.Text = LanguageManager.GetText("IPVSPage.ControlPanel");
+
+                // 데이터 테이블 제목 (IPVS는 고정, 데이터 테이블만 동적)
+                var dataTableTitle = FindName("DataTableTitle") as System.Windows.Controls.TextBlock;
+                if (dataTableTitle != null)
+                    dataTableTitle.Text = $"📊 IPVS {LanguageManager.GetText("IPVSPage.DataTable")}";
+
+                System.Diagnostics.Debug.WriteLine($"IPVSPage 언어 적용 완료: {LanguageManager.CurrentLanguage}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"IPVSPage 언어 적용 오류: {ex.Message}");
             }
         }
     }

@@ -350,7 +350,8 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             
-                            <TextBlock Grid.Column="0"
+                            <TextBlock x:Name="DataTableTitle"
+                                       Grid.Column="0"
                                        Text="📊 특성 데이터 테이블" 
                                        FontSize="14" 
                                        FontWeight="SemiBold" 
@@ -373,7 +374,7 @@
                                       FontSize="12"
                                       FontWeight="SemiBold"
                                       Background="White"
-                                      Foreground="{DynamicResource DynamicTextColor}"
+                                      Foreground="Black"
                                       BorderBrush="{DynamicResource DynamicBorderColor}"
                                       BorderThickness="1"
                                       Padding="8,4"
@@ -678,7 +679,8 @@
                                 Background="{DynamicResource DynamicBackgroundColor}" 
                                 CornerRadius="6,6,0,0"
                                 Height="36">
-                            <TextBlock Text="📊 특성 판정 현황" 
+                            <TextBlock x:Name="JudgmentStatusTitle"
+                                       Text="📊 특성 판정 현황" 
                                        FontSize="13" 
                           FontWeight="Bold" 
                                        Foreground="{DynamicResource DynamicTextPrimaryColor}"
@@ -715,14 +717,16 @@
                                                    Foreground="{DynamicResource DynamicTextPrimaryColor}"
                                                    HorizontalAlignment="Center" 
                                                    VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" 
+                                        <TextBlock x:Name="QuantityHeader"
+                                                   Grid.Column="1" 
                                                    Text="수량" 
                                                    FontSize="14" 
                                                    FontWeight="SemiBold" 
                                                    Foreground="{DynamicResource DynamicTextPrimaryColor}"
                                                    HorizontalAlignment="Center" 
                                                    VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="2" 
+                                        <TextBlock x:Name="OccurrenceRateHeader"
+                                                   Grid.Column="2" 
                                                    Text="발생률" 
                                                    FontSize="14" 
                                                    FontWeight="SemiBold" 
@@ -910,7 +914,8 @@
                                 Background="{DynamicResource DynamicBackgroundColor}" 
                                 CornerRadius="6,6,0,0" 
                                 Height="36">
-                            <TextBlock Text="⚙️ 컨트롤 패널" 
+                            <TextBlock x:Name="ControlPanelTitle"
+                                       Text="⚙️ 컨트롤 패널" 
                                        FontSize="13" 
                                        FontWeight="SemiBold" 
                                        Foreground="{DynamicResource DynamicTextPrimaryColor}"

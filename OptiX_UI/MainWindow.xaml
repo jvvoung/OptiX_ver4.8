@@ -305,14 +305,16 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" 
+                    <TextBlock x:Name="CharacteristicsTooltipTitle"
+                              Grid.Row="0" 
                               Text="Optic" 
                               FontSize="28" 
                               FontWeight="Bold" 
                               Foreground="#2C3E50" 
                               HorizontalAlignment="Center"
                               Margin="0,0,0,15"/>
-                    <TextBlock Grid.Row="1" 
+                    <TextBlock x:Name="CharacteristicsTooltipDescription"
+                              Grid.Row="1" 
                               Text="1. 패널의 중심점(Center Point) 계측&#x0a;2. 패널 점등 및 특성 데이터(휘도, 색좌표, VACS, 전류 등) 취득&#x0a;3. 특성 데이터 판정&#x0a;4. Cell MTP 및 AI진행" 
                               FontSize="14" 
                               Foreground="#666666" 
@@ -352,7 +354,8 @@
                               Stroke="#FF6B6B" 
                               StrokeThickness="3"/>
                         <!-- 텍스트 -->
-                        <TextBlock Canvas.Left="15" Canvas.Top="160" 
+                        <TextBlock x:Name="CharacteristicsTooltipCenterPoint"
+                                  Canvas.Left="15" Canvas.Top="160" 
                                   Text="Center Point 계측" 
                                   FontSize="12" 
                                   Foreground="#666666" 
@@ -379,14 +382,16 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" 
+                    <TextBlock x:Name="IPVSTooltipTitle"
+                              Grid.Row="0" 
                               Text="IPVS" 
                               FontSize="28" 
                               FontWeight="Bold" 
                               Foreground="#2C3E50" 
                               HorizontalAlignment="Center"
                               Margin="0,0,0,15"/>
-                    <TextBlock Grid.Row="1" 
+                    <TextBlock x:Name="IPVSTooltipDescription"
+                              Grid.Row="1" 
                               Text="1. Cell MTP 전압 인가&#x0a;2. User 설정 포인트 계측 이후 특성 데이터(휘도, 색좌표, VACS, 전류 등) 취득&#x0a;3. IPVS, WON 로직 진입&#x0a;4. 판정 수행" 
                               FontSize="14" 
                               Foreground="#666666" 
@@ -494,9 +499,7 @@
                     Margin="15,0,0,0"
                     Style="{StaticResource ModernButtonStyle}"
                     FontSize="24"
-                    Click="SettingsButton_Click"
-                    MouseEnter="SettingsButton_MouseEnter"
-                    MouseLeave="SettingsButton_MouseLeave">
+                    Click="SettingsButton_Click">
                 설정
             </Button>
         </Grid>
@@ -594,14 +597,16 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" 
+                    <TextBlock x:Name="SettingsTooltipTitle"
+                              Grid.Row="0" 
                               Text="설정" 
                               FontSize="20" 
                               FontWeight="Bold" 
                               Foreground="#2C3E50" 
                               HorizontalAlignment="Center"
                               Margin="0,0,0,10"/>
-                    <TextBlock Grid.Row="1" 
+                    <TextBlock x:Name="SettingsTooltipDescription"
+                              Grid.Row="1" 
                               Text="애플리케이션 설정 및 환경 구성" 
                               FontSize="14" 
                               Foreground="#666666" 

@@ -24,7 +24,6 @@ namespace OptiX
 
     public partial class OpticPage : UserControl
     {
-        public event EventHandler BackRequested;
         private OpticPageViewModel viewModel;
         private bool isTestStarted = false; // 전역 테스트 시작 상태 (기존 호환성 유지)
         private bool[] zoneTestCompleted; // Zone별 테스트 완료 상태 배열
@@ -52,6 +51,7 @@ namespace OptiX
                 CreateCustomTable();
                 CreateZoneButtons();
                 InitializeWadComboBox();
+                ApplyLanguage(); // 초기 언어 적용
             };
         }
 
@@ -349,8 +349,8 @@ namespace OptiX
                 // 기존 버튼들 제거
                 zoneButtonsPanel.Children.Clear();
 
-                // INI에서 Zone 개수 읽기
-                string zoneCountStr = viewModel.iniManager.ReadValue("MTP", "Zone", "2");
+                // Settings에서 MTP_ZONE 개수 읽기
+                string zoneCountStr = viewModel.iniManager.ReadValue("Settings", "MTP_ZONE", "2");
                 int zoneCount = int.Parse(zoneCountStr);
 
                 for (int i = 1; i <= zoneCount; i++)
@@ -655,7 +655,7 @@ namespace OptiX
                 var iniManager = new IniFileManager(iniPath);
                 
                 // Category 목록 읽기
-                string categoryStr = iniManager.ReadValue("MTP", "Category", "W,R,G,B");
+                string categoryStr = GlobalDataManager.GetValue("MTP", "Category", "W,R,G,B");
                 string[] categories = categoryStr.Split(',').Select(c => c.Trim()).ToArray();
                 
                 // 지정된 Zone만 업데이트 (zoneIndex는 0-based)
@@ -663,8 +663,8 @@ namespace OptiX
                 System.Diagnostics.Debug.WriteLine($"Zone {targetZone} (인덱스: {zoneIndex}) 업데이트");
                 
                 // Zone별 Cell ID, Inner ID 읽기
-                string cellId = iniManager.ReadValue("MTP_PATHS", $"CELL_ID_ZONE_{targetZone}", "");
-                string innerId = iniManager.ReadValue("MTP_PATHS", $"INNER_ID_ZONE_{targetZone}", "");
+                string cellId = GlobalDataManager.GetValue("MTP", $"CELL_ID_ZONE_{targetZone}", "");
+                string innerId = GlobalDataManager.GetValue("MTP", $"INNER_ID_ZONE_{targetZone}", "");
                 
                 System.Diagnostics.Debug.WriteLine($"Zone {targetZone} - Cell ID: {cellId}, Inner ID: {innerId}");
                 
@@ -849,69 +849,6 @@ namespace OptiX
             public string Judgment { get; set; } = "";
         }
 
-        private void GenerateTestDataForWad(int wadIndex)
-        {
-            // WAD 인덱스에 따른 데이터 생성
-            // 실제로는 DLL에서 data[wadIndex][patternIndex]를 가져와야 함
-            
-            if (viewModel?.DataItems == null) return;
-            
-            try
-            {
-                // INI 파일에서 설정 읽기
-                string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-                string exeDir = System.IO.Path.GetDirectoryName(exePath);
-                string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
-                
-                var iniManager = new IniFileManager(iniPath);
-                
-                // Zone 개수 읽기
-                int zoneCount = int.Parse(iniManager.ReadValue("MTP", "Zone", "2"));
-                
-                // Category 목록 읽기
-                string categoryStr = iniManager.ReadValue("MTP", "Category", "W,R,G,B");
-                string[] categories = categoryStr.Split(',').Select(c => c.Trim()).ToArray();
-                
-                // 기존 데이터 클리어
-                viewModel.DataItems.Clear();
-                
-                // 각 Zone에 대해 빈 데이터 생성 (테스트 시작 전)
-                for (int zone = 1; zone <= zoneCount; zone++)
-                {
-                    // Zone별 Cell ID, Inner ID 읽기
-                    string cellId = iniManager.ReadValue("MTP_PATHS", $"CELL_ID_ZONE_{zone}", "");
-                    string innerId = iniManager.ReadValue("MTP_PATHS", $"INNER_ID_ZONE_{zone}", "");
-                    
-                    // 각 Category에 대해 빈 데이터 생성
-                    for (int i = 0; i < categories.Length; i++)
-                    {
-                        var item = new DataTableItem
-                        {
-                            Zone = zone.ToString(),
-                            CellId = cellId,
-                            InnerId = innerId,
-                            Category = categories[i],
-                            X = "",  // 테스트 시작 전에는 빈 값
-                            Y = "",  // 테스트 시작 전에는 빈 값
-                            L = "",  // 테스트 시작 전에는 빈 값
-                            Current = "",  // 테스트 시작 전에는 빈 값
-                            Efficiency = "",  // 테스트 시작 전에는 빈 값
-                            ErrorName = "",
-                            Tact = "",
-                            Judgment = ""
-                        };
-                        viewModel.DataItems.Add(item);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"INI 파일 읽기 오류: {ex.Message}");
-                
-                // 오류 발생 시 기본값 사용
-                GenerateDefaultEmptyData();
-            }
-        }
 
         private void ClearMeasurementValues()
         {
@@ -981,6 +918,91 @@ namespace OptiX
                     Judgment = ""
                 };
                 viewModel.DataItems.Add(item);
+            }
+        }
+
+        /// <summary>
+        /// OpticPage에 언어 적용
+        /// </summary>
+        public void ApplyLanguage()
+        {
+            try
+            {
+                // 뒤로가기 버튼
+                if (BackButton != null)
+                {
+                    var textBlock = BackButton.Content as TextBlock;
+                    if (textBlock != null)
+                        textBlock.Text = LanguageManager.GetText("OpticPage.Back");
+                }
+
+                // 데이터 테이블 제목
+                var dataTableTitle = FindName("DataTableTitle") as System.Windows.Controls.TextBlock;
+                if (dataTableTitle != null)
+                    dataTableTitle.Text = LanguageManager.GetText("OpticPage.CharacteristicDataTable");
+                
+                // WAD 라벨
+                var wadLabel = FindName("WadLabel") as System.Windows.Controls.TextBlock;
+                if (wadLabel != null)
+                    wadLabel.Text = LanguageManager.GetText("OpticPage.WAD");
+
+                // RESET 버튼
+                if (ResetButton != null)
+                    ResetButton.Content = LanguageManager.GetText("OpticPage.Reset");
+
+                // 컨트롤 패널 버튼들
+                var settingButton = FindName("SettingButton") as System.Windows.Controls.Button;
+                if (settingButton != null)
+                    settingButton.Content = LanguageManager.GetText("OpticPage.Setting");
+
+                var pathButton = FindName("PathButton") as System.Windows.Controls.Button;
+                if (pathButton != null)
+                    pathButton.Content = LanguageManager.GetText("OpticPage.Path");
+
+                var startButton = FindName("StartButton") as System.Windows.Controls.Button;
+                if (startButton != null)
+                    startButton.Content = LanguageManager.GetText("OpticPage.Start");
+
+                var stopButton = FindName("StopButton") as System.Windows.Controls.Button;
+                if (stopButton != null)
+                    stopButton.Content = LanguageManager.GetText("OpticPage.Stop");
+
+                var chartButton = FindName("ChartButton") as System.Windows.Controls.Button;
+                if (chartButton != null)
+                    chartButton.Content = LanguageManager.GetText("OpticPage.Chart");
+
+                var reportButton = FindName("ReportButton") as System.Windows.Controls.Button;
+                if (reportButton != null)
+                    reportButton.Content = LanguageManager.GetText("OpticPage.Report");
+
+                var exitButton = FindName("ExitButton") as System.Windows.Controls.Button;
+                if (exitButton != null)
+                    exitButton.Content = LanguageManager.GetText("OpticPage.Exit");
+
+                // 특성 판정 현황 제목
+                var judgmentStatusTitle = FindName("JudgmentStatusTitle") as System.Windows.Controls.TextBlock;
+                if (judgmentStatusTitle != null)
+                    judgmentStatusTitle.Text = LanguageManager.GetText("OpticPage.CharacteristicJudgmentStatus");
+
+                // 수량, 발생률 헤더
+                var quantityHeader = FindName("QuantityHeader") as System.Windows.Controls.TextBlock;
+                if (quantityHeader != null)
+                    quantityHeader.Text = LanguageManager.GetText("OpticPage.Quantity");
+
+                var occurrenceRateHeader = FindName("OccurrenceRateHeader") as System.Windows.Controls.TextBlock;
+                if (occurrenceRateHeader != null)
+                    occurrenceRateHeader.Text = LanguageManager.GetText("OpticPage.OccurrenceRate");
+
+                // 컨트롤 패널 제목
+                var controlPanelTitle = FindName("ControlPanelTitle") as System.Windows.Controls.TextBlock;
+                if (controlPanelTitle != null)
+                    controlPanelTitle.Text = LanguageManager.GetText("OpticPage.ControlPanel");
+
+                System.Diagnostics.Debug.WriteLine($"OpticPage 언어 적용 완료: {LanguageManager.CurrentLanguage}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"OpticPage 언어 적용 오류: {ex.Message}");
             }
         }
     }

@@ -284,6 +284,8 @@
                        FontWeight="Bold"/>
         </Button>
         
+        
+        
         <!-- 메인 콘텐츠 영역 -->
         <Grid Margin="4,48,4,4">
                 <Grid.RowDefinitions>
@@ -311,13 +313,171 @@
                             CornerRadius="6,6,0,0" 
                             Height="36"
                             VerticalAlignment="Top">
-                        <TextBlock Text="📊 IPVS 데이터 테이블" 
-                        FontSize="14" 
-                                   FontWeight="SemiBold" 
-                                   Foreground="{DynamicResource DynamicTextPrimaryColor}"
-                                   VerticalAlignment="Center" 
-                                   Margin="8,0"/>
-                        </Border>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- 데이터 테이블 제목 -->
+                            <TextBlock x:Name="DataTableTitle"
+                                       Grid.Column="0"
+                                       Text="📊 IPVS 데이터 테이블" 
+                                       FontSize="14" 
+                                       FontWeight="SemiBold" 
+                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                                       VerticalAlignment="Center" 
+                                       Margin="8,0"/>
+                            
+                            <!-- WAD 라벨 -->
+                            <TextBlock Grid.Column="1"
+                                       Text="WAD:"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource DynamicTextColor}"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0,4,0"/>
+                            
+                            <!-- WAD 콤보박스 -->
+                            <ComboBox Grid.Column="2"
+                                      x:Name="WadComboBox"
+                                      FontSize="12"
+                                      FontWeight="SemiBold"
+                                      Background="White"
+                                      Foreground="Black"
+                                      BorderBrush="{DynamicResource DynamicBorderColor}"
+                                      BorderThickness="1"
+                                      Padding="8,4"
+                                      Margin="0,0,8,0"
+                                      Height="28"
+                                      VerticalAlignment="Center"
+                                      Width="80"
+                                      SelectionChanged="WadComboBox_SelectionChanged">
+                                <ComboBox.Style>
+                                    <Style TargetType="ComboBox">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ComboBox">
+                                                    <Grid>
+                                                        <ToggleButton x:Name="ToggleButton"
+                                                                     Focusable="false"
+                                                                     IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                                     ClickMode="Press">
+                                                            <ToggleButton.Template>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border Background="{TemplateBinding Background}"
+                                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                                            CornerRadius="4">
+                                                                        <Grid>
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition/>
+                                                                                <ColumnDefinition Width="20"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <ContentPresenter Grid.Column="0"
+                                                                                              Margin="{TemplateBinding Padding}"
+                                                                                              HorizontalAlignment="Left"
+                                                                                              VerticalAlignment="Center"
+                                                                                              Focusable="false"
+                                                                                              IsHitTestVisible="False"/>
+                                                                            <Path x:Name="Arrow"
+                                                                                  Grid.Column="1"
+                                                                                  Fill="{DynamicResource DynamicTextColor}"
+                                                                                  HorizontalAlignment="Center"
+                                                                                  VerticalAlignment="Center"
+                                                                                  Data="M 0 0 L 4 4 L 8 0 Z"/>
+                                                                        </Grid>
+                                                                    </Border>
+                                                                </ControlTemplate>
+                                                            </ToggleButton.Template>
+                                                        </ToggleButton>
+                                                        <ContentPresenter x:Name="ContentSite"
+                                                                          IsHitTestVisible="False"
+                                                                          Content="{TemplateBinding SelectionBoxItem}"
+                                                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                                                          Margin="8,4"
+                                                                          VerticalAlignment="Center"
+                                                                          HorizontalAlignment="Left"/>
+                                                        <Popup x:Name="Popup"
+                                                               Placement="Bottom"
+                                                               IsOpen="{TemplateBinding IsDropDownOpen}"
+                                                               AllowsTransparency="True"
+                                                               Focusable="False"
+                                                               PopupAnimation="Slide">
+                                                            <Grid x:Name="DropDown"
+                                                                  SnapsToDevicePixels="True"
+                                                                  MinWidth="{TemplateBinding ActualWidth}"
+                                                                  MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                                                <Border x:Name="DropDownBorder"
+                                                                        Background="White"
+                                                                        BorderBrush="{DynamicResource DynamicBorderColor}"
+                                                                        BorderThickness="1"
+                                                                        CornerRadius="4">
+                                                                    <ScrollViewer Margin="4,6,4,6"
+                                                                                  SnapsToDevicePixels="True">
+                                                                        <StackPanel IsItemsHost="True"
+                                                                                   KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                                                    </ScrollViewer>
+                                                                </Border>
+                                                            </Grid>
+                                                        </Popup>
+                                                    </Grid>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ComboBox.Style>
+                            </ComboBox>
+                            
+                            <!-- RESET 버튼 -->
+                            <Button Grid.Column="3"
+                                    x:Name="ResetButton"
+                                    Content="🔄 RESET"
+                                    FontSize="11"
+                                    FontWeight="SemiBold"
+                                    Background="{DynamicResource DynamicSurfaceColor}"
+                                    Foreground="{DynamicResource DynamicTextColor}"
+                                    BorderBrush="{DynamicResource DynamicBorderColor}"
+                                    BorderThickness="1"
+                                    Padding="8,4"
+                                    Margin="4,0,8,0"
+                                    Height="28"
+                                    VerticalAlignment="Center"
+                                    Width="70"
+                                    Click="ResetButton_Click">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                            CornerRadius="14">
+                                                        <ContentPresenter HorizontalAlignment="Center"
+                                                                          VerticalAlignment="Center"
+                                                                          Margin="{TemplateBinding Padding}"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource DynamicBackgroundColor}"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsPressed" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource DynamicBackgroundColor}"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+                    </Border>
                         
                     <!-- 스크롤 가능한 테이블 영역 -->
                     <ScrollViewer x:Name="MainScrollViewer" 
@@ -466,7 +626,8 @@
                                 Background="{DynamicResource DynamicBackgroundColor}" 
                                 CornerRadius="6,6,0,0"
                                 Height="36">
-                            <TextBlock Text="📊 IPVS 판정 현황" 
+                            <TextBlock x:Name="JudgmentStatusTitle"
+                                       Text="📊 IPVS 판정 현황" 
                                        FontSize="13" 
                           FontWeight="Bold" 
                                        Foreground="{DynamicResource DynamicTextPrimaryColor}"
@@ -503,14 +664,16 @@
                                                    Foreground="{DynamicResource DynamicTextPrimaryColor}"
                                                    HorizontalAlignment="Center" 
                                                    VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" 
+                                        <TextBlock x:Name="QuantityHeader"
+                                                   Grid.Column="1" 
                                                    Text="수량" 
                                                    FontSize="14" 
                                                    FontWeight="SemiBold" 
                                                    Foreground="{DynamicResource DynamicTextPrimaryColor}"
                                                    HorizontalAlignment="Center" 
                                                    VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="2" 
+                                        <TextBlock x:Name="OccurrenceRateHeader"
+                                                   Grid.Column="2" 
                                                    Text="발생률" 
                                                    FontSize="14" 
                                                    FontWeight="SemiBold" 
@@ -698,7 +861,8 @@
                                 Background="{DynamicResource DynamicBackgroundColor}" 
                                 CornerRadius="6,6,0,0" 
                                 Height="36">
-                            <TextBlock Text="⚙️ 컨트롤 패널" 
+                            <TextBlock x:Name="ControlPanelTitle"
+                                       Text="⚙️ 컨트롤 패널" 
                                        FontSize="13" 
                                        FontWeight="SemiBold" 
                                        Foreground="{DynamicResource DynamicTextPrimaryColor}"
@@ -721,18 +885,21 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                     <Button Grid.Column="0"
+                                        x:Name="SettingButton"
                                         Content="⚙️ Setting" 
                                         Style="{StaticResource SecondaryButtonStyle}"
                                         FontSize="10"
                                         Height="50"
-                                        Margin="0,0,4,0"/>
+                                        Margin="0,0,4,0"
+                                        Click="SettingButton_Click"/>
                                 <Button Grid.Column="1" 
+                                        x:Name="PathButton"
                                         Content="📁 Path" 
                                         Style="{StaticResource SecondaryButtonStyle}"
                                         FontSize="10"
                                         Height="50"
                                         Margin="4,0,0,0"
-                                        Click="SetPathButton_Click"/>
+                                        Click="PathButton_Click"/>
                             </Grid>
                             
                             <!-- Zone 선택 버튼들 - Test Start 바로 위에 배치 -->
@@ -749,7 +916,8 @@
                                     FontSize="20"
                                     Height="60"
                                     VerticalAlignment="Center"
-                                    Margin="0,4,0,4"/>
+                                    Margin="0,4,0,4"
+                                    Click="TestStartButton_Click"/>
                         </Grid>
                     </Grid>
                     </Border>

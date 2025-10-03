@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using OptiX.Models;
 
 namespace OptiX
 {
@@ -15,8 +16,11 @@ namespace OptiX
         private int zoneNumber;
         private IniFileManager iniManager;
         private bool isDarkMode;
+        private string iniSection;
         private bool isCimEnabled = false;
         private bool isEecpEnabled = false;
+        private bool isEecpSummaryEnabled = false;
+        private bool isValidationEnabled = false;
         private Dictionary<string, TextBox> dynamicMeasTextBoxes = new Dictionary<string, TextBox>();
 
         public CellIdInputWindow() : this(1)
@@ -27,30 +31,38 @@ namespace OptiX
         {
         }
 
-        public CellIdInputWindow(int zoneNumber, bool isDarkMode)
+        public CellIdInputWindow(int zoneNumber, bool isDarkMode) : this(zoneNumber, isDarkMode, "MTP")
+        {
+        }
+
+        public CellIdInputWindow(int zoneNumber, bool isDarkMode, string iniSection)
         {
             InitializeComponent();
             this.zoneNumber = zoneNumber;
             this.isDarkMode = isDarkMode;
+            this.iniSection = iniSection;
             
             // 실행 파일 기준 상대 경로로 INI 파일 찾기
             string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
             string exeDir = System.IO.Path.GetDirectoryName(exePath);
-            string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
+            string iniPath = @"D:\Project\Recipe\OptiX.ini";
             this.iniManager = new IniFileManager(iniPath);
             
-            this.Title = $"Zone {zoneNumber} OPTIC 설정";
+            // INI 섹션에 따라 창 제목 설정
+            string inspectionType = iniSection == "IPVS" ? "IPVS" : "OPTIC";
+            this.Title = $"Zone {zoneNumber} {inspectionType} SETTING";
             
             // 다크모드 적용
             ApplyTheme();
+            
+            // 언어 적용
+            ApplyLanguage();
             LoadCurrentValues();
             
             // 추가 초기화는 UI가 로드된 후 실행
             this.Loaded += (s, e) => {
                 try 
                 {
-                   LoadFileGenerationSettings();
-                   LoadTcpIpSettings();
                    CreateDynamicMeasPorts();
                    LoadPortSettings();
                 }
@@ -99,15 +111,22 @@ namespace OptiX
         {
             try
             {
-                string cellIdKey = $"CELL_ID_ZONE_{zoneNumber}";
-                string innerIdKey = $"INNER_ID_ZONE_{zoneNumber}";
-
-                string currentCellId = iniManager.ReadValue("MTP_PATHS", cellIdKey, "");
-                string currentInnerId = iniManager.ReadValue("MTP_PATHS", innerIdKey, "");
+                // 구조체 기반으로 데이터 로드
+                InspectionData data;
+                if (iniSection == "IPVS")
+                {
+                    IPVSDataManager.LoadFromIni(iniManager);
+                    data = IPVSDataManager.GetData(zoneNumber);
+                }
+                else
+                {
+                    MTPDataManager.LoadFromIni(iniManager);
+                    data = MTPDataManager.GetData(zoneNumber);
+                }
 
                 // 텍스트 설정
-                CellIdTextBox.Text = string.IsNullOrEmpty(currentCellId) ? "-" : currentCellId;
-                InnerIdTextBox.Text = string.IsNullOrEmpty(currentInnerId) ? "..." : currentInnerId;
+                CellIdTextBox.Text = string.IsNullOrEmpty(data.CellId) ? "-" : data.CellId;
+                InnerIdTextBox.Text = string.IsNullOrEmpty(data.InnerId) ? "..." : data.InnerId;
                 
                 // 텍스트박스 포커스 설정
                 CellIdTextBox.CaretIndex = CellIdTextBox.Text.Length;
@@ -119,72 +138,28 @@ namespace OptiX
             }
         }
 
-        private void LoadFileGenerationSettings()
-        {
-            try
-            {
-                // INI 파일에서 CREATE_CIM, CREATE_EECP 값 읽어오기
-                string cimValue = iniManager.ReadValue("MTP", "CREATE_CIM", "F");
-                string eecpValue = iniManager.ReadValue("MTP", "CREATE_EECP", "F");
-                
-                // T/F 값을 bool로 변환
-                isCimEnabled = (cimValue.ToUpper() == "T");
-                isEecpEnabled = (eecpValue.ToUpper() == "T");
-                
-                // 체크박스에 값 설정
-                CimCheckBox.IsChecked = isCimEnabled;
-                EecpCheckBox.IsChecked = isEecpEnabled;
-                
-                // 체크박스 이벤트 연결
-                CimCheckBox.Checked += (s, e) => isCimEnabled = true;
-                CimCheckBox.Unchecked += (s, e) => isCimEnabled = false;
-                EecpCheckBox.Checked += (s, e) => isEecpEnabled = true;
-                EecpCheckBox.Unchecked += (s, e) => isEecpEnabled = false;
-                
-                System.Diagnostics.Debug.WriteLine($"파일 생성 설정 로드 완료 - CIM: {isCimEnabled} ({cimValue}), EECP: {isEecpEnabled} ({eecpValue})");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"파일 생성 설정 로드 오류: {ex.Message}");
-                // 오류 시 기본값 설정
-                isCimEnabled = false;
-                isEecpEnabled = false;
-                CimCheckBox.IsChecked = false;
-                EecpCheckBox.IsChecked = false;
-            }
-        }
 
-        private void LoadTcpIpSettings()
-        {
-            try
-            {
-                string tcpIp = iniManager.ReadValue("MTP", "TCP_IP", "2002");
-                TcpIpTextBox.Text = tcpIp;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"TCP/IP 설정 로드 오류: {ex.Message}");
-            }
-        }
 
         private void LoadPortSettings()
         {
             try
             {
-                // PG 포트 로드
+                // PG 포트 로드 (OPTIC은 MTP 섹션, IPVS는 IPVS 섹션)
                 string pgKey = $"PG_PORT_{zoneNumber}";
-                PgPortTextBox.Text = iniManager.ReadValue("MTP", pgKey, "");
+                PgPortTextBox.Text = iniManager.ReadValue(iniSection, pgKey, "");
 
-                // 동적 MEAS 포트들 로드
+                // 동적 MEAS 포트들 로드 (OPTIC은 MTP 섹션, IPVS는 IPVS 섹션)
                 foreach (var kvp in dynamicMeasTextBoxes)
                 {
                     string measKey = kvp.Key;
                     TextBox textBox = kvp.Value;
-                    string value = iniManager.ReadValue("MTP", measKey, "");
+                    string measSection = (iniSection == "IPVS") ? "IPVS" : "MTP";
+                    string value = iniManager.ReadValue(measSection, measKey, "");
                     textBox.Text = value;
                 }
 
-                System.Diagnostics.Debug.WriteLine($"포트 설정 로드 완료: PG + {dynamicMeasTextBoxes.Count}개 MEAS 포트");
+                string measSectionForLog = (iniSection == "IPVS") ? "IPVS" : "MTP";
+                System.Diagnostics.Debug.WriteLine($"포트 설정 로드 완료: PG({iniSection}) + {dynamicMeasTextBoxes.Count}개 MEAS({measSectionForLog}) 포트");
             }
             catch (Exception ex)
             {
@@ -203,16 +178,16 @@ namespace OptiX
                 // 파일 생성 여부 저장 (현재는 메모리 변수로만 저장)
                 SaveFileGenerationSettings();
                 
-                // TCP/IP 설정 저장
-                SaveTcpIpSettings();
-                
                 // 포트 설정 저장
                 SavePortSettings();
+
+                // 전역 데이터 다시 로드
+                GlobalDataManager.ReloadIniData();
 
                 MessageBox.Show("모든 설정이 성공적으로 저장되었습니다.", "저장 완료", 
                               MessageBoxButton.OK, MessageBoxImage.Information);
 
-                this.DialogResult = true;
+                // Non-Modal 창에서는 DialogResult 사용하지 않음
                 this.Close();
             }
             catch (Exception ex)
@@ -227,11 +202,22 @@ namespace OptiX
             string cellId = CellIdTextBox.Text.Trim();
             string innerId = InnerIdTextBox.Text.Trim();
 
-            string cellIdKey = $"CELL_ID_ZONE_{zoneNumber}";
-            string innerIdKey = $"INNER_ID_ZONE_{zoneNumber}";
-
-            iniManager.WriteValue("MTP_PATHS", cellIdKey, cellId);
-            iniManager.WriteValue("MTP_PATHS", innerIdKey, innerId);
+            // 구조체 기반으로 데이터 저장
+            InspectionData data;
+            if (iniSection == "IPVS")
+            {
+                data = IPVSDataManager.GetData(zoneNumber);
+                data.CellId = cellId;
+                data.InnerId = innerId;
+                IPVSDataManager.SaveToIni(iniManager, zoneNumber, data);
+            }
+            else
+            {
+                data = MTPDataManager.GetData(zoneNumber);
+                data.CellId = cellId;
+                data.InnerId = innerId;
+                MTPDataManager.SaveToIni(iniManager, zoneNumber, data);
+            }
 
             System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} Cell 정보 저장됨 - Cell ID: {cellId}, Inner ID: {innerId}");
         }
@@ -243,11 +229,15 @@ namespace OptiX
                 // T/F 형태로 INI 파일에 저장
                 string cimValue = isCimEnabled ? "T" : "F";
                 string eecpValue = isEecpEnabled ? "T" : "F";
+                string eecpSummaryValue = isEecpSummaryEnabled ? "T" : "F";
+                string validationValue = isValidationEnabled ? "T" : "F";
                 
-                iniManager.WriteValue("MTP", "CREATE_CIM", cimValue);
-                iniManager.WriteValue("MTP", "CREATE_EECP", eecpValue);
+                iniManager.WriteValue(iniSection, "CREATE_CIM", cimValue);
+                iniManager.WriteValue(iniSection, "CREATE_EECP", eecpValue);
+                iniManager.WriteValue(iniSection, "CREATE_EECP_SUMMARY", eecpSummaryValue);
+                iniManager.WriteValue(iniSection, "CREATE_VALIDATION", validationValue);
                 
-                System.Diagnostics.Debug.WriteLine($"파일 생성 설정 저장 완료 - CREATE_CIM: {cimValue}, CREATE_EECP: {eecpValue}");
+                System.Diagnostics.Debug.WriteLine($"파일 생성 설정 저장 완료 - CIM: {cimValue}, EECP: {eecpValue}, EECP_SUMMARY: {eecpSummaryValue}, VALIDATION: {validationValue}");
             }
             catch (Exception ex)
             {
@@ -256,30 +246,41 @@ namespace OptiX
             }
         }
 
-        private void SaveTcpIpSettings()
-        {
-            string tcpIp = TcpIpTextBox.Text.Trim();
-            iniManager.WriteValue("MTP", "TCP_IP", tcpIp);
-            System.Diagnostics.Debug.WriteLine($"TCP/IP 설정 저장됨: {tcpIp}");
-        }
 
         private void SavePortSettings()
         {
             try
             {
-                // PG 포트 저장
-                string pgKey = $"PG_PORT_{zoneNumber}";
-                iniManager.WriteValue("MTP", pgKey, PgPortTextBox.Text.Trim());
-
-                // 동적 MEAS 포트들 저장
-                foreach (var kvp in dynamicMeasTextBoxes)
+                // 구조체 기반으로 데이터 저장
+                InspectionData data;
+                if (iniSection == "IPVS")
                 {
-                    string measKey = kvp.Key;
-                    TextBox textBox = kvp.Value;
-                    iniManager.WriteValue("MTP", measKey, textBox.Text.Trim());
+                    data = IPVSDataManager.GetData(zoneNumber);
+                    data.PgPort = PgPortTextBox.Text.Trim();
+                    
+                    // 동적 MEAS 포트들 업데이트
+                    foreach (var kvp in dynamicMeasTextBoxes)
+                    {
+                        data.MeasPorts[kvp.Key] = kvp.Value.Text.Trim();
+                    }
+                    
+                    IPVSDataManager.SaveToIni(iniManager, zoneNumber, data);
+                }
+                else
+                {
+                    data = MTPDataManager.GetData(zoneNumber);
+                    data.PgPort = PgPortTextBox.Text.Trim();
+                    
+                    // 동적 MEAS 포트들 업데이트
+                    foreach (var kvp in dynamicMeasTextBoxes)
+                    {
+                        data.MeasPorts[kvp.Key] = kvp.Value.Text.Trim();
+                    }
+                    
+                    MTPDataManager.SaveToIni(iniManager, zoneNumber, data);
                 }
 
-                System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} 포트 설정 저장 완료: PG + {dynamicMeasTextBoxes.Count}개 MEAS 포트");
+                System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} 포트 설정 저장 완료: PG({iniSection}) + {dynamicMeasTextBoxes.Count}개 MEAS(MTP) 포트");
             }
             catch (Exception ex)
             {
@@ -291,8 +292,16 @@ namespace OptiX
         {
             try
             {
-                // WAD 값을 읽어서 동적으로 MEAS 포트 생성
-                string wadValues = iniManager.ReadValue("MTP", "WAD", "0,15,30,45,60");
+                // INI 섹션에 따라 WAD 값을 읽어서 동적으로 MEAS 포트 생성
+                string wadValues;
+                if (iniSection == "IPVS")
+                {
+                    wadValues = iniManager.ReadValue("IPVS", "WAD", "0,30,60,90,120");
+                }
+                else
+                {
+                    wadValues = iniManager.ReadValue("MTP", "WAD", "0,15,30,45,60");
+                }
                 string[] wadNumbers = wadValues.Split(',');
 
                 MeasPortsStackPanel.Children.Clear();
@@ -386,10 +395,40 @@ namespace OptiX
             }
         }
 
+        // 언어 적용 메서드
+        public void ApplyLanguage()
+        {
+            try
+            {
+                // 창 제목을 INI 섹션에 따라 동적으로 설정
+                string inspectionType = iniSection == "IPVS" ? "IPVS" : "OPTIC";
+                this.Title = $"Zone {zoneNumber} {inspectionType} SETTING";
+                
+                // Cell 정보 제목
+                if (CellInfoTitle != null)
+                    CellInfoTitle.Text = LanguageManager.GetText("CellIdInput.CellInfo");
+                
+                
+                // Port 연결 제목
+                if (PortConnectionTitle != null)
+                    PortConnectionTitle.Text = LanguageManager.GetText("CellIdInput.PortConnection");
+                
+                // 취소 버튼
+                if (CancelButton != null)
+                    CancelButton.Content = LanguageManager.GetText("CellIdInput.Cancel");
+                
+                System.Diagnostics.Debug.WriteLine($"CellIdInputWindow 언어 적용 완료: {LanguageManager.CurrentLanguage}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"CellIdInputWindow 언어 적용 오류: {ex.Message}");
+            }
+        }
+
         // 누락된 이벤트 핸들러 추가
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
-            this.DialogResult = false;
+            // Non-Modal 창에서는 DialogResult 사용하지 않음
             this.Close();
         }
     }
