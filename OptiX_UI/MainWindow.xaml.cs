@@ -11,6 +11,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace OptiX
 {
@@ -28,6 +29,8 @@ public partial class MainWindow : Window
     private UserControl currentPage;
     private bool isMaximized = false;
     private bool isResizing = false;
+    private CommunicationServer communicationServer;
+    public event EventHandler<bool> CommunicationServerStatusChanged;
     private Point resizeStartPoint;
     private Size resizeStartSize;
     private string resizeDirection = "";
@@ -39,6 +42,7 @@ public partial class MainWindow : Window
         InitializeTimers();
         InitializeIniManager();
         LoadSettingsFromIni();
+        InitializeCommunicationServer();
         
         // 언어 변경 이벤트 구독
         LanguageManager.LanguageChanged += OnLanguageChanged;
@@ -56,6 +60,129 @@ public partial class MainWindow : Window
         ipvsTimer = new DispatcherTimer();
         ipvsTimer.Interval = TimeSpan.FromMilliseconds(100);
         ipvsTimer.Tick += (s, e) => CheckIPVSHover();
+    }
+
+    private void InitializeCommunicationServer()
+    {
+        // CommunicationServer 초기화
+        communicationServer = new CommunicationServer();
+        communicationServer.LogMessage += OnCommunicationLogMessage;
+        communicationServer.MessageReceived += OnCommunicationMessageReceived;
+        communicationServer.ConnectionStatusChanged += OnCommunicationStatusChanged;
+        
+        // INI에서 서버 설정 로드
+        string tcpIp = iniManager.ReadValue("Settings", "TCP_IP", "127.0.0.1");
+        string tcpPort = iniManager.ReadValue("Settings", "TCP_PORT", "7777");
+        
+        // 서버 자동 시작 (설정에 따라)
+        if (bool.TryParse(iniManager.ReadValue("Settings", "AUTO_START_SERVER", "false"), out bool autoStart) && autoStart)
+        {
+            Task.Run(async () =>
+            {
+                await Task.Delay(1000); // UI 초기화 후 서버 시작
+                if (int.TryParse(tcpPort, out int port))
+                {
+                    await communicationServer.StartServerAsync(tcpIp, port);
+                }
+            });
+        }
+    }
+
+    private void OnCommunicationLogMessage(object sender, string message)
+    {
+        // 로그 메시지를 디버그 출력으로 표시
+        System.Diagnostics.Debug.WriteLine($"[CommunicationServer] {message}");
+    }
+
+    private void OnCommunicationMessageReceived(object sender, string message)
+    {
+        // 클라이언트로부터 받은 메시지 처리
+        System.Diagnostics.Debug.WriteLine($"[CommunicationServer] 메시지 수신: {message}");
+        
+        // 메시지에 따른 동작 처리
+        ProcessClientMessage(message);
+    }
+
+    private void OnCommunicationStatusChanged(object sender, bool isConnected)
+    {
+        // 연결 상태 변경 처리
+        System.Diagnostics.Debug.WriteLine($"[CommunicationServer] 연결 상태 변경: {isConnected}");
+    }
+
+    private void ProcessClientMessage(string message)
+    {
+        switch (message.ToUpper())
+        {
+            case "TEST_START":
+                // 테스트 시작 명령 처리
+                Dispatcher.Invoke(() =>
+                {
+                    // 팝업 제거 - 로그로만 기록
+                    // MessageBox.Show("클라이언트로부터 TEST_START 명령을 받았습니다!", "알림", MessageBoxButton.OK, MessageBoxImage.Information);
+                });
+                break;
+            case "TEST_STOP":
+                // 테스트 중지 명령 처리
+                Dispatcher.Invoke(() =>
+                {
+                    // 팝업 제거 - 로그로만 기록
+                    // MessageBox.Show("클라이언트로부터 TEST_STOP 명령을 받았습니다!", "알림", MessageBoxButton.OK, MessageBoxImage.Information);
+                });
+                break;
+            default:
+                System.Diagnostics.Debug.WriteLine($"알 수 없는 명령: {message}");
+                break;
+        }
+    }
+
+    public async Task<bool> StartCommunicationServer(string tcpIp, int port)
+    {
+        if (communicationServer != null)
+        {
+            bool success = await communicationServer.StartServerAsync(tcpIp, port);
+            if (success)
+            {
+                CommunicationServerStatusChanged?.Invoke(this, true);
+                UpdateAutoModeDisplay(true);
+                CommunicationLogger.WriteLog($"🟢 [SERVER_CONNECT] 서버 연결 성공 - IP: {tcpIp}, Port: {port}");
+                CommunicationLogger.WriteLog($"✅ [CONNECT_COMPLETE] CONNECT 완료");
+            }
+            return success;
+        }
+        return false;
+    }
+
+    public async Task StopCommunicationServer()
+    {
+        if (communicationServer != null)
+        {
+            await communicationServer.StopServerAsync();
+            CommunicationServerStatusChanged?.Invoke(this, false);
+            UpdateAutoModeDisplay(false);
+            CommunicationLogger.WriteLog($"🔴 [SERVER_DISCONNECT] 서버 연결 해제 - 사유: 사용자 요청");
+        }
+    }
+
+    public bool IsCommunicationServerRunning()
+    {
+        return communicationServer?.IsRunning ?? false;
+    }
+
+    private void UpdateAutoModeDisplay(bool isConnected)
+    {
+        if (AutoModeText != null)
+        {
+            if (isConnected)
+            {
+                AutoModeText.Text = "(AUTO MODE)";
+                AutoModeText.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                AutoModeText.Text = "";
+                AutoModeText.Visibility = Visibility.Collapsed;
+            }
+        }
     }
 
     private void CharacteristicsButton_Click(object sender, RoutedEventArgs e)
@@ -831,6 +958,22 @@ public partial class MainWindow : Window
     {
         // 언어 변경 이벤트 구독 해제
         LanguageManager.LanguageChanged -= OnLanguageChanged;
+        
+        // CommunicationServer 정리
+        if (communicationServer != null)
+        {
+            try
+            {
+                communicationServer.StopServerAsync().Wait(3000);
+                communicationServer.SendMessageToAllClientsAsync("SERVER_SHUTDOWN").Wait(1000);
+                communicationServer.Dispose();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"서버 정리 중 오류: {ex.Message}");
+            }
+        }
+        
         base.OnClosed(e);
     }
 

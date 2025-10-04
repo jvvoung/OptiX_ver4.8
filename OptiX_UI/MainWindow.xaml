@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:OptiX"
         mc:Ignorable="d"
-        Title="OptiX" Height="800" Width="1200"
+        Height="800" Width="1200"
         Background="#F8F9FA"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
@@ -156,14 +156,32 @@
                 </Grid.ColumnDefinitions>
                 
                         <!-- 타이틀 텍스트 -->
-                        <TextBlock x:Name="TitleText" 
-                                  Grid.Column="0" 
-                                  Text="OptiX" 
-                                  FontSize="16" 
-                                  FontWeight="Bold" 
-                                  Foreground="White" 
-                                  VerticalAlignment="Center" 
-                                  Margin="15,0,0,0"/>
+                        <StackPanel Grid.Column="0" 
+                                   Orientation="Horizontal" 
+                                   VerticalAlignment="Center" 
+                                   Margin="15,0,0,0">
+                            <TextBlock x:Name="TitleText" 
+                                      Text="OptiX" 
+                                      FontSize="16" 
+                                      FontWeight="Bold" 
+                                      Foreground="White" 
+                                      VerticalAlignment="Center"/>
+                            <TextBlock x:Name="AutoModeText" 
+                                      Text="" 
+                                      FontSize="12" 
+                                      FontWeight="Medium" 
+                                      Foreground="#FFD700" 
+                                      VerticalAlignment="Center"
+                                      Margin="8,0,0,0"
+                                      Visibility="Collapsed">
+                                <TextBlock.Effect>
+                                    <DropShadowEffect Color="#FFD700" 
+                                                    BlurRadius="5" 
+                                                    ShadowDepth="0" 
+                                                    Opacity="0.8"/>
+                                </TextBlock.Effect>
+                            </TextBlock>
+                        </StackPanel>
                 
                 <!-- 창 제어 버튼들 -->
                 <StackPanel Grid.Column="1" 

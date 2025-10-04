@@ -99,6 +99,8 @@
     <Compile Include="IniFileManager.cs" />
     <Compile Include="LanguageManager.cs" />
     <Compile Include="DllManager.cs" />
+    <Compile Include="CommunicationServer.cs" />
+    <Compile Include="CommunicationLogger.cs" />
     <Compile Include="IPVSPage.xaml.cs">
       <DependentUpon>IPVSPage.xaml</DependentUpon>
     </Compile>

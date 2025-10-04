@@ -38,6 +38,44 @@ namespace OptiX
             
             // 텍스트박스 색상 적용
             ApplyTextBoxColors();
+            
+            // MainWindow의 CommunicationServer 상태 변경 이벤트 구독
+            var mainWindow = Application.Current.MainWindow as MainWindow;
+            if (mainWindow != null)
+            {
+                mainWindow.CommunicationServerStatusChanged += OnCommunicationServerStatusChanged;
+                UpdateConnectionStatus(); // 초기 상태 업데이트
+            }
+            
+            // 언어 적용
+            ApplyLanguage();
+            
+            // 언어 변경 이벤트 구독
+            LanguageManager.LanguageChanged += OnLanguageChanged;
+        }
+
+        // 언어 적용 메서드
+        public void ApplyLanguage()
+        {
+            try
+            {
+                // TCP/IP 연결 제목
+                if (TcpIpConnectionTitle != null)
+                    TcpIpConnectionTitle.Text = LanguageManager.GetText("MainSettings.TCPIPConnection");
+                
+                // DLL 폴더 설정 제목
+                if (DllFolderSettingsTitle != null)
+                    DllFolderSettingsTitle.Text = LanguageManager.GetText("MainSettings.DLLFolderSettings");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"언어 적용 오류: {ex.Message}");
+            }
+        }
+
+        private void OnLanguageChanged(object sender, EventArgs e)
+        {
+            ApplyLanguage();
         }
 
         private void ApplyTheme()
@@ -83,6 +121,13 @@ namespace OptiX
                 TcpIpTextBox.CaretBrush = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
                 TcpIpTextBox.SelectionBrush = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
                 TcpIpTextBox.SelectionTextBrush = new SolidColorBrush(Colors.White);
+                
+                TcpPortTextBox.Background = new SolidColorBrush(Color.FromRgb(51, 65, 85)); // #334155
+                TcpPortTextBox.Foreground = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
+                TcpPortTextBox.BorderBrush = new SolidColorBrush(Color.FromRgb(71, 85, 105)); // #475569
+                TcpPortTextBox.CaretBrush = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
+                TcpPortTextBox.SelectionBrush = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
+                TcpPortTextBox.SelectionTextBrush = new SolidColorBrush(Colors.White);
             }
             else
             {
@@ -93,6 +138,13 @@ namespace OptiX
                 TcpIpTextBox.CaretBrush = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
                 TcpIpTextBox.SelectionBrush = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
                 TcpIpTextBox.SelectionTextBrush = new SolidColorBrush(Colors.White);
+                
+                TcpPortTextBox.Background = new SolidColorBrush(Colors.White);
+                TcpPortTextBox.Foreground = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
+                TcpPortTextBox.BorderBrush = new SolidColorBrush(Color.FromRgb(209, 213, 219)); // #D1D5DB
+                TcpPortTextBox.CaretBrush = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
+                TcpPortTextBox.SelectionBrush = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
+                TcpPortTextBox.SelectionTextBrush = new SolidColorBrush(Colors.White);
             }
         }
 
@@ -110,15 +162,14 @@ namespace OptiX
                 VietnameseCheckBox.IsChecked = (currentLanguage == "Vietnamese");
                 
                 // TCP/IP 설정 로드
-                string tcpIp = iniManager.ReadValue("Settings", "TCP_IP", "2002");
-                TcpIpTextBox.Text = tcpIp;
+                LoadTcpIpSettings();
                 ApplyTextBoxColors(); // 텍스트박스 색상 적용
                 
                 // DLL 폴더 설정 로드
                 string dllFolder = iniManager.ReadValue("Settings", "DLL_FOLDER", "");
                 DllFolderTextBox.Text = string.IsNullOrEmpty(dllFolder) ? "DLL 폴더를 선택하세요" : dllFolder;
                 
-                System.Diagnostics.Debug.WriteLine($"설정 로드 완료 - Language: {currentLanguage}, TCP/IP: {tcpIp}");
+                System.Diagnostics.Debug.WriteLine($"설정 로드 완료 - Language: {currentLanguage}");
             }
             catch (Exception ex)
             {
@@ -204,13 +255,31 @@ namespace OptiX
             string tcpIp = TcpIpTextBox.Text.Trim();
             if (string.IsNullOrEmpty(tcpIp))
             {
-                tcpIp = "2002"; // 기본값
+                tcpIp = "127.0.0.1"; // 기본값
             }
             
             iniManager.WriteValue("Settings", "TCP_IP", tcpIp);
             
+            string tcpPort = TcpPortTextBox.Text.Trim();
+            if (string.IsNullOrEmpty(tcpPort))
+            {
+                tcpPort = "7777"; // 기본값
+            }
             
-            System.Diagnostics.Debug.WriteLine($"TCP/IP 설정 저장됨: {tcpIp}");
+            iniManager.WriteValue("Settings", "TCP_PORT", tcpPort);
+            
+            System.Diagnostics.Debug.WriteLine($"TCP/IP 설정 저장됨: {tcpIp}:{tcpPort}");
+        }
+
+        private void LoadTcpIpSettings()
+        {
+            string tcpIp = iniManager.ReadValue("Settings", "TCP_IP", "127.0.0.1");
+            TcpIpTextBox.Text = tcpIp;
+            
+            string tcpPort = iniManager.ReadValue("Settings", "TCP_PORT", "7777");
+            TcpPortTextBox.Text = tcpPort;
+            
+            System.Diagnostics.Debug.WriteLine($"TCP/IP 설정 로드됨: {tcpIp}:{tcpPort}");
         }
 
         private void TcpIpButton_Click(object sender, RoutedEventArgs e)
@@ -220,29 +289,112 @@ namespace OptiX
             TcpIpTextBox.SelectAll();
         }
 
-        private void ConnectButton_Click(object sender, RoutedEventArgs e)
+        private void PortButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Port 버튼 클릭 시 포커스를 Port 입력 필드로 이동
+            TcpPortTextBox.Focus();
+            TcpPortTextBox.SelectAll();
+        }
+
+        private async void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // TCP/IP 연결 로직 구현
-                string tcpIp = TcpIpTextBox.Text.Trim();
-                
-                if (string.IsNullOrEmpty(tcpIp))
+                // MainWindow의 CommunicationServer와 연동
+                var mainWindow = Application.Current.MainWindow as MainWindow;
+                if (mainWindow != null)
                 {
-                    MessageBox.Show("TCP/IP 주소를 입력해주세요.", "입력 오류", 
-                                  MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
+                    if (mainWindow.IsCommunicationServerRunning())
+                    {
+                        // 서버가 실행 중이면 중지
+                        mainWindow.StopCommunicationServer();
+                        CommunicationLogger.WriteLog("서버 중지됨 - 사용자 요청");
+                    }
+                    else
+                    {
+                        // 서버가 중지되어 있으면 시작
+                        string tcpIp = TcpIpTextBox.Text.Trim();
+                        string portText = TcpPortTextBox.Text.Trim();
+                        
+                        if (string.IsNullOrEmpty(tcpIp) || string.IsNullOrEmpty(portText))
+                        {
+                            MessageBox.Show("TCP/IP 주소와 포트를 입력해주세요.", "입력 오류", 
+                                          MessageBoxButton.OK, MessageBoxImage.Warning);
+                            return;
+                        }
+                        
+                        if (!int.TryParse(portText, out int port))
+                        {
+                            MessageBox.Show("올바른 포트 번호를 입력해주세요.", "입력 오류", 
+                                          MessageBoxButton.OK, MessageBoxImage.Warning);
+                            return;
+                        }
+                        
+                        await mainWindow.StartCommunicationServer(tcpIp, port);
+                        CommunicationLogger.WriteLog("서버 시작됨 - 사용자 요청");
+                    }
                 }
-                
-                // 여기에 실제 TCP/IP 연결 로직을 추가할 수 있습니다
-                MessageBox.Show($"TCP/IP 연결 시도: {tcpIp}\n\n연결 기능이 구현되었습니다!", "Connect", 
-                              MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"연결 중 오류가 발생했습니다: {ex.Message}", "연결 오류", 
                               MessageBoxButton.OK, MessageBoxImage.Error);
+                CommunicationLogger.WriteLog($"ConnectButton_Click 오류: {ex.Message}");
             }
+        }
+
+        private void OnCommunicationServerStatusChanged(object sender, bool isConnected)
+        {
+            UpdateConnectionStatus();
+        }
+
+        private void UpdateConnectionStatus()
+        {
+            try
+            {
+                var mainWindow = Application.Current.MainWindow as MainWindow;
+                if (mainWindow != null)
+                {
+                    bool isRunning = mainWindow.IsCommunicationServerRunning();
+                    
+                    if (isRunning)
+                    {
+                        ConnectButton.Content = "Disconnect";
+                        ConnectButton.Background = new SolidColorBrush(Color.FromRgb(220, 38, 38)); // Red
+                    }
+                    else
+                    {
+                        ConnectButton.Content = "Connect";
+                        ConnectButton.Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // Green
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"UpdateConnectionStatus 오류: {ex.Message}");
+            }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            try
+            {
+                // MainWindow의 CommunicationServer 상태 변경 이벤트 해제
+                var mainWindow = Application.Current.MainWindow as MainWindow;
+                if (mainWindow != null)
+                {
+                    mainWindow.CommunicationServerStatusChanged -= OnCommunicationServerStatusChanged;
+                }
+                
+                // 언어 변경 이벤트 해제
+                LanguageManager.LanguageChanged -= OnLanguageChanged;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"OnClosed 오류: {ex.Message}");
+            }
+            
+            base.OnClosed(e);
         }
 
         /// <summary>

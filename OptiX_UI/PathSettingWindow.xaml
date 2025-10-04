@@ -222,7 +222,7 @@
                     
                     <!-- 파일 생성 여부 섹션 -->
                     <TextBlock x:Name="FileGenerationTitle"
-                               Text="📄 파일 생성 여부" 
+                               Text="파일 생성 여부" 
                                FontSize="16" 
                                FontWeight="Bold" 
                                Foreground="{DynamicResource DynamicTextPrimaryColor}"
@@ -283,7 +283,7 @@
                     
                     <!-- 폴더 경로 설정 섹션 -->
                     <TextBlock x:Name="FolderPathSettingsTitle"
-                               Text="📁 폴더 경로 설정" 
+                               Text="폴더 경로 설정" 
                                FontSize="16" 
                                FontWeight="Bold" 
                                Foreground="{DynamicResource DynamicTextPrimaryColor}"
@@ -359,7 +359,7 @@
                     
                     <!-- Load 섹션 -->
                     <TextBlock x:Name="FilePathSettingsTitle"
-                               Text="📄 파일 경로 설정" 
+                               Text="파일 경로 설정" 
                                FontSize="16" 
                                FontWeight="Bold" 
                                Foreground="{DynamicResource DynamicTextPrimaryColor}"

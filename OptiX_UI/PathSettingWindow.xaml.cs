@@ -298,6 +298,10 @@ namespace OptiX
         {
             try
             {
+                // 파일 생성 여부 제목
+                if (FileGenerationTitle != null)
+                    FileGenerationTitle.Text = LanguageManager.GetText("PathSettings.FileGenerationStatus");
+                
                 // 폴더 경로 설정 제목
                 if (FolderPathSettingsTitle != null)
                     FolderPathSettingsTitle.Text = LanguageManager.GetText("PathSettings.FolderPathSettings");

@@ -222,7 +222,7 @@ namespace OptiX.ViewModels
                 {
                     data = new Pattern[119] // 7*17 = 119개 요소
                 };
-                
+                 
                 System.Diagnostics.Debug.WriteLine($"출력 데이터 배열 크기: [7,17] (카테고리 개수: {categoryCount})");
 
                 // 디버그: DLL 호출 전

@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="설정"
-        Height="700"
+        Height="750"
         Width="600"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
@@ -346,7 +346,7 @@
                     </Grid>
                 </Border>
 
-                <!-- Port 연결 섹션 -->
+                <!-- TCP/IP 연결 섹션 -->
                 <Border Grid.Row="1" 
                         Background="{DynamicResource DynamicCardBackground}"
                         BorderBrush="{DynamicResource DynamicBorderColor}"
@@ -360,7 +360,7 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         
-                        <!-- Port 연결 제목과 Connect 버튼 -->
+                        <!-- TCP/IP 연결 제목과 Connect 버튼 -->
                         <Grid Grid.Row="0" Margin="0,0,0,20">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -369,7 +369,8 @@
                             </Grid.ColumnDefinitions>
                             
                             <TextBlock Grid.Column="0" 
-                                       Text="Port 연결" 
+                                       x:Name="TcpIpConnectionTitle"
+                                       Text="TCP/IP 연결" 
                                        FontSize="16" 
                                        FontWeight="SemiBold" 
                                        Foreground="{DynamicResource DynamicTextColor}" 
@@ -396,24 +397,31 @@
                         
                         <!-- TCP/IP 설정 -->
                         <Grid Grid.Row="1" Margin="0,0,0,20">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
                             
-                            <!-- TCP/IP 버튼 -->
-                            <Button Grid.Column="0"
-                                    x:Name="TcpIpButton"
-                                    Content="TCP/IP"
-                                    Style="{StaticResource TcpIpButtonStyle}"
-                                    FontSize="12"
-                                    Height="36"
-                                    Width="80"
-                                    Padding="8,8"
-                                    Click="TcpIpButton_Click"/>
-                            
-                            <!-- TCP/IP 입력 필드 -->
-                            <TextBox Grid.Column="1" 
+                            <!-- TCP/IP 설정 -->
+                            <Grid Grid.Row="0" Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <!-- TCP/IP 버튼 -->
+                                <Button Grid.Column="0"
+                                        x:Name="TcpIpButton"
+                                        Content="IP Server"
+                                        Style="{StaticResource TcpIpButtonStyle}"
+                                        FontSize="12"
+                                        Height="36"
+                                        Width="80"
+                                        Padding="8,8"
+                                        Click="TcpIpButton_Click"/>
+                                
+                                <!-- TCP/IP 입력 필드 -->
+                                <TextBox Grid.Column="1" 
                                      x:Name="TcpIpTextBox"
                                      FontSize="12"
                                      Height="36"
@@ -427,6 +435,43 @@
                                      CaretBrush="Black"
                                      SelectionBrush="#8B5CF6"
                                      SelectionTextBrush="White"/>
+                            </Grid>
+                            
+                            <!-- Port 설정 -->
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <!-- Port 버튼 -->
+                                <Button Grid.Column="0"
+                                        x:Name="PortButton"
+                                        Content="Port"
+                                        Style="{StaticResource TcpIpButtonStyle}"
+                                        FontSize="12"
+                                        Height="36"
+                                        Width="80"
+                                        Padding="8,8"
+                                        Click="PortButton_Click"/>
+                                
+                                <!-- Port 입력 필드 -->
+                                <TextBox Grid.Column="1" 
+                                     x:Name="TcpPortTextBox"
+                                     FontSize="12"
+                                     Height="36"
+                                     Padding="12,8"
+                                     Margin="12,0,0,0"
+                                     VerticalContentAlignment="Center"
+                                     Background="White"
+                                     Foreground="Black"
+                                     BorderBrush="#D1D5DB"
+                                     BorderThickness="1"
+                                     CaretBrush="Black"
+                                     SelectionBrush="#8B5CF6"
+                                     SelectionTextBrush="White"
+                                     Text="7777"/>
+                            </Grid>
                         </Grid>
                         
                         
@@ -448,6 +493,7 @@
                         </Grid.RowDefinitions>
                         
                         <TextBlock Grid.Row="0" 
+                                   x:Name="DllFolderSettingsTitle"
                                    Text="DLL 폴더 설정" 
                                    FontSize="16" 
                                    FontWeight="SemiBold" 

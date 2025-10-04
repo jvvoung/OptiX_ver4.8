@@ -24,6 +24,16 @@ namespace OptiX
                 ["MainWindow.LUT"] = "LUT",
                 ["MainWindow.Settings"] = "설정",
                 
+                // MainSettingsWindow
+                ["MainSettings.TCPIPConnection"] = "TCP/IP 연결",
+                ["MainSettings.DLLFolderSettings"] = "DLL 폴더 설정",
+                
+                // PathSettingWindow
+                ["PathSettings.FileGenerationStatus"] = "파일 생성 여부",
+                ["PathSettings.FolderPathSettings"] = "폴더 경로 설정",
+                ["PathSettings.FilePathSettings"] = "파일 경로 설정",
+                ["PathSettings.SelectFolder"] = "폴더를 선택하세요",
+                
                 // 호버 툴팁
                 ["MainWindow.CharacteristicsTooltip.Title"] = "Optic",
                 ["MainWindow.CharacteristicsTooltip.Description"] = "1. 패널의 중심점(Center Point) 계측\n2. 패널 점등 및 특성 데이터(휘도, 색좌표, VACS, 전류 등) 취득\n3. 특성 데이터 판정\n4. Cell MTP 및 AI진행",
@@ -108,6 +118,16 @@ namespace OptiX
                 ["MainWindow.Manual"] = "Manual",
                 ["MainWindow.LUT"] = "LUT",
                 ["MainWindow.Settings"] = "Settings",
+                
+                // MainSettingsWindow
+                ["MainSettings.TCPIPConnection"] = "TCP/IP Connection",
+                ["MainSettings.DLLFolderSettings"] = "DLL Folder Settings",
+                
+                // PathSettingWindow
+                ["PathSettings.FileGenerationStatus"] = "File Generation Status",
+                ["PathSettings.FolderPathSettings"] = "Folder Path Settings",
+                ["PathSettings.FilePathSettings"] = "File Path Settings",
+                ["PathSettings.SelectFolder"] = "Please select folder",
                 
                 // 호버 툴팁
                 ["MainWindow.CharacteristicsTooltip.Title"] = "OPTIC",
@@ -194,6 +214,16 @@ namespace OptiX
                 ["MainWindow.Manual"] = "Thủ công",
                 ["MainWindow.LUT"] = "LUT",
                 ["MainWindow.Settings"] = "Cài đặt",
+                
+                // MainSettingsWindow
+                ["MainSettings.TCPIPConnection"] = "Kết nối TCP/IP",
+                ["MainSettings.DLLFolderSettings"] = "Cài đặt thư mục DLL",
+                
+                // PathSettingWindow
+                ["PathSettings.FileGenerationStatus"] = "Trạng thái tạo file",
+                ["PathSettings.FolderPathSettings"] = "Cài đặt đường dẫn thư mục",
+                ["PathSettings.FilePathSettings"] = "Cài đặt đường dẫn file",
+                ["PathSettings.SelectFolder"] = "Vui lòng chọn thư mục",
                 
                 // 호버 툴팁
                 ["MainWindow.CharacteristicsTooltip.Title"] = "OPTIC",
