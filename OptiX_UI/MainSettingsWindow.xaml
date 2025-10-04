@@ -117,6 +117,8 @@
                                 Padding="12,8">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
+
+                        
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="{StaticResource PrimaryDarkColor}"/>
@@ -274,6 +276,34 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        
+        <!-- 연결됨 상태 버튼 스타일 (초록색) -->
+        <Style x:Key="ConnectedButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
+            <Setter Property="Background" Value="#10B981"/> <!-- 초록색 -->
+            <Setter Property="Foreground" Value="White"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#059669"/> <!-- 어두운 초록색 -->
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#047857"/> <!-- 더 어두운 초록색 -->
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 연결 안됨 상태 버튼 스타일 (빨간색) -->
+        <Style x:Key="DisconnectedButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
+            <Setter Property="Background" Value="#EF4444"/> <!-- 빨간색 -->
+            <Setter Property="Foreground" Value="White"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#DC2626"/> <!-- 어두운 빨간색 -->
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#B91C1C"/> <!-- 더 어두운 빨간색 -->
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
     
     <Grid Background="{DynamicResource DynamicBackground}">
@@ -390,7 +420,7 @@
                                     Style="{StaticResource ConnectButtonStyle}"
                                     FontSize="12"
                                     Height="32"
-                                    Width="80"
+                                    Width="100"
                                     Padding="8,6"
                                     Click="ConnectButton_Click"/>
                         </Grid>

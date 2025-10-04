@@ -84,6 +84,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="ManualPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -103,6 +107,9 @@
     <Compile Include="CommunicationLogger.cs" />
     <Compile Include="IPVSPage.xaml.cs">
       <DependentUpon>IPVSPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ManualPage.xaml.cs">
+      <DependentUpon>ManualPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
@@ -161,6 +168,8 @@
   </ItemGroup>
   <ItemGroup>
     <Resource Include="OptixIcon.ico" />
+    <Resource Include="Images\CIExy1931.png" />
+    <Resource Include="Images\CIE_1976.png" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\TestDll\TestDll.vcxproj">

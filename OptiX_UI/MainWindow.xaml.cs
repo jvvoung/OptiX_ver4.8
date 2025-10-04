@@ -107,6 +107,25 @@ public partial class MainWindow : Window
     {
         // 연결 상태 변경 처리
         System.Diagnostics.Debug.WriteLine($"[CommunicationServer] 연결 상태 변경: {isConnected}");
+        
+        // UI 스레드에서 실행
+        Dispatcher.Invoke(() =>
+        {
+            // AUTO MODE 표시 업데이트
+            UpdateAutoModeDisplay(isConnected);
+            
+            // CommunicationServerStatusChanged 이벤트 발생 (MainSettingsWindow에서 구독)
+            CommunicationServerStatusChanged?.Invoke(this, isConnected);
+            
+            if (isConnected)
+            {
+                CommunicationLogger.WriteLog($"🟢 [CONNECTION_STATUS] 클라이언트 연결됨 - AUTO MODE 활성화");
+            }
+            else
+            {
+                CommunicationLogger.WriteLog($"🔴 [CONNECTION_STATUS] 클라이언트 연결 해제됨 - AUTO MODE 해제");
+            }
+        });
     }
 
     private void ProcessClientMessage(string message)
@@ -142,8 +161,7 @@ public partial class MainWindow : Window
             bool success = await communicationServer.StartServerAsync(tcpIp, port);
             if (success)
             {
-                CommunicationServerStatusChanged?.Invoke(this, true);
-                UpdateAutoModeDisplay(true);
+                // 서버 시작 성공 - 클라이언트 연결 상태는 OnCommunicationStatusChanged에서 처리
                 CommunicationLogger.WriteLog($"🟢 [SERVER_CONNECT] 서버 연결 성공 - IP: {tcpIp}, Port: {port}");
                 CommunicationLogger.WriteLog($"✅ [CONNECT_COMPLETE] CONNECT 완료");
             }
@@ -166,6 +184,11 @@ public partial class MainWindow : Window
     public bool IsCommunicationServerRunning()
     {
         return communicationServer?.IsRunning ?? false;
+    }
+
+    public bool HasConnectedClients()
+    {
+        return communicationServer?.ConnectedClientCount > 0;
     }
 
     private void UpdateAutoModeDisplay(bool isConnected)
@@ -200,7 +223,7 @@ public partial class MainWindow : Window
     private void ManualButton_Click(object sender, RoutedEventArgs e)
     {
         System.Diagnostics.Debug.WriteLine("Manual 버튼 클릭됨");
-        MessageBox.Show("Manual 버튼이 클릭되었습니다!", "Manual", MessageBoxButton.OK, MessageBoxImage.Information);
+        ShowManualPage();
     }
 
     private void LUTButton_Click(object sender, RoutedEventArgs e)
@@ -243,6 +266,59 @@ public partial class MainWindow : Window
     {
         this.Close();
     }
+
+    private void LightModeButton_Click(object sender, RoutedEventArgs e)
+    {
+        SetLightMode();
+    }
+
+    private void DarkModeButton_Click(object sender, RoutedEventArgs e)
+    {
+        SetDarkMode();
+    }
+
+    private void SetLightMode()
+    {
+        isDarkMode = false;
+        
+        // 창 배경
+        this.Background = new SolidColorBrush(Color.FromRgb(248, 249, 250)); // #F8F9FA
+        
+        // 타이틀바 - 라이트모드에서도 보라색 유지
+        var titleBar = (Border)this.FindName("TitleBar");
+        if (titleBar != null)
+        {
+            titleBar.Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
+        }
+        
+        // 모드 토글 컨테이너 - 라이트모드에서도 보라색 유지
+        var modeContainer = (Border)this.FindName("ModeToggleContainer");
+        if (modeContainer != null)
+        {
+            modeContainer.Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
+        }
+        
+        // 버튼 스타일 업데이트
+        UpdateButtonStyles(false);
+        
+        // 툴팁 스타일 업데이트
+        UpdateTooltipStyles(false);
+        
+        // 현재 페이지 라이트모드 상태 업데이트
+        if (currentPage is OpticPage opticPage)
+        {
+            opticPage.SetDarkMode(false);
+        }
+        else if (currentPage is IPVSPage ipvsPage)
+        {
+            ipvsPage.SetDarkMode(false);
+        }
+        else if (currentPage is ManualPage manualPage)
+        {
+            manualPage.SetTheme(false);
+        }
+    }
+
 
     private void CharacteristicsButton_MouseEnter(object sender, MouseEventArgs e)
     {
@@ -324,59 +400,7 @@ public partial class MainWindow : Window
         SettingsTooltip.Visibility = Visibility.Collapsed;
     }
 
-    private void LightModeButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (isDarkMode)
-        {
-            SetLightMode();
-        }
-    }
 
-    private void DarkModeButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (!isDarkMode)
-        {
-            SetDarkMode();
-        }
-    }
-
-    private void SetLightMode()
-    {
-        isDarkMode = false;
-
-        // 창 배경
-        this.Background = new SolidColorBrush(Color.FromRgb(248, 249, 250));
-
-        // 타이틀바 - 보라색 유지
-        var titleBar = (Border)this.FindName("TitleBar");
-        if (titleBar != null)
-        {
-            titleBar.Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
-        }
-
-        // 모드 토글 컨테이너 - 보라색 유지
-        var modeContainer = (Border)this.FindName("ModeToggleContainer");
-        if (modeContainer != null)
-        {
-            modeContainer.Background = new SolidColorBrush(Color.FromRgb(139, 92, 246)); // #8B5CF6
-        }
-
-        // 버튼 스타일 업데이트
-        UpdateButtonStyles(false);
-
-        // 툴팁 스타일 업데이트
-        UpdateTooltipStyles(false);
-
-        // 현재 페이지 다크모드 상태 업데이트
-        if (currentPage is OpticPage opticPage)
-        {
-            opticPage.SetDarkMode(false);
-        }
-        else if (currentPage is IPVSPage ipvsPage)
-        {
-            ipvsPage.SetDarkMode(false);
-        }
-    }
 
     private void SetDarkMode()
     {
@@ -414,12 +438,16 @@ public partial class MainWindow : Window
         {
             ipvsPage.SetDarkMode(true);
         }
+        else if (currentPage is ManualPage manualPage)
+        {
+            manualPage.SetTheme(true);
+        }
     }
 
     private void UpdateButtonStyles(bool isDark)
     {
         // 모든 버튼의 스타일을 업데이트
-        var buttons = new[] { CharacteristicsButton, IPVSButton };
+        var buttons = new[] { CharacteristicsButton, IPVSButton, ManualButton, LUTButton, SettingsButton };
 
         foreach (var button in buttons)
         {
@@ -707,6 +735,39 @@ public partial class MainWindow : Window
         {
             mainContentGrid.Children.Add(ipvsPage);
             currentPage = ipvsPage;
+        }
+    }
+
+    private void ShowManualPage()
+    {
+        // 기존 페이지 제거
+        if (currentPage != null)
+        {
+            var mainContent = (Grid)this.FindName("MainContent");
+            if (mainContent != null)
+            {
+                mainContent.Children.Remove(currentPage);
+            }
+        }
+
+        // 메인 페이지 콘텐츠 숨기기
+        var mainPageContent = (Grid)this.FindName("MainPageContent");
+        if (mainPageContent != null)
+        {
+            mainPageContent.Visibility = Visibility.Collapsed;
+        }
+
+        // Manual 페이지 생성 및 표시
+        var manualPage = new ManualPage();
+
+        // 현재 다크모드 상태를 ManualPage에 전달
+        manualPage.SetTheme(isDarkMode);
+
+        var mainContentGrid = (Grid)this.FindName("MainContent");
+        if (mainContentGrid != null)
+        {
+            mainContentGrid.Children.Add(manualPage);
+            currentPage = manualPage;
         }
     }
 
@@ -1062,6 +1123,14 @@ public partial class MainWindow : Window
                     var descriptionTextBlock = FindVisualChild<TextBlock>(IPVSTooltip, "IPVSTooltipDescription");
                     if (descriptionTextBlock != null)
                         descriptionTextBlock.Text = LanguageManager.GetText("MainWindow.IPVSTooltip.Description");
+                }
+                
+                // Manual 툴팁 업데이트
+                if (ManualTooltip != null)
+                {
+                    var descriptionTextBlock = FindVisualChild<TextBlock>(ManualTooltip, "ManualTooltipDescription");
+                    if (descriptionTextBlock != null)
+                        descriptionTextBlock.Text = LanguageManager.GetText("MainWindow.ManualTooltip.Description");
                 }
                 
                 // 설정 툴팁 업데이트

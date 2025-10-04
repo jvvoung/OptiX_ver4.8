@@ -173,6 +173,21 @@ namespace OptiX
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate int TestFunction(IntPtr input, IntPtr output);
 
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate bool PGTurnFunction(int port);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate bool PGPatternFunction(int pattern);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate bool PGVoltagesndFunction(int RV, int GV, int BV);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate bool MeasTurnFunction(int port);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate bool GetdataFunction(IntPtr output);
+
         /// <summary>
         /// TestDll의 test 함수 호출
         /// </summary>
@@ -209,7 +224,11 @@ namespace OptiX
                     else
                     {
                         // 실패 시 빈 출력 반환
-                        Output emptyOutput = new Output { data = new Pattern[119] };
+                        Output emptyOutput = new Output 
+                        { 
+                            data = new Pattern[119],
+                            measure = new Pattern[7]
+                        };
                         return (emptyOutput, false);
                     }
                 }
@@ -224,6 +243,160 @@ namespace OptiX
             {
                 Debug.WriteLine($"TestDll.test 함수 호출 오류: {ex.Message}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Manual 페이지용 DLL 함수 호출 메서드들
+        /// </summary>
+
+        /// <summary>
+        /// PG 포트 연결/해제
+        /// </summary>
+        /// <param name="port">포트 번호</param>
+        /// <returns>성공 여부</returns>
+        public static bool CallPGTurn(int port)
+        {
+            if (!_isInitialized)
+            {
+                throw new InvalidOperationException("DLL이 초기화되지 않았습니다.");
+            }
+
+            try
+            {
+                var pgTurnFunc = GetFunction<PGTurnFunction>("PGTurn");
+                return pgTurnFunc(port);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"PGTurn 함수 호출 오류: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 패턴 전송
+        /// </summary>
+        /// <param name="pattern">패턴 번호</param>
+        /// <returns>성공 여부</returns>
+        public static bool CallPGPattern(int pattern)
+        {
+            if (!_isInitialized)
+            {
+                throw new InvalidOperationException("DLL이 초기화되지 않았습니다.");
+            }
+
+            try
+            {
+                var pgPatternFunc = GetFunction<PGPatternFunction>("PGPattern");
+                return pgPatternFunc(pattern);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"PGPattern 함수 호출 오류: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// RGB 전압 전송
+        /// </summary>
+        /// <param name="RV">Red Voltage</param>
+        /// <param name="GV">Green Voltage</param>
+        /// <param name="BV">Blue Voltage</param>
+        /// <returns>성공 여부</returns>
+        public static bool CallPGVoltagesnd(int RV, int GV, int BV)
+        {
+            if (!_isInitialized)
+            {
+                throw new InvalidOperationException("DLL이 초기화되지 않았습니다.");
+            }
+
+            try
+            {
+                var pgVoltagesndFunc = GetFunction<PGVoltagesndFunction>("PGVoltagesnd");
+                return pgVoltagesndFunc(RV, GV, BV);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"PGVoltagesnd 함수 호출 오류: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 측정 포트 연결/해제
+        /// </summary>
+        /// <param name="port">포트 번호</param>
+        /// <returns>성공 여부</returns>
+        public static bool CallMeasTurn(int port)
+        {
+            if (!_isInitialized)
+            {
+                throw new InvalidOperationException("DLL이 초기화되지 않았습니다.");
+            }
+
+            try
+            {
+                var measTurnFunc = GetFunction<MeasTurnFunction>("Meas_Turn");
+                return measTurnFunc(port);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Meas_Turn 함수 호출 오류: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 측정 데이터 가져오기
+        /// </summary>
+        /// <returns>측정 데이터와 성공 여부</returns>
+        public static (Pattern measureData, bool success) CallGetdata()
+        {
+            if (!_isInitialized)
+            {
+                throw new InvalidOperationException("DLL이 초기화되지 않았습니다.");
+            }
+
+            try
+            {
+                // 출력 구조체를 비관리 메모리에 마샬링
+                IntPtr outputPtr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Output)));
+
+                try
+                {
+                    // DLL 함수 호출
+                    var getdataFunc = GetFunction<GetdataFunction>("Getdata");
+                    bool result = getdataFunc(outputPtr);
+
+                    if (result)
+                    {
+                        // 출력 구조체를 관리 메모리로 복사
+                        Output output = Marshal.PtrToStructure<Output>(outputPtr);
+                        
+                        // 첫 번째 WAD의 측정 데이터 반환 (기본값)
+                        Pattern measureData = output.measure.Length > 0 ? output.measure[0] : new Pattern();
+                        return (measureData, true);
+                    }
+                    else
+                    {
+                        // 실패 시 빈 데이터 반환
+                        Pattern emptyData = new Pattern();
+                        return (emptyData, false);
+                    }
+                }
+                finally
+                {
+                    // 메모리 해제
+                    Marshal.FreeHGlobal(outputPtr);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Getdata 함수 호출 오류: {ex.Message}");
+                Pattern emptyData = new Pattern();
+                return (emptyData, false);
             }
         }
 
@@ -276,26 +449,33 @@ namespace OptiX
     }
 
     /// <summary>
-    /// DLL에서 반환되는 데이터 구조체
+    /// DLL에서 반환되는 데이터 구조체 (업데이트됨)
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct Pattern
     {
-        public double x;
-        public double y;
-        public double L;
-        public double cur;
-        public double eff;
+        public float x;
+        public float y;
+        public float u;
+        public float v;
+        public float L;
+        public float cur;
+        public float eff;
     }
 
     /// <summary>
-    /// DLL에서 반환되는 출력 구조체
+    /// DLL에서 반환되는 출력 구조체 (업데이트됨)
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct Output
     {
+        // 7x17 2차원 배열을 1차원 배열로 표현 (7*17 = 119)
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 119)]
-        public Pattern[] data; // 7 * 17 = 119
+        public Pattern[] data; // [7][17] => 0:0도, 1:30도, 2:45도, 3:60도, 4:15도, 5:A도, 6:B도
+        
+        // 측정 데이터 배열 (7개 WAD)
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 7)]
+        public Pattern[] measure; // [7] WAD별 측정 데이터
     }
 
     #endregion

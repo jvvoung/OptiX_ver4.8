@@ -189,7 +189,7 @@ namespace OptiX
                 catch (Exception ex)
                 {
                     LogMessage?.Invoke(this, $"❌ 클라이언트에게 메시지 전송 실패: {ex.Message}");
-                    // 연결이 끊어진 클라이언트 제거
+                    // 연결이 끊어진 클라이언트 제거 (연결 상태 업데이트 포함)
                     RemoveClient(client);
                 }
             });
@@ -227,6 +227,12 @@ namespace OptiX
                     
                     // 통신 로그 기록
                     CommunicationLogger.WriteLog($"🟢 [CLIENT_CONNECT] 클라이언트 연결 성공 - IP: {tcpClient.Client.RemoteEndPoint}");
+
+                    // 연결 상태 변경 이벤트 발생 (클라이언트가 연결되었음을 알림)
+                    CommunicationLogger.WriteLog($"🔍 [DEBUG] CommunicationServer - 클라이언트 연결 이벤트 발생 전");
+                    ConnectionStatusChanged?.Invoke(this, true);
+                    LogMessage?.Invoke(this, "🟢 클라이언트 연결됨 - AUTO MODE 활성화");
+                    CommunicationLogger.WriteLog($"🟢 [CONNECTION_STATUS] 클라이언트 연결 - AUTO MODE 활성화");
 
                     // 클라이언트별 메시지 처리 시작
                     _ = Task.Run(() => HandleClientAsync(tcpClient, cancellationToken));
@@ -324,11 +330,18 @@ namespace OptiX
             {
                 connectedClients.Remove(client);
             }
+            
             LogMessage?.Invoke(this, $"🔌 클라이언트 연결 해제: {client.Client.RemoteEndPoint}");
             LogMessage?.Invoke(this, $"📊 연결된 클라이언트 수: {ConnectedClientCount}");
             
             // 통신 로그 기록
             CommunicationLogger.WriteLog($"🔴 [CLIENT_DISCONNECT] 클라이언트 연결 해제 - IP: {client.Client.RemoteEndPoint} - 사유: 연결 종료");
+            
+            // 연결 상태 변경 이벤트 발생 (클라이언트가 연결 해제되었음을 알림)
+            CommunicationLogger.WriteLog($"🔍 [DEBUG] CommunicationServer - 클라이언트 연결 해제 이벤트 발생 전");
+            ConnectionStatusChanged?.Invoke(this, false);
+            LogMessage?.Invoke(this, "🔴 클라이언트 연결 해제됨 - AUTO MODE 해제");
+            CommunicationLogger.WriteLog($"🔴 [CONNECTION_STATUS] 클라이언트 연결 해제 - AUTO MODE 해제");
         }
 
         /// <summary>

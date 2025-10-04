@@ -40,6 +40,7 @@ namespace OptiX
                 ["MainWindow.CharacteristicsTooltip.CenterPoint"] = "Center Point 계측",
                 ["MainWindow.IPVSTooltip.Title"] = "IPVS",
                 ["MainWindow.IPVSTooltip.Description"] = "1. Cell MTP 전압 인가\n2. User 설정 포인트 계측 이후 특성 데이터(휘도, 색좌표, VACS, 전류 등) 취득\n3. IPVS, WON 로직 진입\n4. 판정 수행",
+                ["MainWindow.ManualTooltip.Description"] = "Pattern 점등 후 Manual 계측",
                 ["MainWindow.SettingsTooltip.Title"] = "설정",
                 ["MainWindow.SettingsTooltip.Description"] = "애플리케이션 설정 및 환경 구성",
                 
@@ -135,6 +136,7 @@ namespace OptiX
                 ["MainWindow.CharacteristicsTooltip.CenterPoint"] = "Center Point Measurement",
                 ["MainWindow.IPVSTooltip.Title"] = "IPVS",
                 ["MainWindow.IPVSTooltip.Description"] = "1. Cell MTP Voltage Application\n2. User Set Point Measurement and Characteristic Data (Luminance, Color Coordinates, VACS, Current, etc.) Acquisition\n3. IPVS, WON Logic Entry\n4. Judgment Execution",
+                ["MainWindow.ManualTooltip.Description"] = "Manual measurement after Pattern lighting",
                 ["MainWindow.SettingsTooltip.Title"] = "Settings",
                 ["MainWindow.SettingsTooltip.Description"] = "Application Settings and Environment Configuration",
                 
@@ -231,6 +233,7 @@ namespace OptiX
                 ["MainWindow.CharacteristicsTooltip.CenterPoint"] = "Đo điểm trung tâm",
                 ["MainWindow.IPVSTooltip.Title"] = "IPVS",
                 ["MainWindow.IPVSTooltip.Description"] = "1. Áp dụng điện áp Cell MTP\n2. Đo điểm do người dùng thiết lập và thu thập dữ liệu đặc tính (độ sáng, tọa độ màu, VACS, dòng điện, v.v.)\n3. Vào logic IPVS, WON\n4. Thực hiện đánh giá",
+                ["MainWindow.ManualTooltip.Description"] = "Đo thủ công sau khi bật Pattern",
                 ["MainWindow.SettingsTooltip.Title"] = "Cài đặt",
                 ["MainWindow.SettingsTooltip.Description"] = "Cài đặt Ứng dụng và Cấu hình Môi trường",
                 

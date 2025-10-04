@@ -13,6 +13,7 @@ namespace OptiX
         private IniFileManager iniManager;
         private bool isDarkMode;
         private string selectedLanguage = "Korean";
+        private bool isTcpConnected = false; // TCP/IP 연결 상태 관리
 
         public MainSettingsWindow() : this(false)
         {
@@ -309,6 +310,14 @@ namespace OptiX
                         // 서버가 실행 중이면 중지
                         mainWindow.StopCommunicationServer();
                         CommunicationLogger.WriteLog("서버 중지됨 - 사용자 요청");
+                        
+                        // 연결 해제 상태로 버튼 변경
+                        isTcpConnected = false;
+                        ConnectButton.Content = "DISCONNECT";
+                        ConnectButton.Style = (Style)FindResource("DisconnectedButtonStyle");
+                        
+                        MessageBox.Show("서버가 중지되었습니다.\nAUTO MODE가 비활성화되었습니다.", "서버 중지", 
+                                      MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     else
                     {
@@ -330,13 +339,38 @@ namespace OptiX
                             return;
                         }
                         
-                        await mainWindow.StartCommunicationServer(tcpIp, port);
-                        CommunicationLogger.WriteLog("서버 시작됨 - 사용자 요청");
+                        // 서버 시작 시도
+                        bool serverStarted = await mainWindow.StartCommunicationServer(tcpIp, port);
+                        
+                        if (serverStarted)
+                        {
+                            // 서버 시작 성공 - 클라이언트 연결 대기 중 상태
+                            isTcpConnected = false; // 클라이언트가 연결될 때까지는 연결되지 않은 상태
+                            ConnectButton.Content = "DISCONNECT";
+                            ConnectButton.Style = (Style)FindResource("DisconnectedButtonStyle");
+                            CommunicationLogger.WriteLog("서버 시작됨 - 클라이언트 연결 대기 중");
+                            
+                            MessageBox.Show("서버가 시작되었습니다.\n클라이언트 연결을 기다리는 중입니다.", "서버 시작", 
+                                          MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                        else
+                        {
+                            // 서버 시작 실패 상태로 버튼 변경
+                            isTcpConnected = false;
+                            ConnectButton.Content = "DISCONNECT";
+                            ConnectButton.Style = (Style)FindResource("DisconnectedButtonStyle");
+                            CommunicationLogger.WriteLog("서버 시작 실패 - 사용자 요청");
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
+                // 오류 발생 시 빨간색 DISCONNECT 스타일 적용
+                isTcpConnected = false;
+                ConnectButton.Content = "DISCONNECT";
+                ConnectButton.Style = (Style)FindResource("DisconnectedButtonStyle");
+                
                 MessageBox.Show($"연결 중 오류가 발생했습니다: {ex.Message}", "연결 오류", 
                               MessageBoxButton.OK, MessageBoxImage.Error);
                 CommunicationLogger.WriteLog($"ConnectButton_Click 오류: {ex.Message}");
@@ -345,7 +379,23 @@ namespace OptiX
 
         private void OnCommunicationServerStatusChanged(object sender, bool isConnected)
         {
-            UpdateConnectionStatus();
+            // UI 스레드에서 실행
+            Dispatcher.Invoke(() =>
+            {
+                CommunicationLogger.WriteLog($"🔍 [DEBUG] OnCommunicationServerStatusChanged 호출됨 - isConnected: {isConnected}");
+                
+                UpdateConnectionStatus();
+                
+                // 로그로만 기록 (팝업 제거로 중복 방지)
+                if (isConnected)
+                {
+                    CommunicationLogger.WriteLog($"🟢 [UI_UPDATE] 클라이언트 연결됨 - AUTO MODE 활성화");
+                }
+                else
+                {
+                    CommunicationLogger.WriteLog($"🔴 [UI_UPDATE] 클라이언트 연결 해제됨 - AUTO MODE 해제");
+                }
+            });
         }
 
         private void UpdateConnectionStatus()
@@ -355,23 +405,40 @@ namespace OptiX
                 var mainWindow = Application.Current.MainWindow as MainWindow;
                 if (mainWindow != null)
                 {
-                    bool isRunning = mainWindow.IsCommunicationServerRunning();
+                    // 서버가 실행 중이고 실제 클라이언트가 연결되어 있는지 확인
+                    bool isServerRunning = mainWindow.IsCommunicationServerRunning();
+                    bool hasConnectedClients = mainWindow.HasConnectedClients();
                     
-                    if (isRunning)
+                    // 서버가 실행 중이고 클라이언트가 연결되어 있을 때만 연결 상태로 간주
+                    isTcpConnected = isServerRunning && hasConnectedClients;
+                    
+                    // 디버깅 로그 추가
+                    CommunicationLogger.WriteLog($"🔍 [DEBUG] UpdateConnectionStatus - 서버실행: {isServerRunning}, 클라이언트연결: {hasConnectedClients}, 최종연결상태: {isTcpConnected}");
+                    
+                    if (isTcpConnected)
                     {
-                        ConnectButton.Content = "Disconnect";
-                        ConnectButton.Background = new SolidColorBrush(Color.FromRgb(220, 38, 38)); // Red
+                        // 서버가 실행 중이고 클라이언트가 연결되어 있으면 초록색 CONNECT
+                        ConnectButton.Content = "CONNECT";
+                        ConnectButton.Style = (Style)FindResource("ConnectedButtonStyle");
+                        CommunicationLogger.WriteLog($"🟢 [DEBUG] 버튼 상태 변경: CONNECT (초록색)");
                     }
                     else
                     {
-                        ConnectButton.Content = "Connect";
-                        ConnectButton.Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // Green
+                        // 서버가 중지되었거나 클라이언트가 연결되지 않았으면 빨간색 DISCONNECT
+                        ConnectButton.Content = "DISCONNECT";
+                        ConnectButton.Style = (Style)FindResource("DisconnectedButtonStyle");
+                        CommunicationLogger.WriteLog($"🔴 [DEBUG] 버튼 상태 변경: DISCONNECT (빨간색)");
                     }
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"UpdateConnectionStatus 오류: {ex.Message}");
+                CommunicationLogger.WriteLog($"❌ [ERROR] UpdateConnectionStatus 오류: {ex.Message}");
+                // 오류 발생 시 빨간색 DISCONNECT 상태로 설정
+                isTcpConnected = false;
+                ConnectButton.Content = "DISCONNECT";
+                ConnectButton.Style = (Style)FindResource("DisconnectedButtonStyle");
             }
         }
 
