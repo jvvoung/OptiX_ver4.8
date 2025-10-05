@@ -108,6 +108,9 @@
     <Compile Include="IPVSPage.xaml.cs">
       <DependentUpon>IPVSPage.xaml</DependentUpon>
     </Compile>
+    <Compile Include="LUTPage.xaml.cs">
+      <DependentUpon>LUTPage.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ManualPage.xaml.cs">
       <DependentUpon>ManualPage.xaml</DependentUpon>
     </Compile>
@@ -124,6 +127,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="MainSettingsWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="LUTPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -154,6 +161,7 @@
     <Compile Include="MainSettingsWindow.xaml.cs">
       <DependentUpon>MainSettingsWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ThemeManager.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -190,12 +198,12 @@
   <Target Name="PostBuildDebug" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug' AND '$(Platform)' == 'AnyCPU'">
     <Exec Command="if not exist ..\publish_debug mkdir ..\publish_debug" />
     <Exec Command="xcopy /Y /E bin\Debug\*.* ..\publish_debug\" />
-    <Exec Command="copy ..\x64\Debug\TestDll.dll bin\Debug\TestDll.dll" />
+    <Exec Command="copy ..\TestDll\x64\Debug\TestDll.dll bin\Debug\TestDll.dll" />
   </Target>
   <Target Name="PostBuildDebugX64" AfterTargets="Build" Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <Exec Command="if not exist ..\publish_debug mkdir ..\publish_debug" />
     <Exec Command="xcopy /Y /E bin\x64\Debug\*.* ..\publish_debug\" />
-    <Exec Command="copy ..\x64\Debug\TestDll.dll bin\x64\Debug\TestDll.dll" />
+    <Exec Command="copy ..\TestDll\x64\Debug\TestDll.dll bin\x64\Debug\TestDll.dll" />
   </Target>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

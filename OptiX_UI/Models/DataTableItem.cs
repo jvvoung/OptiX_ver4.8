@@ -66,6 +66,7 @@ namespace OptiX.Models
         }
 
         public string CellId
+
         {
             get => cellId;
             set => SetProperty(ref cellId, value, "CellId");

@@ -228,8 +228,50 @@ public partial class MainWindow : Window
 
     private void LUTButton_Click(object sender, RoutedEventArgs e)
     {
-        System.Diagnostics.Debug.WriteLine("LUT 버튼 클릭됨");
-        MessageBox.Show("LUT 버튼이 클릭되었습니다!", "LUT", MessageBoxButton.OK, MessageBoxImage.Information);
+        try
+        {
+            System.Diagnostics.Debug.WriteLine("LUT 버튼 클릭됨");
+            ShowLUTPage();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"LUT 페이지 전환 오류: {ex.Message}");
+            MessageBox.Show($"LUT 페이지를 열 수 없습니다: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void ShowLUTPage()
+    {
+        // 기존 페이지 제거
+        if (currentPage != null)
+        {
+            var mainContent = (Grid)this.FindName("MainContent");
+            if (mainContent != null)
+            {
+                mainContent.Children.Remove(currentPage);
+            }
+        }
+
+        // 메인 페이지 콘텐츠 숨기기
+        var mainPageContent = (Grid)this.FindName("MainPageContent");
+        if (mainPageContent != null)
+        {
+            mainPageContent.Visibility = Visibility.Collapsed;
+        }
+
+        // LUT 페이지 생성 및 표시
+        var lutPage = new LUTPage();
+        System.Diagnostics.Debug.WriteLine($"MainWindow에서 LUT 페이지로 테마 전달: {(isDarkMode ? "다크" : "라이트")} 모드");
+        lutPage.SetTheme(isDarkMode);
+
+        var mainContentGrid = (Grid)this.FindName("MainContent");
+        if (mainContentGrid != null)
+        {
+            mainContentGrid.Children.Add(lutPage);
+            currentPage = lutPage;
+        }
+        
+        System.Diagnostics.Debug.WriteLine("LUT 페이지로 전환됨");
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
@@ -251,6 +293,7 @@ public partial class MainWindow : Window
                           MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
+
 
     private void MinimizeButton_Click(object sender, RoutedEventArgs e)
     {
@@ -316,6 +359,10 @@ public partial class MainWindow : Window
         else if (currentPage is ManualPage manualPage)
         {
             manualPage.SetTheme(false);
+        }
+        else if (currentPage is LUTPage lutPage)
+        {
+            lutPage.SetTheme(false);
         }
     }
 
@@ -393,11 +440,23 @@ public partial class MainWindow : Window
     private void SettingsButton_MouseEnter(object sender, MouseEventArgs e)
     {
         SettingsTooltip.Visibility = Visibility.Visible;
+        
+        // 다크모드에서 호버 시 텍스트 색상을 검정색으로 강제 설정
+        if (isDarkMode)
+        {
+            SettingsButton.Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0)); // 검정색
+        }
     }
 
     private void SettingsButton_MouseLeave(object sender, MouseEventArgs e)
     {
         SettingsTooltip.Visibility = Visibility.Collapsed;
+        
+        // 호버 해제 시 원래 색상으로 복원
+        if (isDarkMode)
+        {
+            SettingsButton.Foreground = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // 다크모드 기본 색상
+        }
     }
 
 
@@ -441,6 +500,10 @@ public partial class MainWindow : Window
         else if (currentPage is ManualPage manualPage)
         {
             manualPage.SetTheme(true);
+        }
+        else if (currentPage is LUTPage lutPage)
+        {
+            lutPage.SetTheme(true);
         }
     }
 
@@ -1133,6 +1196,14 @@ public partial class MainWindow : Window
                         descriptionTextBlock.Text = LanguageManager.GetText("MainWindow.ManualTooltip.Description");
                 }
                 
+                // LUT 툴팁 업데이트
+                if (LUTTooltip != null)
+                {
+                    var descriptionTextBlock = FindVisualChild<TextBlock>(LUTTooltip, "LUTTooltipText");
+                    if (descriptionTextBlock != null)
+                        descriptionTextBlock.Text = LanguageManager.GetText("MainWindow.LUTTooltip.Description");
+                }
+                
                 // 설정 툴팁 업데이트
                 if (SettingsTooltip != null)
                 {
@@ -1167,6 +1238,34 @@ public partial class MainWindow : Window
                 return childOfChild;
         }
         return null;
+    }
+
+    /// <summary>
+    /// 메인 콘텐츠 영역을 표시 (페이지에서 뒤로가기 시 사용)
+    /// </summary>
+    public void ShowMainContent()
+    {
+        try
+        {
+            // 현재 페이지 숨기기
+            if (currentPage != null)
+            {
+                currentPage.Visibility = Visibility.Collapsed;
+                currentPage = null;
+            }
+            
+            // MainContent 영역을 초기 상태로 복원
+            MainContent.Children.Clear();
+            
+            // 원래 메인 콘텐츠 표시 (기본 버튼들)
+            // 이 부분은 MainWindow.xaml에서 정의된 기본 콘텐츠가 자동으로 표시됨
+            
+            System.Diagnostics.Debug.WriteLine("메인 콘텐츠 영역으로 돌아감");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"메인 콘텐츠 표시 오류: {ex.Message}");
+        }
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

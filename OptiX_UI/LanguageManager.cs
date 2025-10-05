@@ -41,6 +41,7 @@ namespace OptiX
                 ["MainWindow.IPVSTooltip.Title"] = "IPVS",
                 ["MainWindow.IPVSTooltip.Description"] = "1. Cell MTP 전압 인가\n2. User 설정 포인트 계측 이후 특성 데이터(휘도, 색좌표, VACS, 전류 등) 취득\n3. IPVS, WON 로직 진입\n4. 판정 수행",
                 ["MainWindow.ManualTooltip.Description"] = "Pattern 점등 후 Manual 계측",
+                ["MainWindow.LUTTooltip.Description"] = "패널의 Gamma LUT Parameter 추출",
                 ["MainWindow.SettingsTooltip.Title"] = "설정",
                 ["MainWindow.SettingsTooltip.Description"] = "애플리케이션 설정 및 환경 구성",
                 
@@ -107,7 +108,18 @@ namespace OptiX
                 ["PathSettings.SelectFolder"] = "폴더를 선택하세요",
                 ["PathSettings.Sequence"] = "📄 Seq.",
                 ["PathSettings.Save"] = "💾 SAVE",
-                ["PathSettings.Cancel"] = "❌ CANCEL"
+                ["PathSettings.Cancel"] = "❌ CANCEL",
+                // LUT Page placeholders
+                ["LUTPage.Red.Graph"] = "RED 그래프",
+                ["LUTPage.Red.Formula"] = "RED LUT 공식",
+                ["LUTPage.Red.Params"] = "RED LUT 파라미터",
+                ["LUTPage.Green.Graph"] = "GREEN 그래프",
+                ["LUTPage.Green.Formula"] = "GREEN LUT 공식",
+                ["LUTPage.Green.Params"] = "GREEN LUT 파라미터",
+                ["LUTPage.Blue.Graph"] = "BLUE 그래프",
+                ["LUTPage.Blue.Formula"] = "BLUE LUT 공식",
+                ["LUTPage.Blue.Params"] = "BLUE LUT 파라미터",
+                ["LUTPage.Total.Params"] = "TOTAL LUT 파라미터"
             },
             
             ["English"] = new Dictionary<string, string>
@@ -137,6 +149,7 @@ namespace OptiX
                 ["MainWindow.IPVSTooltip.Title"] = "IPVS",
                 ["MainWindow.IPVSTooltip.Description"] = "1. Cell MTP Voltage Application\n2. User Set Point Measurement and Characteristic Data (Luminance, Color Coordinates, VACS, Current, etc.) Acquisition\n3. IPVS, WON Logic Entry\n4. Judgment Execution",
                 ["MainWindow.ManualTooltip.Description"] = "Manual measurement after Pattern lighting",
+                ["MainWindow.LUTTooltip.Description"] = "Panel Gamma LUT Parameter Extraction",
                 ["MainWindow.SettingsTooltip.Title"] = "Settings",
                 ["MainWindow.SettingsTooltip.Description"] = "Application Settings and Environment Configuration",
                 
@@ -204,7 +217,18 @@ namespace OptiX
                 ["PathSettings.FilePath"] = "File Path Settings",
                 ["PathSettings.Sequence"] = "📄 Seq.",
                 ["PathSettings.Save"] = "💾 SAVE",
-                ["PathSettings.Cancel"] = "❌ CANCEL"
+                ["PathSettings.Cancel"] = "❌ CANCEL",
+                // LUT Page placeholders
+                ["LUTPage.Red.Graph"] = "RED graph",
+                ["LUTPage.Red.Formula"] = "RED LUT formula",
+                ["LUTPage.Red.Params"] = "RED LUT parameters",
+                ["LUTPage.Green.Graph"] = "GREEN graph",
+                ["LUTPage.Green.Formula"] = "GREEN LUT formula",
+                ["LUTPage.Green.Params"] = "GREEN LUT parameters",
+                ["LUTPage.Blue.Graph"] = "BLUE graph",
+                ["LUTPage.Blue.Formula"] = "BLUE LUT formula",
+                ["LUTPage.Blue.Params"] = "BLUE LUT parameters",
+                ["LUTPage.Total.Params"] = "TOTAL LUT parameters"
             },
             
             ["Vietnamese"] = new Dictionary<string, string>
@@ -234,6 +258,7 @@ namespace OptiX
                 ["MainWindow.IPVSTooltip.Title"] = "IPVS",
                 ["MainWindow.IPVSTooltip.Description"] = "1. Áp dụng điện áp Cell MTP\n2. Đo điểm do người dùng thiết lập và thu thập dữ liệu đặc tính (độ sáng, tọa độ màu, VACS, dòng điện, v.v.)\n3. Vào logic IPVS, WON\n4. Thực hiện đánh giá",
                 ["MainWindow.ManualTooltip.Description"] = "Đo thủ công sau khi bật Pattern",
+                ["MainWindow.LUTTooltip.Description"] = "Trích xuất Tham số Gamma LUT của Panel",
                 ["MainWindow.SettingsTooltip.Title"] = "Cài đặt",
                 ["MainWindow.SettingsTooltip.Description"] = "Cài đặt Ứng dụng và Cấu hình Môi trường",
                 
@@ -300,7 +325,18 @@ namespace OptiX
                 ["PathSettings.SelectFolder"] = "Vui lòng chọn thư mục",
                 ["PathSettings.Sequence"] = "📄 Seq.",
                 ["PathSettings.Save"] = "💾 SAVE",
-                ["PathSettings.Cancel"] = "❌ CANCEL"
+                ["PathSettings.Cancel"] = "❌ CANCEL",
+                // LUT Page placeholders
+                ["LUTPage.Red.Graph"] = "Biểu đồ ĐỎ",
+                ["LUTPage.Red.Formula"] = "Công thức LUT ĐỎ",
+                ["LUTPage.Red.Params"] = "Tham số LUT ĐỎ",
+                ["LUTPage.Green.Graph"] = "Biểu đồ XANH LÁ",
+                ["LUTPage.Green.Formula"] = "Công thức LUT XANH LÁ",
+                ["LUTPage.Green.Params"] = "Tham số LUT XANH LÁ",
+                ["LUTPage.Blue.Graph"] = "Biểu đồ XANH DƯƠNG",
+                ["LUTPage.Blue.Formula"] = "Công thức LUT XANH DƯƠNG",
+                ["LUTPage.Blue.Params"] = "Tham số LUT XANH DƯƠNG",
+                ["LUTPage.Total.Params"] = "TỔNG tham số LUT"
             }
         };
 

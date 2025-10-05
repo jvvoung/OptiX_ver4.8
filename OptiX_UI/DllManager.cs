@@ -188,6 +188,9 @@ namespace OptiX
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate bool GetdataFunction(IntPtr output);
 
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate bool GetLUTdataFunction(int rgb, float RV, float GV, float BV, int interval, int cnt, IntPtr output);
+
         /// <summary>
         /// TestDll의 test 함수 호출
         /// </summary>
@@ -400,6 +403,64 @@ namespace OptiX
             }
         }
 
+        /// <summary>
+        /// LUT 데이터 가져오기
+        /// </summary>
+        /// <param name="rgb">RGB 인덱스 (0=Red, 1=Green, 2=Blue)</param>
+        /// <param name="RV">Red Voltage</param>
+        /// <param name="GV">Green Voltage</param>
+        /// <param name="BV">Blue Voltage</param>
+        /// <param name="interval">간격</param>
+        /// <param name="cnt">카운트</param>
+        /// <returns>LUT 파라미터와 성공 여부</returns>
+        public static (LUTParameter lutParam, bool success) CallGetLUTdata(int rgb, float RV, float GV, float BV, int interval, int cnt)
+        {
+            if (!_isInitialized)
+            {
+                throw new InvalidOperationException("DLL이 초기화되지 않았습니다.");
+            }
+
+            try
+            {
+                // Output 구조체를 비관리 메모리에 마샬링
+                IntPtr outputPtr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Output)));
+
+                try
+                {
+                    // DLL 함수 호출
+                    var getLUTdataFunc = GetFunction<GetLUTdataFunction>("getLUTdata");
+                    bool result = getLUTdataFunc(rgb, RV, GV, BV, interval, cnt, outputPtr);
+
+                    if (result)
+                    {
+                        // 출력 구조체를 관리 메모리로 복사
+                        Output output = Marshal.PtrToStructure<Output>(outputPtr);
+                        
+                        // 해당 RGB 인덱스의 LUT 파라미터 반환
+                        LUTParameter lutParam = output.lut[rgb];
+                        return (lutParam, true);
+                    }
+                    else
+                    {
+                        // 실패 시 빈 파라미터 반환
+                        LUTParameter emptyParam = new LUTParameter();
+                        return (emptyParam, false);
+                    }
+                }
+                finally
+                {
+                    // 메모리 해제
+                    Marshal.FreeHGlobal(outputPtr);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"getLUTdata 함수 호출 오류: {ex.Message}");
+                LUTParameter emptyParam = new LUTParameter();
+                return (emptyParam, false);
+            }
+        }
+
         #endregion
 
         #region Utility Methods
@@ -476,7 +537,24 @@ namespace OptiX
         // 측정 데이터 배열 (7개 WAD)
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 7)]
         public Pattern[] measure; // [7] WAD별 측정 데이터
+        
+        // LUT 파라미터 배열 (3개 RGB)
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+        public LUTParameter[] lut; // [3] RGB별 LUT 파라미터
     }
+
+    /// <summary>
+    /// LUT 파라미터 구조체
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct LUTParameter
+    {
+        public float max_lumi;
+        public float max_index;
+        public float gamma;
+        public float black;
+    }
+
 
     #endregion
 }

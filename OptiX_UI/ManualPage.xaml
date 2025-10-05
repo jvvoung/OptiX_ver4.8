@@ -9,6 +9,13 @@
         <!-- BooleanToVisibilityConverter -->
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
+        <!-- 그림자 효과 정의 -->
+        <DropShadowEffect x:Key="DropShadowEffect" 
+                          Color="#40000000" 
+                          BlurRadius="8" 
+                          ShadowDepth="2" 
+                          Direction="270"/>
+
         <!-- 라이트 모드 색상 팔레트 (OpticPage와 동일) -->
         <SolidColorBrush x:Key="PrimaryColor" Color="#8B5CF6"/>
         <SolidColorBrush x:Key="PrimaryDarkColor" Color="#7C3AED"/>
@@ -72,6 +79,16 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{DynamicResource DynamicTextPrimaryColor}"/>
             <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+
+        <!-- 모던 컨트롤 라벨 스타일 -->
+        <Style x:Key="ModernControlLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{DynamicResource DynamicTextPrimaryColor}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Width" Value="80"/>
         </Style>
 
         <!-- 모던 버튼 스타일 (OpticPage와 유사) -->
@@ -575,12 +592,15 @@
                                             BorderThickness="1"
                                             CornerRadius="8"
                                             Margin="0">
-                                        <Grid Width="300" Height="300">
+                                        <Grid>
                                             <!-- CIE 1931 색도 다이어그램 이미지 -->
-                                            <Image Source="/Images/CIExy1931.png" Stretch="Fill"/>
+                                            <Image Source="/Images/CIExy1931.png" Stretch="Uniform"/>
 
                                             <!-- 측정점 오버레이를 위한 Canvas (동적 좌표 표시용) -->
-                                            <Canvas x:Name="Cie1931Canvas" Width="300" Height="300"/>
+                                            <Canvas x:Name="Cie1931Canvas" 
+                                                    HorizontalAlignment="Stretch" 
+                                                    VerticalAlignment="Stretch"
+                                                    SizeChanged="CieCanvas_SizeChanged"/>
                                         </Grid>
                                     </Border>
 
@@ -598,12 +618,15 @@
                                             BorderThickness="1"
                                             CornerRadius="8"
                                             Margin="0">
-                                        <Grid Width="300" Height="300">
+                                        <Grid>
                                             <!-- CIE 1976 색도 다이어그램 이미지 -->
-                                            <Image Source="/Images/CIE_1976.png" Stretch="Fill"/>
+                                            <Image Source="/Images/CIE_1976.png" Stretch="Uniform"/>
 
                                             <!-- 측정점 오버레이를 위한 Canvas (동적 좌표 표시용) -->
-                                            <Canvas x:Name="Cie1976Canvas" Width="300" Height="300"/>
+                                            <Canvas x:Name="Cie1976Canvas" 
+                                                    HorizontalAlignment="Stretch" 
+                                                    VerticalAlignment="Stretch"
+                                                    SizeChanged="CieCanvas_SizeChanged"/>
                                         </Grid>
                                     </Border>
 
@@ -616,22 +639,23 @@
                     <Border Grid.Row="1" 
                             Style="{StaticResource CardStyle}"
                             Margin="0,8,0,0"
-                            Padding="12">
+                            Padding="16">
                         <Grid Background="{DynamicResource DynamicSurfaceColor}">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="8"/>
+                                <RowDefinition Height="12"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                             <!-- PG 섹션 -->
                             <Grid Grid.Row="0">
                                 <!-- PG 컨트롤 (제목 제거) -->
-                                <Border Background="{DynamicResource DynamicSurfaceColor}"
+                                <Border Background="{DynamicResource DynamicCardColor}"
                                         BorderBrush="{DynamicResource DynamicBorderColor}"
                                         BorderThickness="1"
-                                        CornerRadius="8"
-                                        Padding="8">
+                                        CornerRadius="12"
+                                        Padding="12"
+                                        Effect="{StaticResource DropShadowEffect}">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
@@ -648,10 +672,7 @@
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" 
                                                        Text="PG_Port" 
-                                                       VerticalAlignment="Center"
-                                                       Margin="0,0,8,0"
-                                                       Width="80"
-                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"/>
+                                                       Style="{StaticResource ModernControlLabelStyle}"/>
                                             <TextBox Grid.Column="1" 
                                                      x:Name="PgPortTextBox"
                                                      Height="28"
@@ -675,10 +696,7 @@
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" 
                                                        Text="PG_Pattern" 
-                                                       VerticalAlignment="Center"
-                                                       Margin="0,0,8,0"
-                                                       Width="80"
-                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"/>
+                                                       Style="{StaticResource ModernControlLabelStyle}"/>
                                             <TextBox Grid.Column="1" 
                                                      x:Name="PatternTextBox"
                                                      Height="28"
@@ -703,10 +721,7 @@
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" 
                                                        Text="PG_Voltage" 
-                                                       VerticalAlignment="Center"
-                                                       Margin="0,0,8,0"
-                                                       Width="80"
-                                                       Foreground="{DynamicResource DynamicTextPrimaryColor}"/>
+                                                       Style="{StaticResource ModernControlLabelStyle}"/>
                                             <Grid Grid.Column="1" 
                                                   Margin="0,0,8,0">
                                                 <Grid.ColumnDefinitions>
@@ -745,11 +760,12 @@
                             <!-- MEASUREMENT 섹션 -->
                             <Grid Grid.Row="2" Margin="0,8,0,0">
                                 <!-- MEASUREMENT 컨트롤 (제목 제거) -->
-                                <Border Background="{DynamicResource DynamicSurfaceColor}"
+                                <Border Background="{DynamicResource DynamicCardColor}"
                                         BorderBrush="{DynamicResource DynamicBorderColor}"
                                         BorderThickness="1"
-                                        CornerRadius="8"
-                                        Padding="12">
+                                        CornerRadius="12"
+                                        Padding="12"
+                                        Effect="{StaticResource DropShadowEffect}">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -761,10 +777,7 @@
                                         <!-- MEAS_Port -->
                                         <TextBlock Grid.Column="0" 
                                                    Text="MEAS_Port" 
-                                                   VerticalAlignment="Center"
-                                                   Margin="0,0,8,0"
-                                                   Width="80"
-                                                   Foreground="{DynamicResource DynamicTextPrimaryColor}"/>
+                                                   Style="{StaticResource ModernControlLabelStyle}"/>
                                         <TextBox 
                                                  x:Name="MeasurePortTextBox"
                                                  Height="28"

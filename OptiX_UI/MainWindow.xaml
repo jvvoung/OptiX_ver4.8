@@ -39,6 +39,7 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#F1F3F4"/>
                                 <Setter TargetName="border" Property="BorderBrush" Value="#8B5CF6"/>
+                                <Setter Property="Foreground" Value="#000000"/>
                                 <Setter TargetName="border" Property="Effect">
                                     <Setter.Value>
                                         <DropShadowEffect Color="#8B5CF6" 
@@ -517,7 +518,9 @@
                     Margin="15,0,0,0"
                     Style="{StaticResource ModernButtonStyle}"
                     FontSize="24"
-                    Click="SettingsButton_Click">
+                    Click="SettingsButton_Click"
+                    MouseEnter="SettingsButton_MouseEnter"
+                    MouseLeave="SettingsButton_MouseLeave">
                 설정
             </Button>
         </Grid>
@@ -590,7 +593,8 @@
                               HorizontalAlignment="Center"
                               Margin="0,0,0,10"/>
                     <TextBlock Grid.Row="1" 
-                              Text="Look-Up Table 관련 기능" 
+                              x:Name="LUTTooltipText"
+                              Text="패널의 Gamma LUT Parameter 추출" 
                               FontSize="14" 
                               Foreground="#666666" 
                               TextWrapping="Wrap"

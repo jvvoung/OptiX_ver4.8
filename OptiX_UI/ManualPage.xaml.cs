@@ -18,11 +18,18 @@ namespace OptiX
         private ObservableCollection<ManualDataItem> dataItems;
         private bool isCie1931Selected = true;
         private bool _isDarkMode = false;
-        private int selectedRowIndex = -1; // 선택된 행 인덱스
+        private ManualDataItem selectedDataItem = null; // 선택된 데이터 아이템
         
         // Connect 버튼 상태 관리
         private bool isPgConnected = false;
         private bool isMeasConnected = false;
+        
+        // 마지막 데이터 저장 (리사이즈 시 재그리기용)
+        private ObservableCollection<ManualDataItem> _lastDataItems = null;
+
+        // CIE1931 X축 미세 보정 (이미지 내 그리드 여백 보정)
+        private const double CIE1931_X_SCALE = 1.12; // 우측으로 약 12% 확장
+        private const double CIE1931_X_BIAS = 0.0;   // 필요시 소량 오프셋 추가
 
         public ManualPage()
         {
@@ -437,9 +444,6 @@ namespace OptiX
 
             try
             {
-                MessageBox.Show("측정을 시작합니다...", "측정", 
-                              MessageBoxButton.OK, MessageBoxImage.Information);
-
                 // DLL 함수 호출하여 측정 데이터 가져오기
                 var (measureData, success) = DllManager.CallGetdata();
 
@@ -510,7 +514,7 @@ namespace OptiX
         {
             try
             {
-                UpdateDynamicColors(_isDarkMode);
+                ThemeManager.UpdateDynamicColors(this, _isDarkMode);
             }
             catch (Exception ex)
             {
@@ -518,39 +522,6 @@ namespace OptiX
             }
         }
         
-        /// <summary>
-        /// 동적 색상 업데이트 (OpticPage와 동일)
-        /// </summary>
-        private void UpdateDynamicColors(bool isDark)
-        {
-            Dispatcher.Invoke(() =>
-            {
-                if (isDark)
-                {
-                    // 다크모드 색상으로 변경
-                    Resources["DynamicBackgroundColor"] = new SolidColorBrush(Color.FromRgb(15, 23, 42)); // #0F172A
-                    Resources["DynamicSurfaceColor"] = new SolidColorBrush(Color.FromRgb(51, 65, 85)); // #334155
-                    Resources["DynamicCardColor"] = new SolidColorBrush(Color.FromRgb(51, 65, 85)); // #334155
-                    Resources["DynamicBorderColor"] = new SolidColorBrush(Color.FromRgb(71, 85, 105)); // #475569
-                    Resources["DynamicTextPrimaryColor"] = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
-                    Resources["DynamicTextSecondaryColor"] = new SolidColorBrush(Color.FromRgb(203, 213, 225)); // #CBD5E1
-                    Resources["DynamicTextMutedColor"] = new SolidColorBrush(Color.FromRgb(148, 163, 184)); // #94A3B8
-                    Resources["DynamicTextColor"] = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
-                }
-                else
-                {
-                    // 라이트모드 색상으로 변경
-                    Resources["DynamicBackgroundColor"] = new SolidColorBrush(Color.FromRgb(248, 250, 252)); // #F8FAFC
-                    Resources["DynamicSurfaceColor"] = new SolidColorBrush(Color.FromRgb(255, 255, 255)); // #FFFFFF
-                    Resources["DynamicCardColor"] = new SolidColorBrush(Color.FromRgb(255, 255, 255)); // #FFFFFF
-                    Resources["DynamicBorderColor"] = new SolidColorBrush(Color.FromRgb(226, 232, 240)); // #E2E8F0
-                    Resources["DynamicTextPrimaryColor"] = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
-                    Resources["DynamicTextSecondaryColor"] = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748B
-                    Resources["DynamicTextMutedColor"] = new SolidColorBrush(Color.FromRgb(148, 163, 184)); // #94A3B8
-                    Resources["DynamicTextColor"] = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
-                }
-            });
-        }
 
         /// <summary>
         /// 테마 토글 (외부에서 호출 가능)
@@ -576,12 +547,10 @@ namespace OptiX
         {
             if (DataTableGrid.SelectedItem is ManualDataItem selectedItem)
             {
-                int newSelectedIndex = DataTableGrid.SelectedIndex;
-                
-                // 같은 행을 다시 클릭한 경우 토글 (선택 해제)
-                if (selectedRowIndex == newSelectedIndex)
+                // 같은 아이템을 다시 클릭한 경우 토글 (선택 해제)
+                if (selectedDataItem == selectedItem)
                 {
-                    selectedRowIndex = -1;
+                    selectedDataItem = null;
                     // 이벤트 핸들러를 일시적으로 제거하여 무한 루프 방지
                     DataTableGrid.SelectionChanged -= DataTableGrid_SelectionChanged;
                     DataTableGrid.SelectedIndex = -1;
@@ -589,16 +558,16 @@ namespace OptiX
                 }
                 else
                 {
-                    // 다른 행을 클릭한 경우 선택
-                    selectedRowIndex = newSelectedIndex;
+                    // 다른 아이템을 클릭한 경우 선택
+                    selectedDataItem = selectedItem;
                 }
             }
             else
             {
-                selectedRowIndex = -1;
+                selectedDataItem = null;
             }
             
-            // 항상 모든 좌표를 업데이트하여 현재 selectedRowIndex에 따라 강조 표시
+            // 항상 모든 좌표를 업데이트하여 현재 selectedDataItem에 따라 강조 표시
             UpdateAllCoordinates();
         }
 
@@ -623,9 +592,12 @@ namespace OptiX
             for (int i = 0; i < dataItems.Count; i++)
             {
                 var item = dataItems[i];
-                bool isSelected = (i == selectedRowIndex);
+                bool isSelected = (item == selectedDataItem);
                 AddPointToCanvas(Cie1931Canvas, item.X, item.Y, isSelected, item.Num);
             }
+            
+            // 마지막 데이터 저장 (리사이즈 시 재사용)
+            _lastDataItems = new ObservableCollection<ManualDataItem>(dataItems);
         }
 
         // CIE1976 좌표 업데이트 (u,v 값 사용)
@@ -636,36 +608,54 @@ namespace OptiX
             for (int i = 0; i < dataItems.Count; i++)
             {
                 var item = dataItems[i];
-                bool isSelected = (i == selectedRowIndex);
+                bool isSelected = (item == selectedDataItem);
                 AddPointToCanvas(Cie1976Canvas, item.U, item.V, isSelected, item.Num);
             }
+            
+            // 마지막 데이터 저장 (리사이즈 시 재사용)
+            _lastDataItems = new ObservableCollection<ManualDataItem>(dataItems);
         }
 
         // Canvas에 점 추가
         private void AddPointToCanvas(Canvas canvas, double x, double y, bool isSelected, int pointNumber)
         {
-            // CIE 다이어그램 좌표를 Canvas 좌표로 변환
+            // CIE 다이어그램 좌표를 Canvas 좌표로 변환 (동적 크기 지원)
             // 실제 CIE1931 다이어그램 이미지: x(0-0.8), y(0-0.9)
             // 실제 CIE1976 다이어그램 이미지: u(0-0.6), v(0-0.6)
-            // Canvas 크기: 300x300, 여백 고려하여 실제 좌표 영역은 (30,30)~(270,270)
+            
+            // Canvas의 실제 크기 가져오기
+            double canvasWidth = canvas.ActualWidth > 0 ? canvas.ActualWidth : 300;
+            double canvasHeight = canvas.ActualHeight > 0 ? canvas.ActualHeight : 300;
+            
+            // 여백 설정 (Canvas 크기에 비례)
+            double margin = Math.Min(canvasWidth, canvasHeight) * 0.1; // 10% 여백
+            if (margin < 10) margin = 10; // 최소 10px
+            if (margin > 30) margin = 30; // 최대 30px
+            
+            // 실제 좌표 영역 계산
+            double graphWidth = canvasWidth - 2 * margin;
+            double graphHeight = canvasHeight - 2 * margin;
             
             double canvasX, canvasY;
             
             if (canvas == Cie1931Canvas)
             {
-                // CIE1931: x(0-0.8), y(0-0.9) -> Canvas(30-270, 30-270)
-                // x 좌표 변환: 0.0~0.8 -> 30~270 (실제 좌표 영역, 미세 조정)
-                canvasX = 30 + (x / 0.8) * 240 + (x * 15); // x값 보정 추가
-                // y 좌표 변환: 0.0~0.9 -> 270~30 (Y축 뒤집기 + 실제 좌표 영역)
-                canvasY = 270 - (y / 0.9) * 240;
+                // CIE1931: x(0-0.8), y(0-0.9)
+                // X축 보정: 실제 이미지의 좌/우 내부 여백 차 때문에 약간 우측으로 당겨줌
+                double normalizedX = x / 0.8; // 0~1
+                normalizedX = normalizedX * CIE1931_X_SCALE + CIE1931_X_BIAS;
+                normalizedX = Math.Max(0.0, Math.Min(1.0, normalizedX));
+                canvasX = margin + normalizedX * graphWidth;
+                // y 좌표 변환: 0.0~0.9 -> margin+graphHeight~margin (Y축 뒤집기)
+                canvasY = margin + graphHeight - (y / 0.9) * graphHeight;
             }
             else
             {
-                // CIE1976: u(0-0.6), v(0-0.6) -> Canvas(30-270, 30-270)
-                // u 좌표 변환: 0.0~0.6 -> 30~270 (실제 좌표 영역)
-                canvasX = 30 + (x / 0.6) * 240;
-                // v 좌표 변환: 0.0~0.6 -> 270~30 (Y축 뒤집기 + 실제 좌표 영역)
-                canvasY = 270 - (y / 0.6) * 240;
+                // CIE1976: u(0-0.6), v(0-0.6) -> 동적 Canvas 좌표
+                // u 좌표 변환: 0.0~0.6 -> margin~margin+graphWidth
+                canvasX = margin + (x / 0.6) * graphWidth;
+                // v 좌표 변환: 0.0~0.6 -> margin+graphHeight~margin (Y축 뒤집기)
+                canvasY = margin + graphHeight - (y / 0.6) * graphHeight;
             }
 
             // 점 크기와 색상 설정
@@ -687,6 +677,16 @@ namespace OptiX
             Canvas.SetLeft(ellipse, canvasX - pointSize / 2);
             Canvas.SetTop(ellipse, canvasY - pointSize / 2);
 
+            // 선택된 점은 맨 앞에 표시되도록 Z-Index 설정
+            if (isSelected)
+            {
+                Panel.SetZIndex(ellipse, 1000); // 선택된 점은 최상위
+            }
+            else
+            {
+                Panel.SetZIndex(ellipse, 0); // 일반 점은 기본 레벨
+            }
+
             canvas.Children.Add(ellipse);
 
             // 선택된 점에만 좌표 라벨 추가
@@ -702,6 +702,9 @@ namespace OptiX
 
                 Canvas.SetLeft(label, canvasX + pointSize / 2 + 5);
                 Canvas.SetTop(label, canvasY - 10);
+
+                // 라벨도 선택된 점과 함께 맨 앞에 표시
+                Panel.SetZIndex(label, 1001); // 라벨은 점보다도 더 위에
 
                 canvas.Children.Add(label);
             }
@@ -800,6 +803,34 @@ namespace OptiX
         { 
             get => _efficiency; 
             set => _efficiency = Math.Round(value, 5); 
+        }
+    }
+    
+    // Canvas 리사이즈 이벤트 핸들러 (ManualPage 클래스 내부)
+    public partial class ManualPage : UserControl
+    {
+        // CIE Canvas 리사이즈 시 점들을 다시 그리기
+        private void CieCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (sender is Canvas canvas && _lastDataItems != null && _lastDataItems.Count > 0)
+            {
+                canvas.Children.Clear();
+                
+                for (int i = 0; i < _lastDataItems.Count; i++)
+                {
+                    var item = _lastDataItems[i];
+                    bool isSelected = (item == selectedDataItem);
+                    
+                    if (canvas == Cie1931Canvas)
+                    {
+                        AddPointToCanvas(Cie1931Canvas, item.X, item.Y, isSelected, item.Num);
+                    }
+                    else if (canvas == Cie1976Canvas)
+                    {
+                        AddPointToCanvas(Cie1976Canvas, item.U, item.V, isSelected, item.Num);
+                    }
+                }
+            }
         }
     }
 }

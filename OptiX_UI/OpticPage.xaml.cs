@@ -66,11 +66,11 @@ namespace OptiX
             // IPVSPage와 동일한 방식으로 다크모드 적용
             if (isDarkMode)
             {
-                UpdateDynamicColors(true);
+                ThemeManager.UpdateDynamicColors(this, true);
             }
             else
             {
-                UpdateDynamicColors(false);
+                ThemeManager.UpdateDynamicColors(this, false);
             }
             
             // 테이블과 Zone 버튼을 다시 생성하여 올바른 색상 적용 (IPVSPage와 동일)
@@ -78,34 +78,6 @@ namespace OptiX
             CreateZoneButtons();
         }
         
-        private void UpdateDynamicColors(bool isDark)
-        {
-            // IPVSPage와 동일한 동적 색상 팔레트 업데이트
-            if (isDark)
-            {
-                // 다크모드 색상으로 변경
-                Resources["DynamicBackgroundColor"] = new SolidColorBrush(Color.FromRgb(15, 23, 42)); // #0F172A
-                Resources["DynamicSurfaceColor"] = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
-                Resources["DynamicCardColor"] = new SolidColorBrush(Color.FromRgb(51, 65, 85)); // #334155
-                Resources["DynamicBorderColor"] = new SolidColorBrush(Color.FromRgb(71, 85, 105)); // #475569
-                Resources["DynamicTextPrimaryColor"] = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
-                Resources["DynamicTextSecondaryColor"] = new SolidColorBrush(Color.FromRgb(203, 213, 225)); // #CBD5E1
-                Resources["DynamicTextMutedColor"] = new SolidColorBrush(Color.FromRgb(148, 163, 184)); // #94A3B8
-                Resources["DynamicTextColor"] = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
-            }
-            else
-            {
-                // 라이트모드 색상으로 변경
-                Resources["DynamicBackgroundColor"] = new SolidColorBrush(Color.FromRgb(248, 250, 252)); // #F8FAFC
-                Resources["DynamicSurfaceColor"] = new SolidColorBrush(Color.FromRgb(255, 255, 255)); // #FFFFFF
-                Resources["DynamicCardColor"] = new SolidColorBrush(Color.FromRgb(255, 255, 255)); // #FFFFFF
-                Resources["DynamicBorderColor"] = new SolidColorBrush(Color.FromRgb(226, 232, 240)); // #E2E8F0
-                Resources["DynamicTextPrimaryColor"] = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
-                Resources["DynamicTextSecondaryColor"] = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748B
-                Resources["DynamicTextMutedColor"] = new SolidColorBrush(Color.FromRgb(148, 163, 184)); // #94A3B8
-                Resources["DynamicTextColor"] = new SolidColorBrush(Color.FromRgb(30, 41, 59)); // #1E293B
-            }
-        }
 
         private void CreateCustomTable()
         {
