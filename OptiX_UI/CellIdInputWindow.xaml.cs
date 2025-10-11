@@ -14,7 +14,6 @@ namespace OptiX
     public partial class CellIdInputWindow : Window
     {
         private int zoneNumber;
-        private IniFileManager iniManager;
         private bool isDarkMode;
         private string iniSection;
         private bool isCimEnabled = false;
@@ -41,12 +40,6 @@ namespace OptiX
             this.zoneNumber = zoneNumber;
             this.isDarkMode = isDarkMode;
             this.iniSection = iniSection;
-            
-            // 실행 파일 기준 상대 경로로 INI 파일 찾기
-            string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            string exeDir = System.IO.Path.GetDirectoryName(exePath);
-            string iniPath = @"D:\Project\Recipe\OptiX.ini";
-            this.iniManager = new IniFileManager(iniPath);
             
             // INI 섹션에 따라 창 제목 설정
             string inspectionType = iniSection == "IPVS" ? "IPVS" : "OPTIC";
@@ -115,12 +108,12 @@ namespace OptiX
                 InspectionData data;
                 if (iniSection == "IPVS")
                 {
-                    IPVSDataManager.LoadFromIni(iniManager);
+                    IPVSDataManager.LoadFromIni();
                     data = IPVSDataManager.GetData(zoneNumber);
                 }
                 else
                 {
-                    MTPDataManager.LoadFromIni(iniManager);
+                    MTPDataManager.LoadFromIni();
                     data = MTPDataManager.GetData(zoneNumber);
                 }
 
@@ -146,7 +139,7 @@ namespace OptiX
             {
                 // PG 포트 로드 (OPTIC은 MTP 섹션, IPVS는 IPVS 섹션)
                 string pgKey = $"PG_PORT_{zoneNumber}";
-                PgPortTextBox.Text = iniManager.ReadValue(iniSection, pgKey, "");
+                PgPortTextBox.Text = GlobalDataManager.GetValue(iniSection, pgKey, "");
 
                 // 동적 MEAS 포트들 로드 (OPTIC은 MTP 섹션, IPVS는 IPVS 섹션)
                 foreach (var kvp in dynamicMeasTextBoxes)
@@ -154,7 +147,7 @@ namespace OptiX
                     string measKey = kvp.Key;
                     TextBox textBox = kvp.Value;
                     string measSection = (iniSection == "IPVS") ? "IPVS" : "MTP";
-                    string value = iniManager.ReadValue(measSection, measKey, "");
+                    string value = GlobalDataManager.GetValue(measSection, measKey, "");
                     textBox.Text = value;
                 }
 
@@ -181,8 +174,8 @@ namespace OptiX
                 // 포트 설정 저장
                 SavePortSettings();
 
-                // 전역 데이터 다시 로드
-                GlobalDataManager.ReloadIniData();
+                // INI 파일 저장 후 전역 캐시 갱신
+                GlobalDataManager.Reload();
 
                 MessageBox.Show("모든 설정이 성공적으로 저장되었습니다.", "저장 완료", 
                               MessageBoxButton.OK, MessageBoxImage.Information);
@@ -209,14 +202,14 @@ namespace OptiX
                 data = IPVSDataManager.GetData(zoneNumber);
                 data.CellId = cellId;
                 data.InnerId = innerId;
-                IPVSDataManager.SaveToIni(iniManager, zoneNumber, data);
+                IPVSDataManager.SaveToIni(zoneNumber, data);
             }
             else
             {
                 data = MTPDataManager.GetData(zoneNumber);
                 data.CellId = cellId;
                 data.InnerId = innerId;
-                MTPDataManager.SaveToIni(iniManager, zoneNumber, data);
+                MTPDataManager.SaveToIni(zoneNumber, data);
             }
 
             System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} Cell 정보 저장됨 - Cell ID: {cellId}, Inner ID: {innerId}");
@@ -232,10 +225,10 @@ namespace OptiX
                 string eecpSummaryValue = isEecpSummaryEnabled ? "T" : "F";
                 string validationValue = isValidationEnabled ? "T" : "F";
                 
-                iniManager.WriteValue(iniSection, "CREATE_CIM", cimValue);
-                iniManager.WriteValue(iniSection, "CREATE_EECP", eecpValue);
-                iniManager.WriteValue(iniSection, "CREATE_EECP_SUMMARY", eecpSummaryValue);
-                iniManager.WriteValue(iniSection, "CREATE_VALIDATION", validationValue);
+                GlobalDataManager.SetValue(iniSection, "CREATE_CIM", cimValue);
+                GlobalDataManager.SetValue(iniSection, "CREATE_EECP", eecpValue);
+                GlobalDataManager.SetValue(iniSection, "CREATE_EECP_SUMMARY", eecpSummaryValue);
+                GlobalDataManager.SetValue(iniSection, "CREATE_VALIDATION", validationValue);
                 
                 System.Diagnostics.Debug.WriteLine($"파일 생성 설정 저장 완료 - CIM: {cimValue}, EECP: {eecpValue}, EECP_SUMMARY: {eecpSummaryValue}, VALIDATION: {validationValue}");
             }
@@ -264,7 +257,7 @@ namespace OptiX
                         data.MeasPorts[kvp.Key] = kvp.Value.Text.Trim();
                     }
                     
-                    IPVSDataManager.SaveToIni(iniManager, zoneNumber, data);
+                    IPVSDataManager.SaveToIni(zoneNumber, data);
                 }
                 else
                 {
@@ -277,7 +270,7 @@ namespace OptiX
                         data.MeasPorts[kvp.Key] = kvp.Value.Text.Trim();
                     }
                     
-                    MTPDataManager.SaveToIni(iniManager, zoneNumber, data);
+                    MTPDataManager.SaveToIni(zoneNumber, data);
                 }
 
                 System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} 포트 설정 저장 완료: PG({iniSection}) + {dynamicMeasTextBoxes.Count}개 MEAS(MTP) 포트");
@@ -296,11 +289,11 @@ namespace OptiX
                 string wadValues;
                 if (iniSection == "IPVS")
                 {
-                    wadValues = iniManager.ReadValue("IPVS", "WAD", "0,30,60,90,120");
+                    wadValues = GlobalDataManager.GetValue("IPVS", "WAD", "0,30,60,90,120");
                 }
                 else
                 {
-                    wadValues = iniManager.ReadValue("MTP", "WAD", "0,15,30,45,60");
+                    wadValues = GlobalDataManager.GetValue("MTP", "WAD", "0,15,30,45,60");
                 }
                 string[] wadNumbers = wadValues.Split(',');
 

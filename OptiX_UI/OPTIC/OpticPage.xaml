@@ -314,6 +314,8 @@
                        FontSize="20"
                        FontWeight="Bold"/>
         </Button>
+
+        
         
         <!-- 메인 콘텐츠 영역 -->
         <Grid Margin="4,48,4,4">
@@ -592,16 +594,22 @@
                             <StackPanel Orientation="Horizontal" 
                                         VerticalAlignment="Center" 
                                         Margin="12,0">
+                                <Button x:Name="MonitorTab" 
+                                        Content="🖥 Monitor" 
+                                        Style="{StaticResource ActiveTabButtonStyle}"
+                                        FontSize="13"
+                                        Margin="0,0,4,0"
+                                        Click="MonitorTab_Click"/>
                                 <Button x:Name="GraphTab" 
                                         Content="📊 Graph" 
                                         Style="{StaticResource TabButtonStyle}"
                                         FontSize="13" 
-                                        Margin="0,0,4,0"
+                                        Margin="4,0,4,0"
                                         Click="GraphTab_Click"
 />
                                 <Button x:Name="TotalTab" 
                                         Content="📈 Total" 
-                                        Style="{StaticResource ActiveTabButtonStyle}"
+                                        Style="{StaticResource TabButtonStyle}"
                                         FontSize="13"
                                         Click="TotalTab_Click"
 />
@@ -613,25 +621,15 @@
                                 Background="{DynamicResource DynamicSurfaceColor}" 
                                 CornerRadius="0,0,8,8">
                             <Grid Margin="12">
+                                <Grid x:Name="MonitorContent" Visibility="Visible">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                        <Grid x:Name="MonitorGrid" />
+                                    </ScrollViewer>
+                                </Grid>
                                 <Grid x:Name="GraphContent" Visibility="Collapsed">
-                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                        <TextBlock Text="📊" 
-                                                   FontSize="40" 
-                                                   HorizontalAlignment="Center" 
-                                                   Margin="0,0,0,12"/>
-                                        <TextBlock Text="Graph 영역" 
-                                                   FontSize="16" 
-                                                   FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource DynamicTextPrimaryColor}"
-                                                   HorizontalAlignment="Center" 
-                                                   Margin="0,0,0,6"/>
-                                        <TextBlock Text="데이터 시각화를 위한 그래프가 표시됩니다" 
-                                                   FontSize="13" 
-                                                   Foreground="{DynamicResource DynamicTextSecondaryColor}"
-                                                   HorizontalAlignment="Center"/>
-                                    </StackPanel>
-                                    </Grid>
-                                <Grid x:Name="TotalContent" Visibility="Visible">
+                                    <!-- 동적으로 생성될 그래프 영역 -->
+                                </Grid>
+                                <Grid x:Name="TotalContent" Visibility="Collapsed">
                                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                         <TextBlock Text="📈" 
                                                    FontSize="40" 
@@ -764,15 +762,17 @@
                                                        HorizontalAlignment="Center" 
                                                        VerticalAlignment="Center"
                                                        Margin="8,0"/>
-                                            <TextBlock Grid.Column="1" 
-                                                       Text="" 
+                                            <TextBlock x:Name="TotalQuantity"
+                                                       Grid.Column="1" 
+                                                       Text="0" 
                                                        FontSize="14" 
                                                        Foreground="{DynamicResource DynamicTextPrimaryColor}"
                                                        HorizontalAlignment="Center" 
                                                        VerticalAlignment="Center"
                                                        Margin="8,0"/>
-                                            <TextBlock Grid.Column="2" 
-                                                       Text="" 
+                                            <TextBlock x:Name="TotalRate"
+                                                       Grid.Column="2" 
+                                                       Text="0.00" 
                                                        FontSize="14" 
                                                        Foreground="{DynamicResource DynamicTextPrimaryColor}"
                                                        HorizontalAlignment="Center" 
@@ -799,15 +799,17 @@
                                                        HorizontalAlignment="Center" 
                                                        VerticalAlignment="Center"
                                                        Margin="8,0"/>
-                                            <TextBlock Grid.Column="1" 
-                                                       Text="" 
+                                            <TextBlock x:Name="PTNQuantity"
+                                                       Grid.Column="1" 
+                                                       Text="0" 
                                                        FontSize="14" 
                                                        Foreground="{DynamicResource DynamicTextPrimaryColor}"
                                                        HorizontalAlignment="Center" 
                                                        VerticalAlignment="Center"
                                                        Margin="8,0"/>
-                                            <TextBlock Grid.Column="2" 
-                                                       Text="" 
+                                            <TextBlock x:Name="PTNRate"
+                                                       Grid.Column="2" 
+                                                       Text="0.00" 
                                                        FontSize="14" 
                                                        Foreground="{DynamicResource DynamicTextPrimaryColor}"
                                                        HorizontalAlignment="Center" 
@@ -834,15 +836,17 @@
                                                        HorizontalAlignment="Center" 
                                                        VerticalAlignment="Center"
                                                        Margin="8,0"/>
-                                            <TextBlock Grid.Column="1" 
-                                                       Text="" 
+                                            <TextBlock x:Name="RJQuantity"
+                                                       Grid.Column="1" 
+                                                       Text="0" 
                                                        FontSize="14" 
                                                        Foreground="{DynamicResource DynamicTextPrimaryColor}"
                                                        HorizontalAlignment="Center" 
                                                        VerticalAlignment="Center"
                                                        Margin="8,0"/>
-                                            <TextBlock Grid.Column="2" 
-                                                       Text="" 
+                                            <TextBlock x:Name="RJRate"
+                                                       Grid.Column="2" 
+                                                       Text="0.00" 
                                                        FontSize="14" 
                                                        Foreground="{DynamicResource DynamicTextPrimaryColor}"
                                                        HorizontalAlignment="Center" 
@@ -867,15 +871,17 @@
                                                        HorizontalAlignment="Center" 
                                                        VerticalAlignment="Center"
                                                        Margin="8,0"/>
-                                            <TextBlock Grid.Column="1" 
-                                                       Text="" 
+                                            <TextBlock x:Name="OKQuantity"
+                                                       Grid.Column="1" 
+                                                       Text="0" 
                                                        FontSize="14" 
                                                        Foreground="{DynamicResource DynamicTextPrimaryColor}"
                                                        HorizontalAlignment="Center" 
                                                        VerticalAlignment="Center"
                                                        Margin="8,0"/>
-                                            <TextBlock Grid.Column="2" 
-                                                       Text="" 
+                                            <TextBlock x:Name="OKRate"
+                                                       Grid.Column="2" 
+                                                       Text="0.00" 
                                                        FontSize="14" 
                                                        Foreground="{DynamicResource DynamicTextPrimaryColor}"
                                                        HorizontalAlignment="Center" 

@@ -40,9 +40,7 @@ namespace OptiX
             try
             {
                 // MainWindow와 동일한 방식으로 테마 로드
-                string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
-                var iniManager = new IniFileManager(iniPath);
-                string isDarkModeStr = iniManager.ReadValue("Theme", "IsDarkMode", "False");
+                string isDarkModeStr = GlobalDataManager.GetValue("Theme", "IsDarkMode", "False");
                 _isDarkMode = bool.TryParse(isDarkModeStr, out bool darkMode) && darkMode;
                 ApplyTheme();
             }

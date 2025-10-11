@@ -587,33 +587,63 @@ namespace OptiX
         // CIE1931 좌표 업데이트 (x,y 값 사용)
         private void UpdateCIE1931Coordinates()
         {
-            Cie1931Canvas.Children.Clear();
-            
-            for (int i = 0; i < dataItems.Count; i++)
+            try
             {
-                var item = dataItems[i];
-                bool isSelected = (item == selectedDataItem);
-                AddPointToCanvas(Cie1931Canvas, item.X, item.Y, isSelected, item.Num);
+                if (Cie1931Canvas == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("Cie1931Canvas is null");
+                    return;
+                }
+                
+                Cie1931Canvas.Children.Clear();
+                
+                for (int i = 0; i < dataItems.Count; i++)
+                {
+                    var item = dataItems[i];
+                    bool isSelected = (item == selectedDataItem);
+                    AddPointToCanvas(Cie1931Canvas, item.X, item.Y, isSelected, item.Num);
+                }
+                
+                // 마지막 데이터 저장 (리사이즈 시 재사용)
+                _lastDataItems = new ObservableCollection<ManualDataItem>(dataItems);
             }
-            
-            // 마지막 데이터 저장 (리사이즈 시 재사용)
-            _lastDataItems = new ObservableCollection<ManualDataItem>(dataItems);
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"UpdateCIE1931Coordinates 오류: {ex.Message}");
+                MessageBox.Show($"CIE1931 좌표 업데이트 중 오류: {ex.Message}", "오류", 
+                              MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         // CIE1976 좌표 업데이트 (u,v 값 사용)
         private void UpdateCIE1976Coordinates()
         {
-            Cie1976Canvas.Children.Clear();
-            
-            for (int i = 0; i < dataItems.Count; i++)
+            try
             {
-                var item = dataItems[i];
-                bool isSelected = (item == selectedDataItem);
-                AddPointToCanvas(Cie1976Canvas, item.U, item.V, isSelected, item.Num);
+                if (Cie1976Canvas == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("Cie1976Canvas is null");
+                    return;
+                }
+                
+                Cie1976Canvas.Children.Clear();
+                
+                for (int i = 0; i < dataItems.Count; i++)
+                {
+                    var item = dataItems[i];
+                    bool isSelected = (item == selectedDataItem);
+                    AddPointToCanvas(Cie1976Canvas, item.U, item.V, isSelected, item.Num);
+                }
+                
+                // 마지막 데이터 저장 (리사이즈 시 재사용)
+                _lastDataItems = new ObservableCollection<ManualDataItem>(dataItems);
             }
-            
-            // 마지막 데이터 저장 (리사이즈 시 재사용)
-            _lastDataItems = new ObservableCollection<ManualDataItem>(dataItems);
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"UpdateCIE1976Coordinates 오류: {ex.Message}");
+                MessageBox.Show($"CIE1976 좌표 업데이트 중 오류: {ex.Message}", "오류", 
+                              MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         // Canvas에 점 추가

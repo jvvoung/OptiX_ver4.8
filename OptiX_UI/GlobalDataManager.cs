@@ -13,6 +13,9 @@ namespace OptiX
         private static IniFileManager _iniManager;
         private static string _iniFilePath;
         private static bool _isInitialized = false;
+        
+        // Zone별 정보를 전역 변수로 저장 (INI 파일 읽기 최소화)
+        private static Dictionary<int, (string cellId, string innerId)> _zoneInfo = new Dictionary<int, (string, string)>();
 
         /// <summary>
         /// 전역 데이터 매니저 초기화 (프로그램 시작 시 호출)
@@ -65,6 +68,9 @@ namespace OptiX
                 
                 // Theme 섹션
                 LoadSectionData("Theme");
+                
+                // Zone 정보 로드 (MTP 성능 최적화)
+                LoadZoneInfo();
 
                 System.Diagnostics.Debug.WriteLine($"전역 데이터 로드 완료: {_iniData.Count}개 항목");
             }
@@ -121,7 +127,6 @@ namespace OptiX
                     string cellId = _iniManager.ReadValue(section, cellIdKey, "");
                     string innerId = _iniManager.ReadValue(section, innerIdKey, "");
                     
-                    
                     if (!string.IsNullOrEmpty(cellId))
                     {
                         string fullKey = $"{section}.{cellIdKey}";
@@ -165,28 +170,6 @@ namespace OptiX
         }
 
         /// <summary>
-        /// INI 데이터 다시 로드 (SAVE 버튼 클릭 시 호출)
-        /// </summary>
-        public static void ReloadIniData()
-        {
-            try
-            {
-                if (_iniManager == null)
-                {
-                    _iniManager = new IniFileManager(_iniFilePath);
-                }
-                
-                LoadAllIniData();
-                System.Diagnostics.Debug.WriteLine("전역 데이터 다시 로드 완료");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"INI 데이터 다시 로드 오류: {ex.Message}");
-                throw;
-            }
-        }
-
-        /// <summary>
         /// 메모리에서 데이터 읽기 (빠른 접근)
         /// </summary>
         /// <param name="section">섹션 이름</param>
@@ -207,6 +190,125 @@ namespace OptiX
             
             
             return result;
+        }
+        
+        /// <summary>
+        /// 섹션 전체 읽기 (Dictionary 반환)
+        /// </summary>
+        public static Dictionary<string, string> ReadSection(string section)
+        {
+            try
+            {
+                if (_iniManager == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("GlobalDataManager가 초기화되지 않았습니다.");
+                    return new Dictionary<string, string>();
+                }
+
+                return _iniManager.ReadSection(section);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ReadSection 오류: {ex.Message}");
+                return new Dictionary<string, string>();
+            }
+        }
+
+        /// <summary>
+        /// INI 파일에 값 저장 (메모리 캐시도 함께 업데이트)
+        /// </summary>
+        public static void SetValue(string section, string key, string value)
+        {
+            try
+            {
+                if (_iniManager == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("GlobalDataManager가 초기화되지 않았습니다.");
+                    return;
+                }
+
+                // INI 파일에 쓰기
+                _iniManager.WriteValue(section, key, value);
+                
+                // 메모리 캐시도 업데이트
+                string fullKey = $"{section}.{key}";
+                _iniData[fullKey] = value;
+                
+                System.Diagnostics.Debug.WriteLine($"GlobalDataManager.SetValue: [{section}] {key} = {value}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SetValue 오류: {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// INI 파일을 다시 읽어서 메모리 캐시 갱신 (SAVE 버튼 클릭 후 호출)
+        /// </summary>
+        public static void Reload()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("GlobalDataManager.Reload() 호출됨");
+                LoadAllIniData();
+                System.Diagnostics.Debug.WriteLine("GlobalDataManager 갱신 완료");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Reload 오류: {ex.Message}");
+                throw;
+            }
+        }
+        
+        /// <summary>
+        /// Zone별 Cell ID와 Inner ID를 전역 변수에 로드 (MTP 성능 최적화)
+        /// </summary>
+        private static void LoadZoneInfo()
+        {
+            _zoneInfo.Clear();
+            
+            try
+            {
+                // 캐시된 _iniData에서 읽기 (INI 파일 재읽기 방지)
+                string mtpZoneStr = GetValue("Settings", "MTP_ZONE", "2");
+                int mtpZoneCount = int.Parse(mtpZoneStr);
+                
+                System.Diagnostics.Debug.WriteLine($"MTP_ZONE 개수: {mtpZoneCount}");
+                
+                for (int zone = 1; zone <= mtpZoneCount; zone++)
+                {
+                    string cellId = GetValue("MTP", $"CELL_ID_ZONE_{zone}", "");
+                    string innerId = GetValue("MTP", $"INNER_ID_ZONE_{zone}", "");
+                    _zoneInfo[zone] = (cellId, innerId);
+                    
+                    System.Diagnostics.Debug.WriteLine($"Zone {zone} 로드: Cell ID='{cellId}', Inner ID='{innerId}' (캐시에서 읽음)");
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"Zone 정보 로드 완료: {_zoneInfo.Count}개 Zone");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Zone 정보 로드 오류: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// Zone별 Cell ID와 Inner ID를 가져오기 (전역 변수에서)
+        /// </summary>
+        public static (string cellId, string innerId) GetZoneInfo(int zoneNumber)
+        {
+            if (_zoneInfo.ContainsKey(zoneNumber))
+            {
+                var result = _zoneInfo[zoneNumber];
+                System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} 정보 반환: Cell ID='{result.cellId}', Inner ID='{result.innerId}'");
+                return result;
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} 정보가 없음 - 기본값 반환 (총 {_zoneInfo.Count}개 Zone)");
+                return ("", "");
+            }
         }
     }
 }

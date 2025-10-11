@@ -80,7 +80,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="IPVSPage.xaml">
+    <Page Include="IPVS\IPVSPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -105,8 +105,8 @@
     <Compile Include="DllManager.cs" />
     <Compile Include="CommunicationServer.cs" />
     <Compile Include="CommunicationLogger.cs" />
-    <Compile Include="IPVSPage.xaml.cs">
-      <DependentUpon>IPVSPage.xaml</DependentUpon>
+    <Compile Include="IPVS\IPVSPage.xaml.cs">
+      <DependentUpon>IPVS\IPVSPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="LUTPage.xaml.cs">
       <DependentUpon>LUTPage.xaml</DependentUpon>
@@ -118,7 +118,7 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Page Include="OpticPage.xaml">
+    <Page Include="OPTIC\OpticPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -136,8 +136,9 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="OpticPage.xaml.cs">
-      <DependentUpon>OpticPage.xaml</DependentUpon>
+    <Compile Include="MonitorLogService.cs" />
+    <Compile Include="OPTIC\OpticPage.xaml.cs">
+      <DependentUpon>OPTIC\OpticPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
@@ -152,7 +153,10 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <Compile Include="ViewModels\OpticPageViewModel.cs" />
+    <Compile Include="OPTIC\OpticPageViewModel.cs" />
+    <Compile Include="OPTIC\OpticJudgment.cs" />
+    <Compile Include="IPVS\IPVSPageViewModel.cs" />
+    <Compile Include="IPVS\IpvsJudgment.cs" />
     <Compile Include="Models\DataTableItem.cs" />
     <Compile Include="Models\InspectionData.cs" />
     <Compile Include="PathSettingWindow.xaml.cs">
@@ -162,6 +166,10 @@
       <DependentUpon>MainSettingsWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="ThemeManager.cs" />
+    <Compile Include="Result_LOG\EECPLogger.cs" />
+    <Compile Include="Result_LOG\EECPSummaryLogger.cs" />
+    <Compile Include="Result_LOG\CIMLogger.cs" />
+    <Compile Include="Result_LOG\ValidationLogger.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -198,12 +206,18 @@
   <Target Name="PostBuildDebug" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug' AND '$(Platform)' == 'AnyCPU'">
     <Exec Command="if not exist ..\publish_debug mkdir ..\publish_debug" />
     <Exec Command="xcopy /Y /E bin\Debug\*.* ..\publish_debug\" />
-    <Exec Command="copy ..\TestDll\x64\Debug\TestDll.dll bin\Debug\TestDll.dll" />
+    <Exec Command="if exist ..\TestDll\x64\Debug\TestDll.dll robocopy ..\TestDll\x64\Debug bin\Debug TestDll.dll /R:3 /W:1 /NP /NJH /NJS &amp; if %errorlevel% leq 1 exit 0" ContinueOnError="true" />
   </Target>
   <Target Name="PostBuildDebugX64" AfterTargets="Build" Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <Exec Command="echo OptiX_UI PostBuild: 최신 TestDll 복사 시작..." />
     <Exec Command="if not exist ..\publish_debug mkdir ..\publish_debug" />
     <Exec Command="xcopy /Y /E bin\x64\Debug\*.* ..\publish_debug\" />
-    <Exec Command="copy ..\TestDll\x64\Debug\TestDll.dll bin\x64\Debug\TestDll.dll" />
+    <Exec Command="echo OptiX_UI PostBuild: bin\x64\Debug 복사 완료" />
+    <Exec Command="echo TestDll 프로젝트에서 직접 복사 중..." />
+    <Exec Command="if exist ..\TestDll\x64\Debug\TestDll.dll (copy /Y ..\TestDll\x64\Debug\TestDll.dll ..\publish_debug\TestDll.dll &amp; echo TestDll.dll 복사됨) else (echo TestDll\x64\Debug\TestDll.dll이 없습니다!)" />
+    <Exec Command="if exist ..\TestDll\x64\Debug\TestDll.lib (copy /Y ..\TestDll\x64\Debug\TestDll.lib ..\publish_debug\TestDll.lib &amp; echo TestDll.lib 복사됨) else (echo TestDll\x64\Debug\TestDll.lib이 없습니다!)" />
+    <Exec Command="if exist ..\TestDll\x64\Debug\TestDll.pdb (copy /Y ..\TestDll\x64\Debug\TestDll.pdb ..\publish_debug\TestDll.pdb &amp; echo TestDll.pdb 복사됨) else (echo TestDll\x64\Debug\TestDll.pdb가 없습니다!)" />
+    <Exec Command="echo OptiX_UI PostBuild: 최신 TestDll 복사 완료" />
   </Target>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -14,7 +14,6 @@ namespace OptiX
         public string VALIDPath { get; private set; } = "";
         public string SequencePath { get; private set; } = "";
 
-        private IniFileManager iniManager;
         private bool isDarkMode = false;
         private string iniSection = "MTP_PATHS"; // 기본값은 MTP_PATHS
 
@@ -28,20 +27,10 @@ namespace OptiX
             string inspectionType = iniSection == "IPVS_PATHS" ? "IPVS" : "OPTIC";
             this.Title = $"{inspectionType} Path Settings";
             
-            InitializeIniManager();
             LoadExistingPaths();
             LoadFileGenerationSettings();
             ApplyTheme(); // LoadThemeFromIni() 대신 바로 ApplyTheme() 호출
             ApplyLanguage(); // 언어 적용
-        }
-
-        private void InitializeIniManager()
-        {
-            // 실행 파일 기준 상대 경로로 INI 파일 찾기
-        string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-        string exeDir = System.IO.Path.GetDirectoryName(exePath);
-        string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
-            iniManager = new IniFileManager(iniPath);
         }
 
         private void LoadExistingPaths()
@@ -49,10 +38,10 @@ namespace OptiX
             try
             {
                 // INI 파일에서 기존 경로들을 로드 (지정된 섹션에서)
-                EECPPath = iniManager.ReadValue(iniSection, "EECP_FOLDER", "");
-                CIMPath = iniManager.ReadValue(iniSection, "CIM_FOLDER", "");
-                VALIDPath = iniManager.ReadValue(iniSection, "VALID_FOLDER", "");
-                SequencePath = iniManager.ReadValue(iniSection, "SEQUENCE_FOLDER", "");
+                EECPPath = GlobalDataManager.GetValue(iniSection, "EECP_FOLDER", "");
+                CIMPath = GlobalDataManager.GetValue(iniSection, "CIM_FOLDER", "");
+                VALIDPath = GlobalDataManager.GetValue(iniSection, "VALID_FOLDER", "");
+                SequencePath = GlobalDataManager.GetValue(iniSection, "SEQUENCE_FOLDER", "");
 
                 // 텍스트박스에 표시
                 EECPTextBox.Text = string.IsNullOrEmpty(EECPPath) ? "EECP 폴더를 선택하세요" : EECPPath;
@@ -70,7 +59,7 @@ namespace OptiX
         {
             try
             {
-                string darkModeStr = iniManager.ReadValue("Theme", "IsDarkMode", "F");
+                string darkModeStr = GlobalDataManager.GetValue("Theme", "IsDarkMode", "F");
                 isDarkMode = darkModeStr.ToUpper() == "T";
                 ApplyTheme();
             }
@@ -175,8 +164,8 @@ namespace OptiX
                 SavePathsToIni();
                 SaveFileGenerationSettings();
                 
-                // 전역 데이터 다시 로드
-                GlobalDataManager.ReloadIniData();
+                // INI 파일 저장 후 전역 캐시 갱신
+                GlobalDataManager.Reload();
                 
                 MessageBox.Show("경로가 성공적으로 저장되었습니다.", "저장 완료", 
                               MessageBoxButton.OK, MessageBoxImage.Information);
@@ -196,10 +185,10 @@ namespace OptiX
             try
             {
                 // IniFileManager를 사용하여 경로 저장 (지정된 섹션에)
-                iniManager.WriteValue(iniSection, "EECP_FOLDER", EECPPath);
-                iniManager.WriteValue(iniSection, "CIM_FOLDER", CIMPath);
-                iniManager.WriteValue(iniSection, "VALID_FOLDER", VALIDPath);
-                iniManager.WriteValue(iniSection, "SEQUENCE_FOLDER", SequencePath);
+                GlobalDataManager.SetValue(iniSection, "EECP_FOLDER", EECPPath);
+                GlobalDataManager.SetValue(iniSection, "CIM_FOLDER", CIMPath);
+                GlobalDataManager.SetValue(iniSection, "VALID_FOLDER", VALIDPath);
+                GlobalDataManager.SetValue(iniSection, "SEQUENCE_FOLDER", SequencePath);
             }
             catch (Exception ex)
             {
@@ -215,10 +204,10 @@ namespace OptiX
                 string targetSection = (iniSection == "IPVS_PATHS") ? "IPVS" : "MTP";
                 
                 // 파일 생성 여부 설정 로드 (MTP/IPVS 섹션에서 읽기)
-                bool isEecpEnabled = iniManager.ReadValue(targetSection, "CREATE_EECP", "F").ToUpper() == "T";
-                bool isCimEnabled = iniManager.ReadValue(targetSection, "CREATE_CIM", "F").ToUpper() == "T";
-                bool isEecpSummaryEnabled = iniManager.ReadValue(targetSection, "CREATE_EECP_SUMMARY", "F").ToUpper() == "T";
-                bool isValidationEnabled = iniManager.ReadValue(targetSection, "CREATE_VALIDATION", "F").ToUpper() == "T";
+                bool isEecpEnabled = GlobalDataManager.GetValue(targetSection, "CREATE_EECP", "F").ToUpper() == "T";
+                bool isCimEnabled = GlobalDataManager.GetValue(targetSection, "CREATE_CIM", "F").ToUpper() == "T";
+                bool isEecpSummaryEnabled = GlobalDataManager.GetValue(targetSection, "CREATE_EECP_SUMMARY", "F").ToUpper() == "T";
+                bool isValidationEnabled = GlobalDataManager.GetValue(targetSection, "CREATE_VALIDATION", "F").ToUpper() == "T";
 
                 // 체크박스 상태 설정
                 if (CreateEecpCheckBox != null) CreateEecpCheckBox.IsChecked = isEecpEnabled;
@@ -253,10 +242,10 @@ namespace OptiX
                 string eecpSummaryValue = isEecpSummaryEnabled ? "T" : "F";
                 string validationValue = isValidationEnabled ? "T" : "F";
                 
-                iniManager.WriteValue(targetSection, "CREATE_EECP", eecpValue);
-                iniManager.WriteValue(targetSection, "CREATE_CIM", cimValue);
-                iniManager.WriteValue(targetSection, "CREATE_EECP_SUMMARY", eecpSummaryValue);
-                iniManager.WriteValue(targetSection, "CREATE_VALIDATION", validationValue);
+                GlobalDataManager.SetValue(targetSection, "CREATE_EECP", eecpValue);
+                GlobalDataManager.SetValue(targetSection, "CREATE_CIM", cimValue);
+                GlobalDataManager.SetValue(targetSection, "CREATE_EECP_SUMMARY", eecpSummaryValue);
+                GlobalDataManager.SetValue(targetSection, "CREATE_VALIDATION", validationValue);
                 
                 System.Diagnostics.Debug.WriteLine($"파일 생성 설정 저장 완료 ({targetSection}) - EECP: {eecpValue}, CIM: {cimValue}, EECP_SUMMARY: {eecpSummaryValue}, VALIDATION: {validationValue}");
             }

@@ -18,7 +18,6 @@ namespace OptiX
     {
         public event EventHandler BackRequested;
         
-        private IniFileManager iniManager;
         private ObservableCollection<DataTableItem> dataItems;
         private bool isDarkMode = false;
         private List<string> wadValues = new List<string>();
@@ -27,7 +26,6 @@ namespace OptiX
         public IPVSPage()
         {
             InitializeComponent();
-            InitializeIniManager();
             LoadDataFromIni();
             InitializeDataTable();
             LoadThemeFromIni();
@@ -37,15 +35,6 @@ namespace OptiX
             Loaded += (s, e) => ApplyLanguage();
         }
 
-
-        private void InitializeIniManager()
-        {
-            // 실행 파일 기준 상대 경로로 INI 파일 찾기
-        string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-        string exeDir = System.IO.Path.GetDirectoryName(exePath);
-        string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
-            iniManager = new IniFileManager(iniPath);
-        }
 
         private void LoadDataFromIni()
         {
@@ -105,7 +94,7 @@ namespace OptiX
         {
             try
             {
-                string darkModeStr = iniManager.ReadValue("Theme", "IsDarkMode", "F");
+                string darkModeStr = GlobalDataManager.GetValue("Theme", "IsDarkMode", "F");
                 isDarkMode = darkModeStr.ToUpper() == "T";
                 ApplyTheme();
             }
@@ -170,7 +159,7 @@ namespace OptiX
             try
             {
                 // Settings에서 IPVS_ZONE 개수 읽기
-                string zoneCountStr = iniManager.ReadValue("Settings", "IPVS_ZONE", "2");
+                string zoneCountStr = GlobalDataManager.GetValue("Settings", "IPVS_ZONE", "2");
                 int zoneCount = int.Parse(zoneCountStr);
 
                 // Zone 개수만큼 모던 버튼 생성
@@ -222,7 +211,7 @@ namespace OptiX
                 CreateHeaderRow();
 
                 // INI에서 MAX_POINT 개수 읽기
-                string maxPointStr = iniManager.ReadValue("IPVS", "MAX_POINT", "5");
+                string maxPointStr = GlobalDataManager.GetValue("IPVS", "MAX_POINT", "5");
                 int maxPoint = int.Parse(maxPointStr);
 
                 // Zone별로 그룹화하여 처리 (빈 Zone 제외하지 않음)
@@ -512,7 +501,7 @@ namespace OptiX
             try
             {
                 // INI 파일에서 WAD 값들 읽어오기 (IPVS 섹션에서)
-                string wadString = iniManager.ReadValue("IPVS", "WAD", "0,15,30,45,60");
+                string wadString = GlobalDataManager.GetValue("IPVS", "WAD", "0,15,30,45,60");
                 wadValues = wadString.Split(',').Select(x => x.Trim()).ToList();
                 
                 // 콤보박스에 WAD 값들 추가

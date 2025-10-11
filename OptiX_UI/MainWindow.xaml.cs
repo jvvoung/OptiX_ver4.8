@@ -34,13 +34,17 @@ public partial class MainWindow : Window
     private Point resizeStartPoint;
     private Size resizeStartSize;
     private string resizeDirection = "";
-    private IniFileManager iniManager;
+    
+    // 페이지 캐싱 (Lazy Loading - 처음 사용 시 생성, 이후 재사용)
+    private OpticPage _opticPage;
+    private IPVSPage _ipvsPage;
+    private LUTPage _lutPage;
+    private ManualPage _manualPage;
 
     public MainWindow()
     {
         InitializeComponent();
         InitializeTimers();
-        InitializeIniManager();
         LoadSettingsFromIni();
         InitializeCommunicationServer();
         
@@ -71,11 +75,11 @@ public partial class MainWindow : Window
         communicationServer.ConnectionStatusChanged += OnCommunicationStatusChanged;
         
         // INI에서 서버 설정 로드
-        string tcpIp = iniManager.ReadValue("Settings", "TCP_IP", "127.0.0.1");
-        string tcpPort = iniManager.ReadValue("Settings", "TCP_PORT", "7777");
+        string tcpIp = GlobalDataManager.GetValue("Settings", "TCP_IP", "127.0.0.1");
+        string tcpPort = GlobalDataManager.GetValue("Settings", "TCP_PORT", "7777");
         
         // 서버 자동 시작 (설정에 따라)
-        if (bool.TryParse(iniManager.ReadValue("Settings", "AUTO_START_SERVER", "false"), out bool autoStart) && autoStart)
+        if (bool.TryParse(GlobalDataManager.GetValue("Settings", "AUTO_START_SERVER", "false"), out bool autoStart) && autoStart)
         {
             Task.Run(async () =>
             {
@@ -259,19 +263,24 @@ public partial class MainWindow : Window
             mainPageContent.Visibility = Visibility.Collapsed;
         }
 
-        // LUT 페이지 생성 및 표시
-        var lutPage = new LUTPage();
+        // LUT 페이지 Lazy Loading - 처음 사용 시에만 생성, 이후 재사용
+        if (_lutPage == null)
+        {
+            _lutPage = new LUTPage();
+            System.Diagnostics.Debug.WriteLine("LUTPage 최초 생성됨");
+        }
+        
         System.Diagnostics.Debug.WriteLine($"MainWindow에서 LUT 페이지로 테마 전달: {(isDarkMode ? "다크" : "라이트")} 모드");
-        lutPage.SetTheme(isDarkMode);
+        _lutPage.SetTheme(isDarkMode);
 
         var mainContentGrid = (Grid)this.FindName("MainContent");
         if (mainContentGrid != null)
         {
-            mainContentGrid.Children.Add(lutPage);
-            currentPage = lutPage;
+            mainContentGrid.Children.Add(_lutPage);
+            currentPage = _lutPage;
         }
         
-        System.Diagnostics.Debug.WriteLine("LUT 페이지로 전환됨");
+        System.Diagnostics.Debug.WriteLine("LUT 페이지로 전환됨 (재사용)");
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
@@ -748,18 +757,24 @@ public partial class MainWindow : Window
             mainPageContent.Visibility = Visibility.Collapsed;
         }
 
-        // Optic 페이지 생성 및 표시
-        var opticPage = new OpticPage();
+        // Optic 페이지 Lazy Loading - 처음 사용 시에만 생성, 이후 재사용
+        if (_opticPage == null)
+        {
+            _opticPage = new OpticPage();
+            System.Diagnostics.Debug.WriteLine("OpticPage 최초 생성됨");
+        }
 
         // 현재 다크모드 상태를 OpticPage에 전달
-        opticPage.SetDarkMode(isDarkMode);
+        _opticPage.SetDarkMode(isDarkMode);
 
         var mainContentGrid = (Grid)this.FindName("MainContent");
         if (mainContentGrid != null)
         {
-            mainContentGrid.Children.Add(opticPage);
-            currentPage = opticPage;
+            mainContentGrid.Children.Add(_opticPage);
+            currentPage = _opticPage;
         }
+        
+        System.Diagnostics.Debug.WriteLine("OpticPage 표시됨 (재사용)");
     }
 
     private void ShowIPVSPage()
@@ -781,24 +796,29 @@ public partial class MainWindow : Window
             mainPageContent.Visibility = Visibility.Collapsed;
         }
 
-        // IPVS 페이지 생성 및 표시
-        var ipvsPage = new IPVSPage();
+        // IPVS 페이지 Lazy Loading - 처음 사용 시에만 생성, 이후 재사용
+        if (_ipvsPage == null)
+        {
+            _ipvsPage = new IPVSPage();
+            // IPVSPage의 뒤로가기 이벤트 처리 (1번만 등록)
+            _ipvsPage.BackRequested += (s, e) => ShowMainPage();
+            System.Diagnostics.Debug.WriteLine("IPVSPage 최초 생성됨");
+        }
 
         // 현재 다크모드 상태를 IPVSPage에 전달
-        ipvsPage.SetDarkMode(isDarkMode);
+        _ipvsPage.SetDarkMode(isDarkMode);
         
         // 현재 언어 상태를 IPVSPage에 전달
-        ipvsPage.ApplyLanguage();
-
-        // IPVSPage의 뒤로가기 이벤트 처리
-        ipvsPage.BackRequested += (s, e) => ShowMainPage();
+        _ipvsPage.ApplyLanguage();
 
         var mainContentGrid = (Grid)this.FindName("MainContent");
         if (mainContentGrid != null)
         {
-            mainContentGrid.Children.Add(ipvsPage);
-            currentPage = ipvsPage;
+            mainContentGrid.Children.Add(_ipvsPage);
+            currentPage = _ipvsPage;
         }
+        
+        System.Diagnostics.Debug.WriteLine("IPVSPage 표시됨 (재사용)");
     }
 
     private void ShowManualPage()
@@ -820,18 +840,24 @@ public partial class MainWindow : Window
             mainPageContent.Visibility = Visibility.Collapsed;
         }
 
-        // Manual 페이지 생성 및 표시
-        var manualPage = new ManualPage();
+        // Manual 페이지 Lazy Loading - 처음 사용 시에만 생성, 이후 재사용
+        if (_manualPage == null)
+        {
+            _manualPage = new ManualPage();
+            System.Diagnostics.Debug.WriteLine("ManualPage 최초 생성됨");
+        }
 
         // 현재 다크모드 상태를 ManualPage에 전달
-        manualPage.SetTheme(isDarkMode);
+        _manualPage.SetTheme(isDarkMode);
 
         var mainContentGrid = (Grid)this.FindName("MainContent");
         if (mainContentGrid != null)
         {
-            mainContentGrid.Children.Add(manualPage);
-            currentPage = manualPage;
+            mainContentGrid.Children.Add(_manualPage);
+            currentPage = _manualPage;
         }
+        
+        System.Diagnostics.Debug.WriteLine("ManualPage 표시됨 (재사용)");
     }
 
     public void ShowMainPage()
@@ -1040,32 +1066,21 @@ public partial class MainWindow : Window
         }
     }
 
-    private void InitializeIniManager()
-    {
-        string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
-        iniManager = new IniFileManager(iniPath);
-
-        // INI 파일이 없으면 기본 파일 생성
-            // INI 파일이 없으면 기본값 사용
-    }
-
     private void LoadSettingsFromIni()
     {
-        if (iniManager == null) return;
-
         try
         {
             // 창 크기 및 위치 설정 제거됨 - 하드코딩된 기본값 사용
 
             // 테마 설정 로드
-            string isDarkModeStr = iniManager.ReadValue("Theme", "IsDarkMode", "False");
+            string isDarkModeStr = GlobalDataManager.GetValue("Theme", "IsDarkMode", "False");
             if (bool.TryParse(isDarkModeStr, out bool darkMode) && darkMode)
             {
                 SetDarkMode();
             }
 
             // 언어 설정 로드
-            string currentLanguage = iniManager.ReadValue("Settings", "Language", "Korean");
+            string currentLanguage = GlobalDataManager.GetValue("Settings", "Language", "Korean");
             LanguageManager.SetLanguage(currentLanguage);
 
             // 타이틀바 색상 설정 제거됨 - XAML에서 하드코딩된 보라색 사용

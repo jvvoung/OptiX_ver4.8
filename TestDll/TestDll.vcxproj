@@ -159,10 +159,12 @@
   
   <!-- PostBuild 이벤트 추가 -->
   <Target Name="PostBuildDebug" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug' AND '$(Platform)' == 'x64'">
+    <Exec Command="echo PostBuild: TestDll DLL 복사 시작..." />
     <Exec Command="if not exist ..\publish_debug mkdir ..\publish_debug" />
-    <Exec Command="copy $(TargetPath) ..\publish_debug\" />
-    <Exec Command="copy $(TargetDir)$(TargetName).lib ..\publish_debug\" />
-    <Exec Command="copy $(TargetDir)$(TargetName).pdb ..\publish_debug\" />
+    <Exec Command="copy /Y $(TargetPath) ..\publish_debug\" />
+    <Exec Command="copy /Y $(TargetDir)$(TargetName).lib ..\publish_debug\" />
+    <Exec Command="copy /Y $(TargetDir)$(TargetName).pdb ..\publish_debug\" />
+    <Exec Command="echo PostBuild: TestDll DLL 복사 완료 - $(TargetName).dll" />
   </Target>
   
   <Target Name="PostBuildRelease" AfterTargets="Build" Condition="'$(Configuration)' == 'Release' AND '$(Platform)' == 'x64'">

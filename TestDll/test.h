@@ -1,4 +1,10 @@
 #pragma once
+#include <random>
+#include <vector>
+#include <cmath>
+
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -11,6 +17,14 @@ extern "C" {
 
     struct pattern {
         float x, y, u,v, L, cur, eff;
+        int result;
+    };
+
+
+    struct LUT_Data {
+        int index;       // 계조 index
+        double voltage;  // 전압
+        double luminance; // 휘도
     };
     struct lut_parameter {
         float max_lumi;
@@ -18,7 +32,7 @@ extern "C" {
         float gamma;
         float black;
     };
-
+    
     struct output {
         struct pattern data[7][17]; // struct 키워드 명시
         //[7]:WAD => 0:0도, 1:30도, 2:45도, 3:60도, 4:15도, 5:A도, 6:B도
@@ -26,6 +40,7 @@ extern "C" {
         struct pattern measure[7];
         struct lut_parameter lut[3]; 
     };
+
 
     __declspec(dllexport) int test(struct input* in, struct output* out);
     __declspec(dllexport) bool PGTurn(int port);
@@ -37,4 +52,8 @@ extern "C" {
 
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef __cplusplus
+void cal_lut(std::vector<LUT_Data> pattern_inf[3], struct output* out);
 #endif

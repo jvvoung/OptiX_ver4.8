@@ -10,7 +10,6 @@ namespace OptiX
     /// </summary>
     public partial class MainSettingsWindow : Window
     {
-        private IniFileManager iniManager;
         private bool isDarkMode;
         private string selectedLanguage = "Korean";
         private bool isTcpConnected = false; // TCP/IP 연결 상태 관리
@@ -23,12 +22,6 @@ namespace OptiX
         {
             InitializeComponent();
             this.isDarkMode = isDarkMode;
-            
-            // 실행 파일 기준 상대 경로로 INI 파일 찾기
-            string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            string exeDir = System.IO.Path.GetDirectoryName(exePath);
-            string iniPath = @"D:\\Project\\Recipe\\OptiX.ini";
-            this.iniManager = new IniFileManager(iniPath);
             
             // 다크모드 적용
             ApplyTheme();
@@ -154,7 +147,7 @@ namespace OptiX
             try
             {
                 // 언어 설정 로드
-                string currentLanguage = iniManager.ReadValue("Settings", "Language", "Korean");
+                string currentLanguage = GlobalDataManager.GetValue("Settings", "Language", "Korean");
                 selectedLanguage = currentLanguage;
                 
                 // 언어 체크박스 설정
@@ -167,7 +160,7 @@ namespace OptiX
                 ApplyTextBoxColors(); // 텍스트박스 색상 적용
                 
                 // DLL 폴더 설정 로드
-                string dllFolder = iniManager.ReadValue("Settings", "DLL_FOLDER", "");
+                string dllFolder = GlobalDataManager.GetValue("Settings", "DLL_FOLDER", "");
                 DllFolderTextBox.Text = string.IsNullOrEmpty(dllFolder) ? "DLL 폴더를 선택하세요" : dllFolder;
                 
                 System.Diagnostics.Debug.WriteLine($"설정 로드 완료 - Language: {currentLanguage}");
@@ -217,8 +210,8 @@ namespace OptiX
                 // TCP/IP 설정 저장
                 SaveTcpIpSettings();
 
-                // 전역 데이터 다시 로드
-                GlobalDataManager.ReloadIniData();
+                // INI 파일 저장 후 전역 캐시 갱신
+                GlobalDataManager.Reload();
 
                 // DLL 재로드 (DLL 경로가 변경되었을 수 있으므로)
                 bool dllReloaded = DllManager.Reload();
@@ -243,7 +236,7 @@ namespace OptiX
 
         private void SaveLanguageSettings()
         {
-            iniManager.WriteValue("Settings", "Language", selectedLanguage);
+            GlobalDataManager.SetValue("Settings", "Language", selectedLanguage);
             
             // LanguageManager에 언어 변경 알림
             LanguageManager.SetLanguage(selectedLanguage);
@@ -259,7 +252,7 @@ namespace OptiX
                 tcpIp = "127.0.0.1"; // 기본값
             }
             
-            iniManager.WriteValue("Settings", "TCP_IP", tcpIp);
+            GlobalDataManager.SetValue("Settings", "TCP_IP", tcpIp);
             
             string tcpPort = TcpPortTextBox.Text.Trim();
             if (string.IsNullOrEmpty(tcpPort))
@@ -267,17 +260,17 @@ namespace OptiX
                 tcpPort = "7777"; // 기본값
             }
             
-            iniManager.WriteValue("Settings", "TCP_PORT", tcpPort);
+            GlobalDataManager.SetValue("Settings", "TCP_PORT", tcpPort);
             
             System.Diagnostics.Debug.WriteLine($"TCP/IP 설정 저장됨: {tcpIp}:{tcpPort}");
         }
 
         private void LoadTcpIpSettings()
         {
-            string tcpIp = iniManager.ReadValue("Settings", "TCP_IP", "127.0.0.1");
+            string tcpIp = GlobalDataManager.GetValue("Settings", "TCP_IP", "127.0.0.1");
             TcpIpTextBox.Text = tcpIp;
             
-            string tcpPort = iniManager.ReadValue("Settings", "TCP_PORT", "7777");
+            string tcpPort = GlobalDataManager.GetValue("Settings", "TCP_PORT", "7777");
             TcpPortTextBox.Text = tcpPort;
             
             System.Diagnostics.Debug.WriteLine($"TCP/IP 설정 로드됨: {tcpIp}:{tcpPort}");
@@ -484,10 +477,10 @@ namespace OptiX
                 DllFolderTextBox.Text = string.IsNullOrEmpty(selectedFolder) ? "DLL 폴더를 선택하세요" : selectedFolder;
                 
                 // INI 파일에 DLL 폴더 경로 저장
-                iniManager.WriteValue("Settings", "DLL_FOLDER", selectedFolder);
+                GlobalDataManager.SetValue("Settings", "DLL_FOLDER", selectedFolder);
                 
-                // 전역 데이터 다시 로드
-                GlobalDataManager.ReloadIniData();
+                // INI 파일 저장 후 전역 캐시 갱신
+                GlobalDataManager.Reload();
             }
         }
 
