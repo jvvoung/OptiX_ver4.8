@@ -30,13 +30,19 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo 4. C++ DLL을 publish_debug 폴더로 복사 중...
+echo 4. WPF 실행 파일을 publish_debug 폴더로 복사 중...
+copy "OptiX_UI\bin\x64\Debug\OptiX.exe" "publish_debug\"
+copy "OptiX_UI\bin\x64\Debug\OptiX.pdb" "publish_debug\"
+copy "OptiX_UI\bin\x64\Debug\OptiX.exe.config" "publish_debug\"
+
+echo.
+echo 5. C++ DLL을 publish_debug 폴더로 복사 중...
 copy "TestDll\x64\Debug\TestDll.dll" "publish_debug\"
 copy "TestDll\x64\Debug\TestDll.lib" "publish_debug\"
 copy "TestDll\x64\Debug\TestDll.pdb" "publish_debug\"
 
 echo.
-echo 5. INI 파일 복사 중...
+echo 6. INI 파일 복사 중...
 copy "OptiX.ini" "publish_debug\"
 
 echo.

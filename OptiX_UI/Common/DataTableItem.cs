@@ -1,10 +1,11 @@
 using System.ComponentModel;
 
-namespace OptiX.Models
+namespace OptiX.Common
 {
     public class DataTableItem : INotifyPropertyChanged
     {
         private string category;
+        private string point;
         private string x;
         private string y;
         private string l;
@@ -21,6 +22,12 @@ namespace OptiX.Models
         {
             get => category;
             set => SetProperty(ref category, value, "Category");
+        }
+
+        public string Point
+        {
+            get => point;
+            set => SetProperty(ref point, value, "Point");
         }
 
         public string X
@@ -98,7 +105,31 @@ namespace OptiX.Models
         protected virtual void OnPropertyChanged(string propertyName)
         {
             if (PropertyChanged != null)
-                PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+            {
+                // UI 스레드 확인 후 PropertyChanged 이벤트 발생
+                if (System.Windows.Application.Current != null)
+                {
+                    var dispatcher = System.Windows.Application.Current.Dispatcher;
+                    
+                    // 이미 UI 스레드라면 직접 호출
+                    if (dispatcher.CheckAccess())
+                    {
+                        PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+                    }
+                    else
+                    {
+                        // UI 스레드가 아니라면 Invoke로 동기 호출
+                        dispatcher.Invoke(() =>
+                        {
+                            PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+                        });
+                    }
+                }
+                else
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+                }
+            }
         }
 
         protected bool SetProperty<T>(ref T field, T value, string propertyName)

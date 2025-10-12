@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace OptiX
+namespace OptiX.Common
 {
     /// <summary>
     /// 전역 데이터 매니저 - INI 파일 데이터를 메모리에 캐시하여 성능 향상

@@ -2,7 +2,7 @@
 #include "test.h"
 
 extern "C" {
-    __declspec(dllexport) int test(struct input* in, struct output* out) {
+    __declspec(dllexport) int MTP_test(struct input* in, struct output* out) {
         if (in == nullptr || out == nullptr) {
             return 0;
         }
@@ -48,6 +48,51 @@ extern "C" {
         return 1;
     }
     
+    __declspec(dllexport) int IPVS_test(struct input* in, struct output* out) {
+        if (in == nullptr || out == nullptr) {
+            return 0;
+        }
+        int point = in->cur_point;
+
+        // 더 나은 랜덤 시드 생성 (밀리초 단위 + 주소값 활용)
+        static bool first_call = true;
+        if (first_call) {
+            srand((unsigned int)(time(NULL) * 1000 + (uintptr_t)in));
+            first_call = false;
+        }
+
+        int cnt = 0;
+        int ok = 0;
+        int ng = 0;
+        int ptn = 0;
+
+        for (int i = 0; i < 7; i++) {
+            out->IPVS_data[i][point].x = cnt + 1;
+            out->IPVS_data[i][point].y = cnt + 2;
+            out->IPVS_data[i][point].L = cnt + 3;
+            out->IPVS_data[i][point].cur = cnt + 4;
+            out->IPVS_data[i][point].eff = cnt + 5;
+
+            // 더 나은 랜덤 생성 (현재 카운터 값도 활용)
+            int random = (rand() + cnt) % 10;
+
+            if (random < 8) {
+                out->IPVS_data[i][point].result = 0;  // 80% 확률
+                ok++;
+            }
+            else if (random == 8) {
+                out->IPVS_data[i][point].result = 1;  // 10% 확률
+                ng++;
+            }
+            else {
+                out->IPVS_data[i][point].result = 2;  // 10% 확률
+                ptn++;
+            }
+            cnt++;
+        }
+        return 1;
+    }
+
     __declspec(dllexport) bool PGTurn(int port) {
         if (port < 0)
             return false;

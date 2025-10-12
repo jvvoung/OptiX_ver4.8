@@ -20,7 +20,10 @@ namespace OptiX
                 ["MainWindow.Title"] = "OptiX",
                 ["MainWindow.Characteristics"] = "특성",
                 ["MainWindow.IPVS"] = "IPVS",
-                ["MainWindow.Manual"] = "수동",
+                ["Main" +
+                    "" +
+                    "" +
+                    "Window.Manual"] = "수동",
                 ["MainWindow.LUT"] = "LUT",
                 ["MainWindow.Settings"] = "설정",
                 

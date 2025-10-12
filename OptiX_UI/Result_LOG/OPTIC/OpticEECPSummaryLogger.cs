@@ -2,25 +2,25 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace OptiX_UI.Result_LOG
+namespace OptiX.Result_LOG.OPTIC
 {
     /// <summary>
-    /// EECP_SUMMARY 로그 파일 생성 및 관리 클래스 (Singleton)
-    /// 경로: D:\Project\Log\Result\EECP_SUMMARY
+    /// OPTIC EECP_SUMMARY 로그 파일 생성 및 관리 클래스 (Singleton)
+    /// 경로: D:\Project\Log\Result\특성
     /// 파일명: EECP_SUMMARY_YYYYMMDD.csv
     /// </summary>
-    public class EECPSummaryLogger
+    public class OpticEECPSummaryLogger
     {
         private static readonly object _fileLock = new object();
-        private static EECPSummaryLogger _instance;
-        private readonly string _basePath = @"D:\Project\Log\Result\EECP_SUMMARY";
+        private static OpticEECPSummaryLogger _instance;
+        private readonly string _basePath = @"D:\Project\Log\Result\특성\EECP_Summary";
         private readonly string _fileName;
         private readonly string _fullPath;
 
         /// <summary>
         /// Singleton Instance
         /// </summary>
-        public static EECPSummaryLogger Instance
+        public static OpticEECPSummaryLogger Instance
         {
             get
             {
@@ -30,7 +30,7 @@ namespace OptiX_UI.Result_LOG
                     {
                         if (_instance == null)
                         {
-                            _instance = new EECPSummaryLogger();
+                            _instance = new OpticEECPSummaryLogger();
                         }
                     }
                 }
@@ -38,7 +38,7 @@ namespace OptiX_UI.Result_LOG
             }
         }
 
-        private EECPSummaryLogger()
+        private OpticEECPSummaryLogger()
         {
             lock (_fileLock)
             {
@@ -47,25 +47,25 @@ namespace OptiX_UI.Result_LOG
                     _fileName = $"EECP_SUMMARY_{DateTime.Now:yyyyMMdd}.csv";
                     _fullPath = Path.Combine(_basePath, _fileName);
                     
-                    System.Diagnostics.Debug.WriteLine($"EECP_SUMMARY 로거 초기화: {_fullPath}");
+                    System.Diagnostics.Debug.WriteLine($"OPTIC EECP_SUMMARY 로거 초기화: {_fullPath}");
                     
                     // 디렉토리가 없으면 생성
                     if (!Directory.Exists(_basePath))
                     {
                         Directory.CreateDirectory(_basePath);
-                        System.Diagnostics.Debug.WriteLine($"EECP_SUMMARY 디렉토리 생성: {_basePath}");
+                        System.Diagnostics.Debug.WriteLine($"OPTIC EECP_SUMMARY 디렉토리 생성: {_basePath}");
                     }
                     
-                    // 파일이 없으면 헤더 생성 (이미 lock 안에 있음)
+                    // 파일이 없으면 헤더 생성
                     if (!File.Exists(_fullPath))
                     {
                         CreateHeader();
-                        System.Diagnostics.Debug.WriteLine($"EECP_SUMMARY 헤더 파일 생성: {_fullPath}");
+                        System.Diagnostics.Debug.WriteLine($"OPTIC EECP_SUMMARY 헤더 파일 생성: {_fullPath}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"EECP_SUMMARY 로거 초기화 오류: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"OPTIC EECP_SUMMARY 로거 초기화 오류: {ex.Message}");
                     throw;
                 }
             }
@@ -85,17 +85,10 @@ namespace OptiX_UI.Result_LOG
         /// <summary>
         /// EECP_SUMMARY 로그 데이터 기록
         /// </summary>
-        /// <param name="startTime">시작 시간</param>
-        /// <param name="endTime">종료 시간</param>
-        /// <param name="cellId">셀 ID</param>
-        /// <param name="innerId">내부 ID</param>
-        /// <param name="zoneNumber">Zone 번호</param>
-        /// <param name="summaryData">요약 데이터</param>
         public void LogEECPSummaryData(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneNumber, string summaryData)
         {
             var logEntry = new StringBuilder();
             
-            // 기본 정보
             logEntry.Append($"{startTime:yyyy:MM:dd HH:mm:ss:fff},");
             logEntry.Append($"{endTime:yyyy:MM:dd HH:mm:ss:fff},");
             logEntry.Append($"{cellId},");
@@ -103,7 +96,6 @@ namespace OptiX_UI.Result_LOG
             logEntry.Append($"{zoneNumber},");
             logEntry.AppendLine(summaryData);
             
-            // 파일에 추가 (동기화 처리)
             lock (_fileLock)
             {
                 File.AppendAllText(_fullPath, logEntry.ToString(), Encoding.UTF8);
@@ -111,7 +103,7 @@ namespace OptiX_UI.Result_LOG
         }
 
         /// <summary>
-        /// 간단한 로그 메서드 (기본값 사용)
+        /// 간단한 로그 메서드
         /// </summary>
         public void LogEECPSummaryData(string cellId, string innerId, int zoneNumber, string summaryData)
         {
@@ -120,3 +112,4 @@ namespace OptiX_UI.Result_LOG
         }
     }
 }
+

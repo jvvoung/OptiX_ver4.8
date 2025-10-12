@@ -1,18 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace OptiX.IPVS
 {
     /// <summary>
     /// IPVS 검사 판정 관리 클래스
     /// </summary>
-    public class IpvsJudgment
+    public class IPVSJudgment
     {
         #region Fields
-        private static IpvsJudgment _instance;
+        private static IPVSJudgment _instance;
         private static readonly object _lock = new object();
         #endregion
 
@@ -20,7 +18,7 @@ namespace OptiX.IPVS
         /// <summary>
         /// Singleton 인스턴스
         /// </summary>
-        public static IpvsJudgment Instance
+        public static IPVSJudgment Instance
         {
             get
             {
@@ -30,7 +28,7 @@ namespace OptiX.IPVS
                     {
                         if (_instance == null)
                         {
-                            _instance = new IpvsJudgment();
+                            _instance = new IPVSJudgment();
                         }
                     }
                 }
@@ -40,7 +38,7 @@ namespace OptiX.IPVS
         #endregion
 
         #region Constructor
-        private IpvsJudgment()
+        private IPVSJudgment()
         {
             // Private constructor for singleton pattern
         }
@@ -60,51 +58,51 @@ namespace OptiX.IPVS
         {
             try
             {
-                // IPVS 특화 판정 기준
-                
-                // X, Y 좌표 범위 체크 (IPVS는 더 넓은 범위 허용)
-                if (x < -0.1f || x > 1.1f || y < -0.1f || y > 1.1f)
+                // X, Y 좌표 범위 체크
+                if (x < 0.0f || x > 1.0f || y < 0.0f || y > 1.0f)
                 {
                     return "FAIL";
                 }
 
-                // 휘도값 범위 체크 (IPVS는 더 높은 휘도 허용)
-                if (l < 0.0f || l > 2000.0f)
+                // 휘도값 범위 체크
+                if (l < 0.0f || l > 1000.0f)
                 {
                     return "FAIL";
                 }
 
                 // 전류값 범위 체크
-                if (current < 0.0f || current > 150.0f)
+                if (current < 0.0f || current > 100.0f)
                 {
                     return "FAIL";
                 }
 
-                // 효율값 범위 체크 (IPVS는 더 높은 효율 허용)
-                if (efficiency < 0.0f || efficiency > 120.0f)
+                // 효율값 범위 체크
+                if (efficiency < 0.0f || efficiency > 100.0f)
                 {
                     return "FAIL";
                 }
 
-                // IPVS 특화 검증 로직
-                if (IsValidIpvsMeasurement(x, y, l, current, efficiency))
-                {
-                    return "PASS";
-                }
-                else
-                {
-                    return "FAIL";
-                }
+                return "PASS";
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"IpvsJudgment 오류: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"IPVSJudgment 오류: {ex.Message}");
                 return "FAIL";
+            }
+        }
+        public string GetPatternJudgment(int result)
+        {
+            switch (result)
+            {
+                case 0: return "OK";
+                case 1: return "R/J"; // NG를 R/J로 변환
+                case 2: return "PTN";
+                default: return "R/J"; // NG를 R/J로 변환
             }
         }
 
         /// <summary>
-        /// Zone별 전체 판정 (IPVS 특화)
+        /// Zone별 전체 판정
         /// </summary>
         /// <param name="measurements">측정 데이터 리스트</param>
         /// <returns>Zone 전체 판정 결과</returns>
@@ -117,7 +115,6 @@ namespace OptiX.IPVS
                     return "FAIL";
                 }
 
-                // IPVS는 모든 측정값이 유효해야 함
                 foreach (var measurement in measurements)
                 {
                     string result = JudgeMeasurement(
@@ -134,189 +131,108 @@ namespace OptiX.IPVS
                     }
                 }
 
-                // IPVS 특화 추가 검증
-                if (IsValidIpvsZone(measurements))
-                {
-                    return "PASS";
-                }
-                else
-                {
-                    return "FAIL";
-                }
+                return "PASS";
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"IPVS Zone 판정 오류: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Zone 판정 오류: {ex.Message}");
                 return "FAIL";
             }
         }
 
         /// <summary>
-        /// IPVS 특화 측정값 검증
+        /// DLL output 구조체의 result 배열을 분석하여 Zone 전체 판정 수행
         /// </summary>
-        private bool IsValidIpvsMeasurement(float x, float y, float l, float current, float efficiency)
+        /// <param name="resultArray">DLL에서 받은 70개 result 값 배열 (7x10)</param>
+        /// <returns>Zone 전체 판정 결과 (OK/NG/PTN)</returns>
+        public string JudgeZoneFromResults(int[,] resultArray)
         {
             try
             {
-                // IPVS 특화 검증 로직
-                
-                // 좌표 안정성 체크
-                if (Math.Abs(x - 0.5f) > 0.6f || Math.Abs(y - 0.5f) > 0.6f)
+                if (resultArray == null || resultArray.Length == 0)
                 {
-                    return false;
+                    return "NG";
                 }
 
-                // 휘도 일관성 체크
-                if (l < 50.0f || l > 1800.0f)
+                int okCount = 0;
+                int ptnCount = 0;
+                int totalCount = 0;
+
+                // result 배열 순회: [7][10] = 70개
+                for (int wad = 0; wad < 7; wad++)
                 {
-                    return false;
+                    for (int point = 0; point < 10; point++)
+                    {
+                        int result = resultArray[wad, point];
+                        totalCount++;
+
+                        switch (result)
+                        {
+                            case 0: // OK
+                                okCount++;
+                                break;
+                            case 1: // NG
+                                // NG는 별도 카운트하지 않음 (기본값)
+                                break;
+                            case 2: // PTN
+                                ptnCount++;
+                                break;
+                        }
+                    }
                 }
 
-                // 전류 안정성 체크
-                if (current < 10.0f || current > 140.0f)
-                {
-                    return false;
-                }
+                System.Diagnostics.Debug.WriteLine($"IPVS Zone 판정 분석: OK={okCount}, PTN={ptnCount}, Total={totalCount}");
 
-                // 효율 최적화 체크
-                if (efficiency < 80.0f || efficiency > 115.0f)
+                // 판정 로직: OK 60개 이상이면 OK, PTN 10개 이상이면 PTN, 나머지는 NG
+                if (okCount >= 5)
                 {
-                    return false;
+                    return "OK";
                 }
-
-                return true;
+                else if (ptnCount >= 2)
+                {
+                    return "PTN";
+                }
+                else
+                {
+                    return "R/J"; // NG를 R/J로 변환
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                return false;
+                System.Diagnostics.Debug.WriteLine($"Zone 판정 오류: {ex.Message}");
+                return "R/J"; // NG를 R/J로 변환
             }
         }
 
         /// <summary>
-        /// IPVS Zone 전체 검증
+        /// 개별 포인트의 result 값을 문자열로 변환
         /// </summary>
-        private bool IsValidIpvsZone(List<(float x, float y, float l, float current, float efficiency)> measurements)
+        /// <param name="result">DLL에서 받은 result 값 (0, 1, 2)</param>
+        /// <returns>문자열 판정 결과 (OK, NG, PTN)</returns>
+        public string GetPointJudgment(int result)
         {
-            try
+            switch (result)
             {
-                // Zone 내 측정값들의 일관성 체크
-                var xValues = measurements.Select(m => m.x).ToList();
-                var yValues = measurements.Select(m => m.y).ToList();
-                var lValues = measurements.Select(m => m.l).ToList();
-
-                // 좌표 분산 체크
-                double xVariance = CalculateVariance(xValues);
-                double yVariance = CalculateVariance(yValues);
-                double lVariance = CalculateVariance(lValues);
-
-                // IPVS는 더 엄격한 일관성 요구
-                if (xVariance > 0.1 || yVariance > 0.1 || lVariance > 10000)
-                {
-                    return false;
-                }
-
-                return true;
-            }
-            catch
-            {
-                return false;
+                case 0: return "OK";
+                case 1: return "R/J"; // NG를 R/J로 변환
+                case 2: return "PTN";
+                default: return "R/J"; // NG를 R/J로 변환
             }
         }
 
         /// <summary>
-        /// 분산 계산
+        /// 판정 기준 설정
         /// </summary>
-        private double CalculateVariance(List<float> values)
+        public void SetJudgmentCriteria(
+            float xMin = 0.0f, float xMax = 1.0f,
+            float yMin = 0.0f, float yMax = 1.0f,
+            float lMin = 0.0f, float lMax = 1000.0f,
+            float currentMin = 0.0f, float currentMax = 100.0f,
+            float efficiencyMin = 0.0f, float efficiencyMax = 100.0f)
         {
-            if (values.Count <= 1) return 0;
-
-            double mean = values.Average();
-            double variance = values.Sum(v => Math.Pow(v - mean, 2)) / (values.Count - 1);
-            return variance;
-        }
-
-        /// <summary>
-        /// IPVS 판정 기준 설정
-        /// </summary>
-        public void SetIpvsJudgmentCriteria(
-            float xMin = -0.1f, float xMax = 1.1f,
-            float yMin = -0.1f, float yMax = 1.1f,
-            float lMin = 0.0f, float lMax = 2000.0f,
-            float currentMin = 0.0f, float currentMax = 150.0f,
-            float efficiencyMin = 0.0f, float efficiencyMax = 120.0f)
-        {
-            // IPVS 특화 판정 기준 설정 로직
+            // 판정 기준 설정 로직 (필요시 구현)
             System.Diagnostics.Debug.WriteLine("IPVS 판정 기준 설정됨");
-        }
-
-        /// <summary>
-        /// IPVS 특화 품질 등급 판정
-        /// </summary>
-        /// <param name="measurements">측정 데이터</param>
-        /// <returns>품질 등급 (A, B, C, FAIL)</returns>
-        public string JudgeQualityGrade(List<(float x, float y, float l, float current, float efficiency)> measurements)
-        {
-            try
-            {
-                if (measurements == null || measurements.Count == 0)
-                {
-                    return "FAIL";
-                }
-
-                // IPVS 품질 등급 계산
-                var avgEfficiency = measurements.Average(m => m.efficiency);
-                var avgLuminance = measurements.Average(m => m.l);
-                var consistency = CalculateConsistency(measurements);
-
-                if (avgEfficiency >= 110.0f && avgLuminance >= 1500.0f && consistency >= 0.95f)
-                {
-                    return "A";
-                }
-                else if (avgEfficiency >= 100.0f && avgLuminance >= 1200.0f && consistency >= 0.90f)
-                {
-                    return "B";
-                }
-                else if (avgEfficiency >= 90.0f && avgLuminance >= 1000.0f && consistency >= 0.85f)
-                {
-                    return "C";
-                }
-                else
-                {
-                    return "FAIL";
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"IPVS 품질 등급 판정 오류: {ex.Message}");
-                return "FAIL";
-            }
-        }
-
-        /// <summary>
-        /// 측정값 일관성 계산
-        /// </summary>
-        private float CalculateConsistency(List<(float x, float y, float l, float current, float efficiency)> measurements)
-        {
-            try
-            {
-                var efficiencyValues = measurements.Select(m => m.efficiency).ToList();
-                var mean = efficiencyValues.Average();
-                var variance = efficiencyValues.Sum(v => Math.Pow(v - mean, 2)) / efficiencyValues.Count;
-                var stdDev = Math.Sqrt(variance);
-                
-                // 표준편차가 작을수록 일관성이 높음
-                return Math.Max(0, 1.0f - (float)(stdDev / mean));
-            }
-            catch
-            {
-                return 0.0f;
-            }
         }
         #endregion
     }
 }
-
-
-
-
-

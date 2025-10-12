@@ -10,21 +10,37 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using System.Runtime.InteropServices;
-using OptiX.Models;
-using OptiX.OPTIC;
-using OptiX_UI.Result_LOG;
+using OptiX.Common;
+using OptiX.DLL;
 
-namespace OptiX.ViewModels
+namespace OptiX.OPTIC
 {
     public class OpticPageViewModel : INotifyPropertyChanged
     {
         #region Fields
         private ObservableCollection<DataTableItem> dataItems;
         private int currentZone = 0;
+        private int selectedWadIndex = 0; // 현재 선택된 WAD 인덱스 (0 = 0도, 1 = 15도, ...)
         private bool isDarkMode = false;
         private DispatcherTimer characteristicsTimer;
         private DispatcherTimer ipvsTimer;
-        private OpticPage opticPage; // OpticPage 참조 추가
+        #endregion
+
+        #region Events (View와의 통신용 - 순환 참조 제거)
+        /// <summary>
+        /// 테스트 시작 요청 이벤트
+        /// </summary>
+        public event EventHandler TestStartRequested;
+
+        /// <summary>
+        /// 판정 현황 업데이트 요청 이벤트
+        /// </summary>
+        public event EventHandler<JudgmentStatusUpdateEventArgs> JudgmentStatusUpdateRequested;
+
+        /// <summary>
+        /// 그래프 표시 업데이트 요청 이벤트
+        /// </summary>
+        public event EventHandler<GraphDisplayUpdateEventArgs> GraphDisplayUpdateRequested;
         #endregion
 
         #region Properties
@@ -38,6 +54,12 @@ namespace OptiX.ViewModels
         {
             get => currentZone;
             set => SetProperty(ref currentZone, value);
+        }
+
+        public int SelectedWadIndex
+        {
+            get => selectedWadIndex;
+            set => SetProperty(ref selectedWadIndex, value);
         }
 
         public bool IsDarkMode
@@ -64,10 +86,9 @@ namespace OptiX.ViewModels
         #endregion
 
         #region Constructor
-        public OpticPageViewModel(OpticPage page = null)
+        public OpticPageViewModel()
         {
             DataItems = new ObservableCollection<DataTableItem>();
-            opticPage = page; // OpticPage 참조 설정
             
             // Commands 초기화
             TestStartCommand = new RelayCommand(ExecuteTestStart);
@@ -299,11 +320,8 @@ namespace OptiX.ViewModels
                     return;
                 }
 
-                // 시퀀스 기반 테스트 시작만 수행
-                if (opticPage != null)
-                {
-                    opticPage.StartTest();
-                }
+                // 시퀀스 기반 테스트 시작 요청 이벤트 발생
+                TestStartRequested?.Invoke(this, EventArgs.Empty);
             }
             catch (DllNotFoundException)
             {
@@ -369,8 +387,8 @@ namespace OptiX.ViewModels
             CurrentZone = zoneIndex;
             System.Diagnostics.Debug.WriteLine($"Zone {zoneIndex + 1} 선택됨. currentZone = {CurrentZone}");
 
-            // DllManager에 현재 Zone 설정
-            DllManager.SetCurrentZone(CurrentZone + 1);
+            // SeqExecutionManager에 현재 Zone 설정
+            SeqExecutionManager.SetCurrentZone(CurrentZone + 1);
 
             // Zone 변경만 수행, 테이블 재생성하지 않음
             // UI에서 Zone 버튼 스타일만 변경됨
@@ -425,20 +443,28 @@ namespace OptiX.ViewModels
                 System.Diagnostics.Debug.WriteLine($"현재 CurrentZone: {CurrentZone}, targetZone: {targetZone}");
 
                 // TACT 계산 (해당 Zone의 SEQ 시작 시간부터 종료 시간까지의 소요 시간)
-                DateTime zoneSeqStartTime = DllManager.GetZoneSeqStartTime(actualZone);
-                DateTime zoneSeqEndTime = DllManager.GetZoneSeqEndTime(actualZone);
+                DateTime zoneSeqStartTime = SeqExecutionManager.GetZoneSeqStartTime(actualZone);
+                DateTime zoneSeqEndTime = SeqExecutionManager.GetZoneSeqEndTime(actualZone);
+                
+                // Race Condition 방지: 종료 시간이 아직 설정되지 않았으면 현재 시간 사용
+                if (zoneSeqEndTime == default(DateTime) || zoneSeqEndTime < zoneSeqStartTime)
+                {
+                    zoneSeqEndTime = DateTime.Now;
+                    System.Diagnostics.Debug.WriteLine($"Zone {targetZone} 종료 시간이 아직 설정 안됨 - 현재 시간 사용");
+                }
+                
                 double tactSeconds = (zoneSeqEndTime - zoneSeqStartTime).TotalSeconds;
                 string tactValue = tactSeconds.ToString("F3");
                 
-                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} TACT 계산: {tactValue}초 (Zone SEQ 시작: {zoneSeqStartTime:HH:mm:ss.fff}, 종료: {zoneSeqEndTime:HH:mm:ss.fff})");
+                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} TACT 계산: {tactValue}초 (시작: {zoneSeqStartTime:HH:mm:ss.fff}, 종료: {zoneSeqEndTime:HH:mm:ss.fff})");
 
                 // DLL output 구조체를 2차원 배열로 변환 (result 값 추출)
-                int[,] resultArray = new int[7, 17];
-                for (int wad = 0; wad < 7; wad++)
+                int[,] resultArray = new int[DLL.DllConstants.MAX_WAD_COUNT, DLL.DllConstants.MAX_PATTERN_COUNT];
+                for (int wad = 0; wad < DLL.DllConstants.MAX_WAD_COUNT; wad++)
                 {
-                    for (int pattern = 0; pattern < 17; pattern++)
+                    for (int pattern = 0; pattern < DLL.DllConstants.MAX_PATTERN_COUNT; pattern++)
                     {
-                        int index = wad * 17 + pattern;
+                        int index = wad * DLL.DllConstants.MAX_PATTERN_COUNT + pattern;
                         if (index < output.data.Length)
                         {
                             resultArray[wad, pattern] = output.data[index].result;
@@ -451,12 +477,12 @@ namespace OptiX.ViewModels
                 System.Diagnostics.Debug.WriteLine($"Zone {targetZone} 전체 판정: {zoneJudgment}");
 
                 // 각 Category별로 데이터 업데이트
-                int availableCategories = Math.Min(categoryNames.Length, 17);
+                int availableCategories = Math.Min(categoryNames.Length, DLL.DllConstants.MAX_PATTERN_COUNT);
                 for (int categoryIndex = 0; categoryIndex < availableCategories; categoryIndex++)
                 {
-                    // WAD 0도 (첫 번째 WAD)에서 해당 패턴의 데이터 가져오기
+                    // 현재 선택된 WAD에서 해당 패턴의 데이터 가져오기
                     int patternIndex = GetPatternArrayIndex(categoryNames[categoryIndex]);
-                    int dataIndex = 0 * 17 + patternIndex; // WAD 0도에서의 데이터
+                    int dataIndex = SelectedWadIndex * DLL.DllConstants.MAX_PATTERN_COUNT + patternIndex; // 현재 선택된 WAD의 데이터
 
                     if (dataIndex >= output.data.Length) continue;
 
@@ -557,57 +583,8 @@ namespace OptiX.ViewModels
                 var startTime = DateTime.Now.AddSeconds(-10); // 테스트 시작 시간 (예시)
                 var endTime = DateTime.Now; // 테스트 종료 시간
 
-                // EECP 로그 생성
-                string createEecp = GlobalDataManager.GetValue("MTP", "CREATE_EECP", "F");
-                System.Diagnostics.Debug.WriteLine($"CREATE_EECP 설정값: {createEecp}");
-                if (createEecp == "T")
-                {
-                    System.Diagnostics.Debug.WriteLine("EECP 로그 생성 시작...");
-                    // Singleton Instance 사용
-                    var eecpLogger = OptiX_UI.Result_LOG.EECPLogger.Instance;
-                    var outputData = ConvertToOutputData(output);
-                    eecpLogger.LogEECPData(startTime, endTime, cellId, innerId, CurrentZone + 1, outputData);
-                    System.Diagnostics.Debug.WriteLine("EECP 로그 생성 완료");
-                }
-
-                // EECP_SUMMARY 로그 생성
-                string createEecpSummary = GlobalDataManager.GetValue("MTP", "CREATE_EECP_SUMMARY", "F");
-                System.Diagnostics.Debug.WriteLine($"CREATE_EECP_SUMMARY 설정값: {createEecpSummary}");
-                if (createEecpSummary == "T")
-                {
-                    System.Diagnostics.Debug.WriteLine("EECP_SUMMARY 로그 생성 시작...");
-                    // Singleton Instance 사용
-                    var eecpSummaryLogger = OptiX_UI.Result_LOG.EECPSummaryLogger.Instance;
-                    string summaryData = $"Zone_{CurrentZone + 1}_Summary_Data";
-                    eecpSummaryLogger.LogEECPSummaryData(startTime, endTime, cellId, innerId, CurrentZone + 1, summaryData);
-                    System.Diagnostics.Debug.WriteLine("EECP_SUMMARY 로그 생성 완료");
-                }
-
-                // CIM 로그 생성
-                string createCim = GlobalDataManager.GetValue("MTP", "CREATE_CIM", "F");
-                System.Diagnostics.Debug.WriteLine($"CREATE_CIM 설정값: {createCim}");
-                if (createCim == "T")
-                {
-                    System.Diagnostics.Debug.WriteLine("CIM 로그 생성 시작...");
-                    // Singleton Instance 사용
-                    var cimLogger = OptiX_UI.Result_LOG.CIMLogger.Instance;
-                    string cimData = $"Zone_{CurrentZone + 1}_CIM_Data";
-                    cimLogger.LogCIMData(startTime, endTime, cellId, innerId, CurrentZone + 1, cimData);
-                    System.Diagnostics.Debug.WriteLine("CIM 로그 생성 완료");
-                }
-
-                // VALIDATION 로그 생성
-                string createValidation = GlobalDataManager.GetValue("MTP", "CREATE_VALIDATION", "F");
-                System.Diagnostics.Debug.WriteLine($"CREATE_VALIDATION 설정값: {createValidation}");
-                if (createValidation == "T")
-                {
-                    System.Diagnostics.Debug.WriteLine("VALIDATION 로그 생성 시작...");
-                    // Singleton Instance 사용
-                    var validationLogger = OptiX_UI.Result_LOG.ValidationLogger.Instance;
-                    string validationData = $"Zone_{CurrentZone + 1}_Validation_Data";
-                    validationLogger.LogValidationData(startTime, endTime, cellId, innerId, CurrentZone + 1, validationData);
-                    System.Diagnostics.Debug.WriteLine("VALIDATION 로그 생성 완료");
-                }
+                // ResultLogManager를 통해 모든 로그 생성 (OPTIC)
+                ResultLogManager.CreateResultLogsForZone(startTime, endTime, cellId, innerId, CurrentZone + 1, output);
                 
                 System.Diagnostics.Debug.WriteLine("=== MAKE_RESULT_LOG 완료 ===");
             }
@@ -618,84 +595,6 @@ namespace OptiX.ViewModels
             }
         }
 
-        /// <summary>
-        /// Output 구조체를 OutputData로 변환 (이상한 값은 0으로 처리)
-        /// </summary>
-        private OutputData ConvertToOutputData(Output output)
-        {
-            var outputData = new OutputData();
-            
-            // data 배열 초기화 (7x17)
-            outputData.data = new OptiX_UI.Result_LOG.Pattern[7, 17];
-            
-            // output.data를 2차원 배열로 변환 (이상한 값은 0으로 처리)
-            for (int wad = 0; wad < 7; wad++)
-            {
-                for (int pattern = 0; pattern < 17; pattern++)
-                {
-                    int index = wad * 17 + pattern;
-                    if (index < output.data.Length)
-                    {
-                        var sourcePattern = output.data[index];
-                        outputData.data[wad, pattern] = new OptiX_UI.Result_LOG.Pattern
-                        {
-                            x = SanitizeValue(sourcePattern.x),
-                            y = SanitizeValue(sourcePattern.y),
-                            u = SanitizeValue(sourcePattern.u),
-                            v = SanitizeValue(sourcePattern.v),
-                            L = SanitizeValue(sourcePattern.L),
-                            cur = SanitizeValue(sourcePattern.cur),
-                            eff = SanitizeValue(sourcePattern.eff)
-                        };
-                    }
-                }
-            }
-            
-            // measure 배열 초기화 (7개)
-            outputData.measure = new OptiX_UI.Result_LOG.Pattern[7];
-            for (int i = 0; i < 7 && i < output.measure.Length; i++)
-            {
-                var sourceMeasure = output.measure[i];
-                outputData.measure[i] = new OptiX_UI.Result_LOG.Pattern 
-                { 
-                    x = SanitizeValue(sourceMeasure.x),
-                    y = SanitizeValue(sourceMeasure.y),
-                    u = SanitizeValue(sourceMeasure.u),
-                    v = SanitizeValue(sourceMeasure.v),
-                    L = SanitizeValue(sourceMeasure.L),
-                    cur = SanitizeValue(sourceMeasure.cur),
-                    eff = SanitizeValue(sourceMeasure.eff)
-                };
-            }
-            
-            // lut 배열 초기화 (3개)
-            outputData.lut = new OptiX_UI.Result_LOG.LutParameter[3];
-            for (int i = 0; i < 3 && i < output.lut.Length; i++)
-            {
-                outputData.lut[i] = new OptiX_UI.Result_LOG.LutParameter
-                {
-                    value1 = SanitizeValue(output.lut[i].max_lumi),
-                    value2 = SanitizeValue(output.lut[i].max_index),
-                    value3 = SanitizeValue(output.lut[i].gamma)
-                };
-            }
-            
-            return outputData;
-        }
-
-        /// <summary>
-        /// 이상한 값(6.49E+27 같은)을 0으로 처리
-        /// </summary>
-        private float SanitizeValue(float value)
-        {
-            // NaN, Infinity, 매우 큰 값들을 0으로 처리
-            if (float.IsNaN(value) || float.IsInfinity(value) || 
-                Math.Abs(value) > 1e10f) // 10억보다 큰 값은 이상한 값으로 간주
-            {
-                return 0.0f;
-            }
-            return value;
-        }
 
         #region 판정 현황 관리
         private int totalCount = 0;
@@ -743,35 +642,28 @@ namespace OptiX.ViewModels
         }
 
         /// <summary>
-        /// 판정 현황 표 UI 업데이트
+        /// 판정 현황 표 UI 업데이트 (이벤트 기반)
         /// </summary>
         public void UpdateJudgmentStatusUI()
         {
             try
             {
-                // OpticPage 인스턴스를 직접 사용 (생성자에서 받은 참조)
-                if (opticPage == null) 
-                {
-                    System.Diagnostics.Debug.WriteLine("OpticPage 참조가 null입니다.");
-                    return;
-                }
-
                 System.Diagnostics.Debug.WriteLine($"판정 현황 표 업데이트: Total={totalCount}, OK={okCount}, NG={ngCount}, PTN={ptnCount}");
 
                 // Total 행 업데이트
-                UpdateStatusTableRow(opticPage, "Total", totalCount.ToString(), "1.00");
+                UpdateStatusTableRow("Total", totalCount.ToString(), "1.00");
 
                 // OK 행 업데이트
                 double okRate = totalCount > 0 ? (double)okCount / totalCount : 0.0;
-                UpdateStatusTableRow(opticPage, "OK", okCount.ToString(), okRate.ToString("F2"));
+                UpdateStatusTableRow("OK", okCount.ToString(), okRate.ToString("F2"));
 
                 // R/J(NG) 행 업데이트
                 double ngRate = totalCount > 0 ? (double)ngCount / totalCount : 0.0;
-                UpdateStatusTableRow(opticPage, "R/J", ngCount.ToString(), ngRate.ToString("F2"));
+                UpdateStatusTableRow("R/J", ngCount.ToString(), ngRate.ToString("F2"));
 
                 // PTN 행 업데이트
                 double ptnRate = totalCount > 0 ? (double)ptnCount / totalCount : 0.0;
-                UpdateStatusTableRow(opticPage, "PTN", ptnCount.ToString(), ptnRate.ToString("F2"));
+                UpdateStatusTableRow("PTN", ptnCount.ToString(), ptnRate.ToString("F2"));
             }
             catch (Exception ex)
             {
@@ -780,15 +672,15 @@ namespace OptiX.ViewModels
         }
 
         /// <summary>
-        /// 판정 현황 표의 특정 행 업데이트
+        /// 판정 현황 표의 특정 행 업데이트 (이벤트 발생)
         /// </summary>
-        private void UpdateStatusTableRow(OpticPage opticPage, string rowName, string quantity, string rate)
+        private void UpdateStatusTableRow(string rowName, string quantity, string rate)
         {
             try
             {
-                // XAML에서 정의된 판정 현황 표의 TextBlock들을 찾아서 업데이트
-                // 실제 구현에서는 opticPage의 메서드를 호출하여 UI 업데이트
-                opticPage.UpdateJudgmentStatusRow(rowName, quantity, rate);
+                // View에게 업데이트 요청 이벤트 발생
+                JudgmentStatusUpdateRequested?.Invoke(this, 
+                    new JudgmentStatusUpdateEventArgs(rowName, quantity, rate));
             }
             catch (Exception ex)
             {
@@ -813,6 +705,7 @@ namespace OptiX.ViewModels
             public int ZoneNumber { get; set; }
             public string Judgment { get; set; }
             public DateTime Timestamp { get; set; }
+            public int GlobalIndex { get; set; }  // 전역 인덱스 (0부터 시작)
         }
 
         /// <summary>
@@ -829,18 +722,25 @@ namespace OptiX.ViewModels
                 {
                     ZoneNumber = zoneNumber,
                     Judgment = judgment,
-                    Timestamp = DateTime.Now
+                    Timestamp = DateTime.Now,
+                    GlobalIndex = graphDataPoints.Count  // 현재 개수를 GlobalIndex로 설정
                 };
 
                 graphDataPoints.Add(newPoint);
 
-                // 최대 300개까지만 유지 (FIFO)
-                if (graphDataPoints.Count > 300)
+                // 최대 MAX_GRAPH_DATA_POINTS개까지만 유지 (FIFO)
+                if (graphDataPoints.Count > DLL.DllConstants.MAX_GRAPH_DATA_POINTS)
                 {
                     graphDataPoints.RemoveAt(0);
+                    
+                    // GlobalIndex 재조정 (0부터 다시 시작)
+                    for (int i = 0; i < graphDataPoints.Count; i++)
+                    {
+                        graphDataPoints[i].GlobalIndex = i;
+                    }
                 }
 
-                System.Diagnostics.Debug.WriteLine($"그래프 데이터 포인트 추가: Zone{zoneNumber} - {judgment} (총 {graphDataPoints.Count}개)");
+                System.Diagnostics.Debug.WriteLine($"그래프 데이터 포인트 추가: Zone{zoneNumber} - {judgment} (총 {graphDataPoints.Count}개, GlobalIndex: {newPoint.GlobalIndex})");
 
                 // UI 스레드에서 그래프 업데이트
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -880,18 +780,35 @@ namespace OptiX.ViewModels
             try
             {
                 // OpticPage 인스턴스를 직접 사용 (생성자에서 받은 참조)
-                if (opticPage == null) 
-                {
-                    System.Diagnostics.Debug.WriteLine("OpticPage 참조가 null입니다.");
-                    return;
-                }
-
-                // 그래프 업데이트 메서드 호출
-                opticPage.UpdateGraphDisplay(graphDataPoints);
+                // View에게 그래프 업데이트 요청 이벤트 발생
+                GraphDisplayUpdateRequested?.Invoke(this, 
+                    new GraphDisplayUpdateEventArgs(graphDataPoints));
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"그래프 UI 업데이트 오류: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 그래프 데이터 초기화
+        /// </summary>
+        public void ClearGraphData()
+        {
+            try
+            {
+                graphDataPoints.Clear();
+                System.Diagnostics.Debug.WriteLine("그래프 데이터 초기화 완료");
+                
+                // UI 스레드에서 그래프 업데이트 (빈 데이터로)
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    UpdateGraphUI();
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"그래프 데이터 초기화 오류: {ex.Message}");
             }
         }
         #endregion
@@ -959,6 +876,40 @@ namespace OptiX.ViewModels
 
         public void Execute(object parameter) => _execute((T)parameter);
     }
+    #endregion
+
+    #region Event Arguments (View와의 통신용)
+    
+    /// <summary>
+    /// 판정 현황 업데이트 이벤트 인자
+    /// </summary>
+    public class JudgmentStatusUpdateEventArgs : EventArgs
+    {
+        public string RowName { get; set; }
+        public string Quantity { get; set; }
+        public string Rate { get; set; }
+
+        public JudgmentStatusUpdateEventArgs(string rowName, string quantity, string rate)
+        {
+            RowName = rowName;
+            Quantity = quantity;
+            Rate = rate;
+        }
+    }
+
+    /// <summary>
+    /// 그래프 표시 업데이트 이벤트 인자
+    /// </summary>
+    public class GraphDisplayUpdateEventArgs : EventArgs
+    {
+        public List<OpticPageViewModel.GraphDataPoint> DataPoints { get; set; }
+
+        public GraphDisplayUpdateEventArgs(List<OpticPageViewModel.GraphDataPoint> dataPoints)
+        {
+            DataPoints = dataPoints;
+        }
+    }
+
     #endregion
 }
 

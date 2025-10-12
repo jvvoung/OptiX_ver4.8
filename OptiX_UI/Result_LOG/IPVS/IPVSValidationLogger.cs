@@ -2,25 +2,25 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace OptiX_UI.Result_LOG
+namespace OptiX.Result_LOG.IPVS
 {
     /// <summary>
-    /// VALIDATION 로그 파일 생성 및 관리 클래스 (Singleton)
-    /// 경로: D:\Project\Log\Result\VALIDATION
+    /// IPVS VALIDATION 로그 파일 생성 및 관리 클래스 (Singleton)
+    /// 경로: D:\Project\Log\Result\IPVS
     /// 파일명: VALIDATION_YYYYMMDD.ini
     /// </summary>
-    public class ValidationLogger
+    public class IPVSValidationLogger
     {
         private static readonly object _fileLock = new object();
-        private static ValidationLogger _instance;
-        private readonly string _basePath = @"D:\Project\Log\Result\VALIDATION";
+        private static IPVSValidationLogger _instance;
+        private readonly string _basePath = @"D:\Project\Log\Result\IPVS\Validation";
         private readonly string _fileName;
         private readonly string _fullPath;
 
         /// <summary>
         /// Singleton Instance
         /// </summary>
-        public static ValidationLogger Instance
+        public static IPVSValidationLogger Instance
         {
             get
             {
@@ -30,7 +30,7 @@ namespace OptiX_UI.Result_LOG
                     {
                         if (_instance == null)
                         {
-                            _instance = new ValidationLogger();
+                            _instance = new IPVSValidationLogger();
                         }
                     }
                 }
@@ -38,7 +38,7 @@ namespace OptiX_UI.Result_LOG
             }
         }
 
-        private ValidationLogger()
+        private IPVSValidationLogger()
         {
             lock (_fileLock)
             {
@@ -47,18 +47,18 @@ namespace OptiX_UI.Result_LOG
                     _fileName = $"VALIDATION_{DateTime.Now:yyyyMMdd}.ini";
                     _fullPath = Path.Combine(_basePath, _fileName);
                     
-                    System.Diagnostics.Debug.WriteLine($"VALIDATION 로거 초기화: {_fullPath}");
+                    System.Diagnostics.Debug.WriteLine($"IPVS VALIDATION 로거 초기화: {_fullPath}");
                     
                     // 디렉토리가 없으면 생성
                     if (!Directory.Exists(_basePath))
                     {
                         Directory.CreateDirectory(_basePath);
-                        System.Diagnostics.Debug.WriteLine($"VALIDATION 디렉토리 생성: {_basePath}");
+                        System.Diagnostics.Debug.WriteLine($"IPVS VALIDATION 디렉토리 생성: {_basePath}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"VALIDATION 로거 초기화 오류: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"IPVS VALIDATION 로거 초기화 오류: {ex.Message}");
                     throw;
                 }
             }
@@ -67,17 +67,10 @@ namespace OptiX_UI.Result_LOG
         /// <summary>
         /// VALIDATION 로그 데이터 기록
         /// </summary>
-        /// <param name="startTime">시작 시간</param>
-        /// <param name="endTime">종료 시간</param>
-        /// <param name="cellId">셀 ID</param>
-        /// <param name="innerId">내부 ID</param>
-        /// <param name="zoneNumber">Zone 번호</param>
-        /// <param name="validationData">검증 데이터</param>
         public void LogValidationData(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneNumber, string validationData)
         {
             var logEntry = new StringBuilder();
             
-            // INI 파일 형식으로 데이터 기록
             logEntry.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}]");
             logEntry.AppendLine($"START_TIME={startTime:yyyy:MM:dd HH:mm:ss:fff}");
             logEntry.AppendLine($"END_TIME={endTime:yyyy:MM:dd HH:mm:ss:fff}");
@@ -87,7 +80,6 @@ namespace OptiX_UI.Result_LOG
             logEntry.AppendLine($"VALIDATION_DATA={validationData}");
             logEntry.AppendLine();
             
-            // 파일에 추가 (동기화 처리)
             lock (_fileLock)
             {
                 File.AppendAllText(_fullPath, logEntry.ToString(), Encoding.UTF8);
@@ -95,7 +87,7 @@ namespace OptiX_UI.Result_LOG
         }
 
         /// <summary>
-        /// 간단한 로그 메서드 (기본값 사용)
+        /// 간단한 로그 메서드
         /// </summary>
         public void LogValidationData(string cellId, string innerId, int zoneNumber, string validationData)
         {
@@ -126,3 +118,4 @@ namespace OptiX_UI.Result_LOG
         }
     }
 }
+

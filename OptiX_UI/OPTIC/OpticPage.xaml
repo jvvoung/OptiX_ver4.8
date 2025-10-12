@@ -306,7 +306,7 @@
                 Style="{StaticResource SecondaryButtonStyle}"
                 FontSize="20" 
                         FontWeight="Bold"
-                        Command="{Binding BackCommand}"
+                        Command="{Binding BackCommand}" 
 >
             <TextBlock Text="←" 
                        HorizontalAlignment="Center" 
@@ -626,9 +626,14 @@
                                         <Grid x:Name="MonitorGrid" />
                                     </ScrollViewer>
                                 </Grid>
-                                <Grid x:Name="GraphContent" Visibility="Collapsed">
-                                    <!-- 동적으로 생성될 그래프 영역 -->
-                                </Grid>
+                                <ScrollViewer x:Name="GraphScrollViewer" 
+                                              Visibility="Collapsed"
+                                              VerticalScrollBarVisibility="Auto" 
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <Grid x:Name="GraphContent">
+                                        <!-- 동적으로 생성될 그래프 영역 -->
+                                    </Grid>
+                                </ScrollViewer>
                                 <Grid x:Name="TotalContent" Visibility="Collapsed">
                                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                         <TextBlock Text="📈" 

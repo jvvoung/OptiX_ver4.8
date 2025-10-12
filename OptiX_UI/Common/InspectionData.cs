@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace OptiX.Models
+namespace OptiX.Common
 {
     /// <summary>
     /// 검사 데이터 구조체 (MTP/IPVS 공통)

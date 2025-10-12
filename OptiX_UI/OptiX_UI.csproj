@@ -15,7 +15,7 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
     <UseWPF>true</UseWPF>
-    <ApplicationIcon>OptixIcon.ico</ApplicationIcon>
+    <ApplicationIcon>Images\OptixIcon.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>x64</PlatformTarget>
@@ -76,7 +76,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Page Include="CellIdInputWindow.xaml">
+    <Page Include="Common\CellIdInputWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -84,11 +84,11 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="ManualPage.xaml">
+    <Page Include="Main\ManualPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="MainWindow.xaml">
+    <Page Include="Main\MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -96,47 +96,56 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="CellIdInputWindow.xaml.cs">
-      <DependentUpon>CellIdInputWindow.xaml</DependentUpon>
+    <Compile Include="Common\CellIdInputWindow.xaml.cs">
+      <DependentUpon>Common\CellIdInputWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="GlobalDataManager.cs" />
-    <Compile Include="IniFileManager.cs" />
-    <Compile Include="LanguageManager.cs" />
-    <Compile Include="DllManager.cs" />
-    <Compile Include="CommunicationServer.cs" />
-    <Compile Include="CommunicationLogger.cs" />
+    <Compile Include="Common\GlobalDataManager.cs" />
+    <Compile Include="Common\IniFileManager.cs" />
+    <Compile Include="Language\LanguageManager.cs" />
+    <Compile Include="Language\LanguageHelper.cs" />
+    <Compile Include="DLL\DllConstants.cs" />
+    <Compile Include="DLL\DllManager.cs" />
+    <Compile Include="DLL\DllStructures.cs" />
+    <Compile Include="DLL\DllFunctions.cs" />
+    <Compile Include="DLL\SeqExecutionManager.cs" />
+    <Compile Include="DLL\ResultLogManager.cs" />
+    <Compile Include="Communication\CommunicationServer.cs" />
+    <Compile Include="Communication\CommunicationLogger.cs" />
     <Compile Include="IPVS\IPVSPage.xaml.cs">
       <DependentUpon>IPVS\IPVSPage.xaml</DependentUpon>
     </Compile>
-    <Compile Include="LUTPage.xaml.cs">
-      <DependentUpon>LUTPage.xaml</DependentUpon>
+    <Compile Include="Main\LUTPage.xaml.cs">
+      <DependentUpon>Main\LUTPage.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ManualPage.xaml.cs">
-      <DependentUpon>ManualPage.xaml</DependentUpon>
+    <Compile Include="Main\ManualPage.xaml.cs">
+      <DependentUpon>Main\ManualPage.xaml</DependentUpon>
     </Compile>
-    <Compile Include="MainWindow.xaml.cs">
-      <DependentUpon>MainWindow.xaml</DependentUpon>
+    <Compile Include="Main\MainWindow.xaml.cs">
+      <DependentUpon>Main\MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Main\PageNavigationManager.cs" />
+    <Compile Include="Main\TooltipManager.cs" />
+    <Compile Include="Main\WindowResizeManager.cs" />
     <Page Include="OPTIC\OpticPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="PathSettingWindow.xaml">
+    <Page Include="Common\PathSettingWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="MainSettingsWindow.xaml">
+    <Page Include="Main\MainSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="LUTPage.xaml">
+    <Page Include="Main\LUTPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MonitorLogService.cs" />
+    <Compile Include="Common\MonitorLogService.cs" />
     <Compile Include="OPTIC\OpticPage.xaml.cs">
       <DependentUpon>OPTIC\OpticPage.xaml</DependentUpon>
     </Compile>
@@ -155,21 +164,35 @@
     </Compile>
     <Compile Include="OPTIC\OpticPageViewModel.cs" />
     <Compile Include="OPTIC\OpticJudgment.cs" />
+    <Compile Include="OPTIC\OpticDataTableManager.cs" />
+    <Compile Include="OPTIC\OpticHelpers.cs" />
+    <Compile Include="OPTIC\OpticSeqExecutor.cs" />
+    <Compile Include="Common\GraphManager.cs" />
+    <Compile Include="Common\MonitorManager.cs" />
+    <Compile Include="Common\JudgmentStatusManager.cs" />
+    <Compile Include="Common\ZoneButtonManager.cs" />
     <Compile Include="IPVS\IPVSPageViewModel.cs" />
-    <Compile Include="IPVS\IpvsJudgment.cs" />
-    <Compile Include="Models\DataTableItem.cs" />
-    <Compile Include="Models\InspectionData.cs" />
-    <Compile Include="PathSettingWindow.xaml.cs">
-      <DependentUpon>PathSettingWindow.xaml</DependentUpon>
+    <Compile Include="IPVS\IPVSJudgment.cs" />
+    <Compile Include="IPVS\IPVSHelpers.cs" />
+    <Compile Include="IPVS\IPVSDataTableManager.cs" />
+    <Compile Include="IPVS\IPVSSeqExecutor.cs" />
+    <Compile Include="Common\DataTableItem.cs" />
+    <Compile Include="Common\InspectionData.cs" />
+    <Compile Include="Common\PathSettingWindow.xaml.cs">
+      <DependentUpon>Common\PathSettingWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="MainSettingsWindow.xaml.cs">
-      <DependentUpon>MainSettingsWindow.xaml</DependentUpon>
+    <Compile Include="Main\MainSettingsWindow.xaml.cs">
+      <DependentUpon>Main\MainSettingsWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ThemeManager.cs" />
-    <Compile Include="Result_LOG\EECPLogger.cs" />
-    <Compile Include="Result_LOG\EECPSummaryLogger.cs" />
-    <Compile Include="Result_LOG\CIMLogger.cs" />
-    <Compile Include="Result_LOG\ValidationLogger.cs" />
+    <Compile Include="Common\ThemeManager.cs" />
+    <Compile Include="Result_LOG\OPTIC\OpticCIMLogger.cs" />
+    <Compile Include="Result_LOG\OPTIC\OpticEECPLogger.cs" />
+    <Compile Include="Result_LOG\OPTIC\OpticEECPSummaryLogger.cs" />
+    <Compile Include="Result_LOG\OPTIC\OpticValidationLogger.cs" />
+    <Compile Include="Result_LOG\IPVS\IPVSCIMLogger.cs" />
+    <Compile Include="Result_LOG\IPVS\IPVSEECPLogger.cs" />
+    <Compile Include="Result_LOG\IPVS\IPVSEECPSummaryLogger.cs" />
+    <Compile Include="Result_LOG\IPVS\IPVSValidationLogger.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -183,7 +206,7 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="OptixIcon.ico" />
+    <Resource Include="Images\OptixIcon.ico" />
     <Resource Include="Images\CIExy1931.png" />
     <Resource Include="Images\CIE_1976.png" />
   </ItemGroup>

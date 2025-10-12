@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace OptiX
+namespace OptiX.Common
 {
     public class IniFileManager
     {

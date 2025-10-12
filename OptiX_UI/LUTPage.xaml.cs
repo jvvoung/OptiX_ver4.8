@@ -7,8 +7,9 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Documents;
+using OptiX.DLL;
 
-namespace OptiX
+namespace OptiX.Main
 {
     /// <summary>
     /// LUTPage.xaml에 대한 상호 작용 논리
@@ -174,7 +175,7 @@ namespace OptiX
                 {
                     System.Diagnostics.Debug.WriteLine($"RGB {rgb} 처리 시작...");
                     
-                    var (lutParam, success) = DllManager.CallGetLUTdata(rgb, rv, gv, bv, interval, count);
+                    var (lutParam, success) = DllFunctions.CallGetLUTdata(rgb, rv, gv, bv, interval, count);
                     
                     if (success)
                     {
