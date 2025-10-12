@@ -109,6 +109,7 @@
     <Compile Include="DLL\DllFunctions.cs" />
     <Compile Include="DLL\SeqExecutionManager.cs" />
     <Compile Include="DLL\ResultLogManager.cs" />
+    <Compile Include="DLL\DllResultHandler.cs" />
     <Compile Include="Communication\CommunicationServer.cs" />
     <Compile Include="Communication\CommunicationLogger.cs" />
     <Compile Include="IPVS\IPVSPage.xaml.cs">
@@ -170,6 +171,7 @@
     <Compile Include="Common\GraphManager.cs" />
     <Compile Include="Common\MonitorManager.cs" />
     <Compile Include="Common\JudgmentStatusManager.cs" />
+    <Compile Include="Common\ViewModelHelpers.cs" />
     <Compile Include="Common\ZoneButtonManager.cs" />
     <Compile Include="IPVS\IPVSPageViewModel.cs" />
     <Compile Include="IPVS\IPVSJudgment.cs" />

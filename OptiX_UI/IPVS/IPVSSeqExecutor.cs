@@ -24,21 +24,24 @@ namespace OptiX.IPVS
     /// </summary>
     public class IPVSSeqExecutor
     {
-        private readonly Action<List<IPVSPageViewModel.GraphDataPoint>> updateGraphDisplay;
+        private readonly Action<List<GraphManager.GraphDataPoint>> updateGraphDisplay;
         private readonly IPVSDataTableManager dataTableManager;
         private readonly IPVSPageViewModel viewModel;
+        private readonly GraphManager graphManager;
         private bool isTestStarted = false;
         private bool[] zoneTestCompleted;
         private bool[] zoneMeasured;
 
         public IPVSSeqExecutor(
-            Action<List<IPVSPageViewModel.GraphDataPoint>> updateGraphDisplay,
+            Action<List<GraphManager.GraphDataPoint>> updateGraphDisplay,
             IPVSDataTableManager dataTableManager,
-            IPVSPageViewModel viewModel)
+            IPVSPageViewModel viewModel,
+            GraphManager graphManager)
         {
             this.updateGraphDisplay = updateGraphDisplay ?? throw new ArgumentNullException(nameof(updateGraphDisplay));
             this.dataTableManager = dataTableManager ?? throw new ArgumentNullException(nameof(dataTableManager));
             this.viewModel = viewModel;
+            this.graphManager = graphManager ?? throw new ArgumentNullException(nameof(graphManager));
 
             // Zone별 상태 배열 초기화
             InitializeZoneArrays();
@@ -165,11 +168,8 @@ namespace OptiX.IPVS
 
             try
             {
-                // Sequence_IPVS.ini 파일 경로
-                string seqIniPath = System.IO.Path.Combine(
-                    AppDomain.CurrentDomain.BaseDirectory,
-                    "Sequence_IPVS.ini"
-                );
+                // Sequence_IPVS.ini 파일 경로 (GlobalDataManager에서 캐시된 경로 사용)
+                string seqIniPath = GlobalDataManager.GetIPVSSequencePath();
 
                 if (!System.IO.File.Exists(seqIniPath))
                 {
@@ -335,9 +335,8 @@ namespace OptiX.IPVS
             {
                 MonitorLogService.Instance.Log(zoneNumber - 1, $"ENTER IPVS_TEST");
 
-                // Zone별 CELL_ID, INNER_ID 가져오기 (IPVS 섹션에서)
-                string cellId = GlobalDataManager.GetValue("IPVS", $"CELL_ID_ZONE_{zoneNumber}", "");
-                string innerId = GlobalDataManager.GetValue("IPVS", $"INNER_ID_ZONE_{zoneNumber}", "");
+                // Zone별 CELL_ID, INNER_ID 가져오기 (캐시된 IPVS Zone 정보 사용)
+                var (cellId, innerId) = GlobalDataManager.GetIPVSZoneInfo(zoneNumber);
 
                 // MAX_POINT 읽기
                 int maxPoint = int.Parse(GlobalDataManager.GetValue("IPVS", "MAX_POINT", "5"));
@@ -363,7 +362,7 @@ namespace OptiX.IPVS
                     // ViewModel 업데이트 (UI 스레드에서 실행)
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        viewModel.UpdateDataTableWithDllResult(output, zoneNumber);
+                        viewModel.UpdateDataTableWithDllResult(output, zoneNumber, dataTableManager, graphManager);
                     });
 
                     // IPVS 결과 로그 생성

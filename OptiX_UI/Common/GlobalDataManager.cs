@@ -15,7 +15,12 @@ namespace OptiX.Common
         private static bool _isInitialized = false;
         
         // Zone별 정보를 전역 변수로 저장 (INI 파일 읽기 최소화)
-        private static Dictionary<int, (string cellId, string innerId)> _zoneInfo = new Dictionary<int, (string, string)>();
+        private static Dictionary<int, (string cellId, string innerId)> _mtpZoneInfo = new Dictionary<int, (string, string)>();
+        private static Dictionary<int, (string cellId, string innerId)> _ipvsZoneInfo = new Dictionary<int, (string, string)>();
+        
+        // Sequence 파일 경로 캐시
+        private static string _mtpSequencePath = "";
+        private static string _ipvsSequencePath = "";
 
         /// <summary>
         /// 전역 데이터 매니저 초기화 (프로그램 시작 시 호출)
@@ -56,12 +61,20 @@ namespace OptiX.Common
                 
                 // MTP_PATHS 섹션
                 LoadSectionData("MTP_PATHS");
+                // MTP Sequence 경로 캐시 (MTP_PATHS 로드 직후)
+                string mtpSeqKey = "MTP_PATHS.SEQUENCE_FOLDER";
+                _mtpSequencePath = _iniData.ContainsKey(mtpSeqKey) ? _iniData[mtpSeqKey] : @"D:\Project\Recipe\Sequence\Sequence_Optic.ini";
+                System.Diagnostics.Debug.WriteLine($"[MTP] SEQUENCE_FOLDER 캐시: {_mtpSequencePath}");
                 
                 // IPVS 섹션
                 LoadSectionData("IPVS");
                 
                 // IPVS_PATHS 섹션
                 LoadSectionData("IPVS_PATHS");
+                // IPVS Sequence 경로 캐시 (IPVS_PATHS 로드 직후)
+                string ipvsSeqKey = "IPVS_PATHS.SEQUENCE_FOLDER";
+                _ipvsSequencePath = _iniData.ContainsKey(ipvsSeqKey) ? _iniData[ipvsSeqKey] : System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sequence_IPVS.ini");
+                System.Diagnostics.Debug.WriteLine($"[IPVS] SEQUENCE_FOLDER 캐시: {_ipvsSequencePath}");
                 
                 // Settings 섹션
                 LoadSectionData("Settings");
@@ -98,7 +111,7 @@ namespace OptiX.Common
             {
                 "Category", "WAD", "TCP_IP", "CREATE_EECP", "CREATE_CIM", 
                 "CREATE_EECP_SUMMARY", "CREATE_VALIDATION", "MAX_POINT",
-                "EECP_FOLDER", "CIM_FOLDER", "VALID_FOLDER", "DLL_FOLDER", "SEQUENCE_FOLDER",
+                "EECP_FOLDER", "CIM_FOLDER", "VALID_FOLDER", "DLL_FOLDER", "SEQUENCE_FOLDER", "EECP_SUMMARY_FOLDER",
                 "IsDarkMode", "LANGUAGE", "MTP_ZONE", "IPVS_ZONE"
             };
 
@@ -144,6 +157,8 @@ namespace OptiX.Common
                 string ipvsZoneStr = _iniManager.ReadValue("Settings", "IPVS_ZONE", "2");
                 int ipvsZoneCount = int.Parse(ipvsZoneStr);
                 
+                System.Diagnostics.Debug.WriteLine($"[LoadSectionData] IPVS 섹션 로드 시작: {ipvsZoneCount}개 Zone");
+                
                 for (int zone = 1; zone <= ipvsZoneCount; zone++)
                 {
                     string cellIdKey = $"CELL_ID_ZONE_{zone}";
@@ -152,16 +167,28 @@ namespace OptiX.Common
                     string cellId = _iniManager.ReadValue(section, cellIdKey, "");
                     string innerId = _iniManager.ReadValue(section, innerIdKey, "");
                     
+                    System.Diagnostics.Debug.WriteLine($"[LoadSectionData] IPVS Zone {zone} - INI에서 읽음: Cell ID='{cellId}', Inner ID='{innerId}'");
                     
                     if (!string.IsNullOrEmpty(cellId))
                     {
                         string fullKey = $"{section}.{cellIdKey}";
                         _iniData[fullKey] = cellId;
+                        System.Diagnostics.Debug.WriteLine($"[LoadSectionData] 캐시에 저장: {fullKey} = '{cellId}'");
                     }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[LoadSectionData] ❌ Cell ID가 비어있음: {section}.{cellIdKey}");
+                    }
+                    
                     if (!string.IsNullOrEmpty(innerId))
                     {
                         string fullKey = $"{section}.{innerIdKey}";
                         _iniData[fullKey] = innerId;
+                        System.Diagnostics.Debug.WriteLine($"[LoadSectionData] 캐시에 저장: {fullKey} = '{innerId}'");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[LoadSectionData] ❌ Inner ID가 비어있음: {section}.{innerIdKey}");
                     }
                 }
             }
@@ -262,30 +289,58 @@ namespace OptiX.Common
         }
         
         /// <summary>
-        /// Zone별 Cell ID와 Inner ID를 전역 변수에 로드 (MTP 성능 최적화)
+        /// Zone별 Cell ID와 Inner ID를 전역 변수에 로드 (MTP 및 IPVS 성능 최적화)
+        /// ⚠️ 이 함수는 LoadAllIniData() 내부에서 호출되므로, _isInitialized가 아직 false입니다.
+        /// 따라서 GetValue() 대신 _iniData를 직접 읽어야 합니다.
         /// </summary>
         private static void LoadZoneInfo()
         {
-            _zoneInfo.Clear();
+            _mtpZoneInfo.Clear();
+            _ipvsZoneInfo.Clear();
             
             try
             {
-                // 캐시된 _iniData에서 읽기 (INI 파일 재읽기 방지)
-                string mtpZoneStr = GetValue("Settings", "MTP_ZONE", "2");
+                // MTP Zone 정보 로드
+                string mtpZoneKey = "Settings.MTP_ZONE";
+                string mtpZoneStr = _iniData.ContainsKey(mtpZoneKey) ? _iniData[mtpZoneKey] : "2";
                 int mtpZoneCount = int.Parse(mtpZoneStr);
                 
-                System.Diagnostics.Debug.WriteLine($"MTP_ZONE 개수: {mtpZoneCount}");
+                System.Diagnostics.Debug.WriteLine($"=== MTP Zone 정보 로드 시작 (총 {mtpZoneCount}개) ===");
                 
                 for (int zone = 1; zone <= mtpZoneCount; zone++)
                 {
-                    string cellId = GetValue("MTP", $"CELL_ID_ZONE_{zone}", "");
-                    string innerId = GetValue("MTP", $"INNER_ID_ZONE_{zone}", "");
-                    _zoneInfo[zone] = (cellId, innerId);
+                    string cellIdKey = $"MTP.CELL_ID_ZONE_{zone}";
+                    string innerIdKey = $"MTP.INNER_ID_ZONE_{zone}";
                     
-                    System.Diagnostics.Debug.WriteLine($"Zone {zone} 로드: Cell ID='{cellId}', Inner ID='{innerId}' (캐시에서 읽음)");
+                    string cellId = _iniData.ContainsKey(cellIdKey) ? _iniData[cellIdKey] : "";
+                    string innerId = _iniData.ContainsKey(innerIdKey) ? _iniData[innerIdKey] : "";
+                    
+                    _mtpZoneInfo[zone] = (cellId, innerId);
+                    
+                    System.Diagnostics.Debug.WriteLine($"[MTP] Zone {zone} 로드: Cell ID='{cellId}', Inner ID='{innerId}'");
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"Zone 정보 로드 완료: {_zoneInfo.Count}개 Zone");
+                // IPVS Zone 정보 로드
+                string ipvsZoneKey = "Settings.IPVS_ZONE";
+                string ipvsZoneStr = _iniData.ContainsKey(ipvsZoneKey) ? _iniData[ipvsZoneKey] : "2";
+                int ipvsZoneCount = int.Parse(ipvsZoneStr);
+                
+                System.Diagnostics.Debug.WriteLine($"=== IPVS Zone 정보 로드 시작 (총 {ipvsZoneCount}개) ===");
+                
+                for (int zone = 1; zone <= ipvsZoneCount; zone++)
+                {
+                    string cellIdKey = $"IPVS.CELL_ID_ZONE_{zone}";
+                    string innerIdKey = $"IPVS.INNER_ID_ZONE_{zone}";
+                    
+                    string cellId = _iniData.ContainsKey(cellIdKey) ? _iniData[cellIdKey] : "";
+                    string innerId = _iniData.ContainsKey(innerIdKey) ? _iniData[innerIdKey] : "";
+                    
+                    _ipvsZoneInfo[zone] = (cellId, innerId);
+                    
+                    System.Diagnostics.Debug.WriteLine($"[IPVS] Zone {zone} 로드: Cell ID='{cellId}', Inner ID='{innerId}'");
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"Zone 정보 로드 완료: MTP {_mtpZoneInfo.Count}개, IPVS {_ipvsZoneInfo.Count}개");
             }
             catch (Exception ex)
             {
@@ -294,21 +349,70 @@ namespace OptiX.Common
         }
         
         /// <summary>
-        /// Zone별 Cell ID와 Inner ID를 가져오기 (전역 변수에서)
+        /// Zone별 Cell ID와 Inner ID를 가져오기 (MTP 전용)
         /// </summary>
         public static (string cellId, string innerId) GetZoneInfo(int zoneNumber)
         {
-            if (_zoneInfo.ContainsKey(zoneNumber))
+            if (_mtpZoneInfo.ContainsKey(zoneNumber))
             {
-                var result = _zoneInfo[zoneNumber];
-                System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} 정보 반환: Cell ID='{result.cellId}', Inner ID='{result.innerId}'");
+                var result = _mtpZoneInfo[zoneNumber];
+                System.Diagnostics.Debug.WriteLine($"[MTP] Zone {zoneNumber} 정보 반환: Cell ID='{result.cellId}', Inner ID='{result.innerId}'");
                 return result;
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} 정보가 없음 - 기본값 반환 (총 {_zoneInfo.Count}개 Zone)");
+                System.Diagnostics.Debug.WriteLine($"[MTP] Zone {zoneNumber} 정보가 없음 - 기본값 반환 (총 {_mtpZoneInfo.Count}개 Zone)");
                 return ("", "");
             }
+        }
+        
+        /// <summary>
+        /// Zone별 Cell ID와 Inner ID를 가져오기 (IPVS 전용)
+        /// </summary>
+        public static (string cellId, string innerId) GetIPVSZoneInfo(int zoneNumber)
+        {
+            if (_ipvsZoneInfo.ContainsKey(zoneNumber))
+            {
+                var result = _ipvsZoneInfo[zoneNumber];
+                System.Diagnostics.Debug.WriteLine($"[IPVS] Zone {zoneNumber} 정보 반환: Cell ID='{result.cellId}', Inner ID='{result.innerId}'");
+                return result;
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[IPVS] Zone {zoneNumber} 정보가 없음 - 기본값 반환 (총 {_ipvsZoneInfo.Count}개 Zone)");
+                return ("", "");
+            }
+        }
+        
+        /// <summary>
+        /// MTP(OPTIC) Sequence 파일 경로 가져오기
+        /// </summary>
+        public static string GetMTPSequencePath()
+        {
+            if (!_isInitialized)
+            {
+                System.Diagnostics.Debug.WriteLine("GlobalDataManager가 초기화되지 않음!");
+                return @"D:\Project\Recipe\Sequence\Sequence_Optic.ini";
+            }
+            
+            return _mtpSequencePath;
+        }
+        
+        /// <summary>
+        /// IPVS Sequence 파일 경로 가져오기
+        /// </summary>
+        public static string GetIPVSSequencePath()
+        {
+            if (!_isInitialized)
+            {
+                System.Diagnostics.Debug.WriteLine("GlobalDataManager가 초기화되지 않음!");
+                return System.IO.Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    "Sequence_IPVS.ini"
+                );
+            }
+            
+            return _ipvsSequencePath;
         }
     }
 }

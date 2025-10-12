@@ -2,19 +2,20 @@ using System;
 using System.IO;
 using System.Text;
 using OptiX.DLL;
+using OptiX.Common;
 
 namespace OptiX.Result_LOG.OPTIC
 {
     /// <summary>
     /// OPTIC EECP 로그 파일 생성 및 관리 클래스 (Singleton)
-    /// 경로: D:\Project\Log\Result\특성
+    /// 경로: INI 파일에서 로드 (MTP_PATHS.EECP_FOLDER)
     /// 파일명: EECP_YYYYMMDD.csv
     /// </summary>
     public class OpticEECPLogger
     {
         private static readonly object _fileLock = new object();
         private static OpticEECPLogger _instance;
-        private readonly string _basePath = @"D:\Project\Log\Result\특성\EECP";
+        private readonly string _basePath;
         private readonly string _fileName;
         private readonly string _fullPath;
 
@@ -45,6 +46,8 @@ namespace OptiX.Result_LOG.OPTIC
             {
                 try
                 {
+                    // INI 파일에서 EECP 폴더 경로 읽기
+                    _basePath = GlobalDataManager.GetValue("MTP_PATHS", "EECP_FOLDER", @"D:\Project\Log\Result\특성\EECP");
                     _fileName = $"EECP_{DateTime.Now:yyyyMMdd}.csv";
                     _fullPath = Path.Combine(_basePath, _fileName);
                     

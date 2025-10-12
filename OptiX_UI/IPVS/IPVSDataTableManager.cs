@@ -1000,5 +1000,53 @@ namespace OptiX.IPVS
         }
 
         #endregion
+
+        #region DLL 결과 업데이트 메서드
+
+        /// <summary>
+        /// 개별 데이터 아이템 업데이트 (DllResultHandler에서 호출)
+        /// </summary>
+        public void UpdateDataItem(
+            string zone,
+            string point,
+            string x,
+            string y,
+            string l,
+            string current,
+            string efficiency,
+            string cellId,
+            string innerId,
+            string tact)
+        {
+            var existingItem = viewModel.DataItems.FirstOrDefault(item =>
+                item.Zone == zone && item.Point == point);
+
+            if (existingItem != null)
+            {
+                existingItem.X = x;
+                existingItem.Y = y;
+                existingItem.L = l;
+                existingItem.Current = current;
+                existingItem.Efficiency = efficiency;
+                existingItem.CellId = cellId;
+                existingItem.InnerId = innerId;
+                existingItem.ErrorName = "";
+                existingItem.Tact = tact;
+            }
+        }
+
+        /// <summary>
+        /// Zone 전체 판정 업데이트 (DllResultHandler에서 호출)
+        /// </summary>
+        public void UpdateZoneJudgment(string zone, string judgment)
+        {
+            var zoneItems = viewModel.DataItems.Where(item => item.Zone == zone).ToList();
+            foreach (var item in zoneItems)
+            {
+                item.Judgment = judgment;
+            }
+        }
+
+        #endregion
     }
 }

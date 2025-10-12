@@ -123,7 +123,7 @@ namespace OptiX.OPTIC
 
                 try
                 {
-                    string seqIniPath = @"D:\Project\Recipe\Sequence\Sequence_Optic.ini";
+                    string seqIniPath = GlobalDataManager.GetMTPSequencePath();
                     System.Diagnostics.Debug.WriteLine($"시퀀스 INI 파일 로드: {seqIniPath}");
 
                     var seqIniManager = new IniFileManager(seqIniPath);
@@ -418,122 +418,28 @@ namespace OptiX.OPTIC
             });
         }
 
-        public void UpdateDataTableWithDllResult(Output output, int zoneNumber = -1)
+        public void UpdateDataTableWithDllResult(Output output, int zoneNumber, OpticDataTableManager dataTableManager)
         {
             try
             {
-                // zoneNumber가 전달되면 사용, 아니면 CurrentZone 사용
-                int actualZone = zoneNumber > 0 ? zoneNumber : CurrentZone;
-                System.Diagnostics.Debug.WriteLine($"UI 업데이트 시작... 현재 Zone: {CurrentZone}, 전달된 Zone: {zoneNumber}, 실제 사용할 Zone: {actualZone}");
+                System.Diagnostics.Debug.WriteLine($"=== UpdateDataTableWithDllResult 시작: Zone {zoneNumber} ===");
 
-                var targetZone = actualZone.ToString();
-                System.Diagnostics.Debug.WriteLine($"업데이트할 Zone: {targetZone}");
-
+                var targetZone = zoneNumber.ToString();
                 string categoriesStr = GlobalDataManager.GetValue("MTP", "Category", "W,WG,R,G,B");
                 string[] categoryNames = categoriesStr.Split(',').Select(c => c.Trim()).ToArray();
 
-                // Zone별로 다른 키를 사용하여 Cell ID와 Inner ID 읽기
-                string cellIdKey = $"CELL_ID_ZONE_{targetZone}";
-                string innerIdKey = $"INNER_ID_ZONE_{targetZone}";
-
-                string cellId = GlobalDataManager.GetValue("MTP", cellIdKey, "");
-                string innerId = GlobalDataManager.GetValue("MTP", innerIdKey, "");
-
-                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} - Cell ID: {cellId}, Inner ID: {innerId}");
-                System.Diagnostics.Debug.WriteLine($"현재 CurrentZone: {CurrentZone}, targetZone: {targetZone}");
-
-                // TACT 계산 (해당 Zone의 SEQ 시작 시간부터 종료 시간까지의 소요 시간)
-                DateTime zoneSeqStartTime = SeqExecutionManager.GetZoneSeqStartTime(actualZone);
-                DateTime zoneSeqEndTime = SeqExecutionManager.GetZoneSeqEndTime(actualZone);
-                
-                // Race Condition 방지: 종료 시간이 아직 설정되지 않았으면 현재 시간 사용
-                if (zoneSeqEndTime == default(DateTime) || zoneSeqEndTime < zoneSeqStartTime)
-                {
-                    zoneSeqEndTime = DateTime.Now;
-                    System.Diagnostics.Debug.WriteLine($"Zone {targetZone} 종료 시간이 아직 설정 안됨 - 현재 시간 사용");
-                }
-                
-                double tactSeconds = (zoneSeqEndTime - zoneSeqStartTime).TotalSeconds;
-                string tactValue = tactSeconds.ToString("F3");
-                
-                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} TACT 계산: {tactValue}초 (시작: {zoneSeqStartTime:HH:mm:ss.fff}, 종료: {zoneSeqEndTime:HH:mm:ss.fff})");
-
-                // DLL output 구조체를 2차원 배열로 변환 (result 값 추출)
-                int[,] resultArray = new int[DLL.DllConstants.MAX_WAD_COUNT, DLL.DllConstants.MAX_PATTERN_COUNT];
-                for (int wad = 0; wad < DLL.DllConstants.MAX_WAD_COUNT; wad++)
-                {
-                    for (int pattern = 0; pattern < DLL.DllConstants.MAX_PATTERN_COUNT; pattern++)
-                    {
-                        int index = wad * DLL.DllConstants.MAX_PATTERN_COUNT + pattern;
-                        if (index < output.data.Length)
-                        {
-                            resultArray[wad, pattern] = output.data[index].result;
-                        }
-                    }
-                }
-
-                // Zone 전체 판정 수행
-                string zoneJudgment = OpticJudgment.Instance.JudgeZoneFromResults(resultArray);
-                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} 전체 판정: {zoneJudgment}");
-
-                // 각 Category별로 데이터 업데이트
-                int availableCategories = Math.Min(categoryNames.Length, DLL.DllConstants.MAX_PATTERN_COUNT);
-                for (int categoryIndex = 0; categoryIndex < availableCategories; categoryIndex++)
-                {
-                    // 현재 선택된 WAD에서 해당 패턴의 데이터 가져오기
-                    int patternIndex = GetPatternArrayIndex(categoryNames[categoryIndex]);
-                    int dataIndex = SelectedWadIndex * DLL.DllConstants.MAX_PATTERN_COUNT + patternIndex; // 현재 선택된 WAD의 데이터
-
-                    if (dataIndex >= output.data.Length) continue;
-
-                    var pattern = output.data[dataIndex];
-                    int result = pattern.result;
-
-                    // 디버그: 실제 DLL에서 받은 result 값 확인
-                    System.Diagnostics.Debug.WriteLine($"Zone {targetZone}, Category {categoryNames[categoryIndex]}, result={result}");
-
-                    // 개별 패턴 판정
-                    string patternJudgment = OpticJudgment.Instance.GetPatternJudgment(result);
-
-                    var existingItem = DataItems.FirstOrDefault(item =>
-                        item.Zone == targetZone && item.Category == categoryNames[categoryIndex]);
-
-                    if (existingItem != null)
-                    {
-                        existingItem.X = pattern.x.ToString("F2");
-                        existingItem.Y = pattern.y.ToString("F2");
-                        existingItem.L = pattern.L.ToString("F2");
-                        existingItem.Current = pattern.cur.ToString("F3");
-                        existingItem.Efficiency = pattern.eff.ToString("F2");
-                        existingItem.CellId = cellId;    // Zone별 Cell ID
-                        existingItem.InnerId = innerId;  // Zone별 Inner ID
-                        existingItem.ErrorName = "";
-                        existingItem.Tact = tactValue;   // 계산된 TACT 값
-                        existingItem.Judgment = patternJudgment; // 개별 패턴 판정
-
-                        System.Diagnostics.Debug.WriteLine($"Zone {targetZone} 아이템 업데이트: {existingItem.Category} - Judgment: {patternJudgment}");
-                    }
-                }
-
-                // Zone 전체 판정을 모든 아이템의 Judgment에 반영 (일관성 유지)
-                var zoneItems = DataItems.Where(item => item.Zone == targetZone).ToList();
-                foreach (var item in zoneItems)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Zone {targetZone} 아이템 {item.Category}: {item.Judgment} → {zoneJudgment}");
-                    item.Judgment = zoneJudgment;
-                }
-                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} 전체 판정 적용: {zoneJudgment}");
+                // DllResultHandler를 통해 결과 처리
+                var handler = new DllResultHandler();
+                string zoneJudgment = handler.ProcessOpticResult(
+                    output,
+                    targetZone,
+                    dataTableManager,
+                    SelectedWadIndex,
+                    categoryNames,
+                    UpdateJudgmentStatusTable
+                );
 
                 OnPropertyChanged(nameof(DataItems));
-                
-                // 판정 현황 표 업데이트
-                UpdateJudgmentStatusTable(zoneJudgment);
-                
-                // 그래프 영역 업데이트는 OpticPage.xaml.cs에서 처리됨
-                // AddGraphDataPoint(actualZone, zoneJudgment); // 중복 제거
-                
-                // 결과 로그 생성은 DllManager.ExecuteMakeResultLog에서 처리됨
-                // CreateResultLogs(output, cellId, innerId); // 중복 제거
             }
             catch (Exception ex)
             {
@@ -689,63 +595,22 @@ namespace OptiX.OPTIC
         }
         #endregion
 
-        #region 그래프 영역 관리
-        private List<GraphDataPoint> graphDataPoints = new List<GraphDataPoint>();
+        #region 그래프 영역 관리 (GraphManager로 위임)
         
         /// <summary>
-        /// 그래프 데이터 포인트들 (공개 접근)
+        /// 그래프 데이터 포인트 추가 - GraphManager로 위임
         /// </summary>
-        public List<GraphDataPoint> GraphDataPoints => graphDataPoints;
-
-        /// <summary>
-        /// 그래프 데이터 포인트 클래스
-        /// </summary>
-        public class GraphDataPoint
-        {
-            public int ZoneNumber { get; set; }
-            public string Judgment { get; set; }
-            public DateTime Timestamp { get; set; }
-            public int GlobalIndex { get; set; }  // 전역 인덱스 (0부터 시작)
-        }
-
-        /// <summary>
-        /// 그래프 데이터 포인트 추가
-        /// </summary>
-        /// <param name="zoneNumber">Zone 번호</param>
-        /// <param name="judgment">판정 결과</param>
-        public void AddGraphDataPoint(int zoneNumber, string judgment)
+        public void AddGraphDataPoint(int zoneNumber, string judgment, GraphManager graphManager)
         {
             try
             {
-                // 새로운 데이터 포인트 추가
-                var newPoint = new GraphDataPoint
-                {
-                    ZoneNumber = zoneNumber,
-                    Judgment = judgment,
-                    Timestamp = DateTime.Now,
-                    GlobalIndex = graphDataPoints.Count  // 현재 개수를 GlobalIndex로 설정
-                };
-
-                graphDataPoints.Add(newPoint);
-
-                // 최대 MAX_GRAPH_DATA_POINTS개까지만 유지 (FIFO)
-                if (graphDataPoints.Count > DLL.DllConstants.MAX_GRAPH_DATA_POINTS)
-                {
-                    graphDataPoints.RemoveAt(0);
-                    
-                    // GlobalIndex 재조정 (0부터 다시 시작)
-                    for (int i = 0; i < graphDataPoints.Count; i++)
-                    {
-                        graphDataPoints[i].GlobalIndex = i;
-                    }
-                }
-
-                System.Diagnostics.Debug.WriteLine($"그래프 데이터 포인트 추가: Zone{zoneNumber} - {judgment} (총 {graphDataPoints.Count}개, GlobalIndex: {newPoint.GlobalIndex})");
-
+                // GraphManager를 통해 데이터 추가 (Timestamp 포함)
+                var dataPoints = graphManager.AddDataPoint(zoneNumber, judgment, includeTimestamp: true);
+                
                 // UI 스레드에서 그래프 업데이트
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    UpdateGraphUI();
+                    GraphDisplayUpdateRequested?.Invoke(this, new GraphDisplayUpdateEventArgs(dataPoints));
                 });
             }
             catch (Exception ex)
@@ -761,7 +626,6 @@ namespace OptiX.OPTIC
         {
             try
             {
-                // Zone별 판정 결과 찾기 (Zone은 string 타입)
                 var zoneData = DataItems?.Where(item => item.Zone == zoneNumber.ToString()).FirstOrDefault();
                 return zoneData?.Judgment ?? "";
             }
@@ -773,37 +637,18 @@ namespace OptiX.OPTIC
         }
 
         /// <summary>
-        /// 그래프 UI 업데이트
+        /// 그래프 데이터 초기화 - GraphManager로 위임
         /// </summary>
-        private void UpdateGraphUI()
+        public void ClearGraphData(GraphManager graphManager)
         {
             try
             {
-                // OpticPage 인스턴스를 직접 사용 (생성자에서 받은 참조)
-                // View에게 그래프 업데이트 요청 이벤트 발생
-                GraphDisplayUpdateRequested?.Invoke(this, 
-                    new GraphDisplayUpdateEventArgs(graphDataPoints));
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"그래프 UI 업데이트 오류: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 그래프 데이터 초기화
-        /// </summary>
-        public void ClearGraphData()
-        {
-            try
-            {
-                graphDataPoints.Clear();
-                System.Diagnostics.Debug.WriteLine("그래프 데이터 초기화 완료");
+                graphManager.ClearDataPoints();
                 
                 // UI 스레드에서 그래프 업데이트 (빈 데이터로)
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    UpdateGraphUI();
+                    GraphDisplayUpdateRequested?.Invoke(this, new GraphDisplayUpdateEventArgs(new List<GraphManager.GraphDataPoint>()));
                 });
             }
             catch (Exception ex)
@@ -831,85 +676,5 @@ namespace OptiX.OPTIC
         }
         #endregion
     }
-
-    #region RelayCommand Classes
-    public class RelayCommand : ICommand
-    {
-        private readonly Action _execute;
-        private readonly Func<bool> _canExecute;
-
-        public RelayCommand(Action execute, Func<bool> canExecute = null)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
-
-        public event EventHandler CanExecuteChanged
-        {
-            add { CommandManager.RequerySuggested += value; }
-            remove { CommandManager.RequerySuggested -= value; }
-        }
-
-        public bool CanExecute(object parameter) => _canExecute?.Invoke() ?? true;
-
-        public void Execute(object parameter) => _execute();
-    }
-
-    public class RelayCommand<T> : ICommand
-    {
-        private readonly Action<T> _execute;
-        private readonly Func<T, bool> _canExecute;
-
-        public RelayCommand(Action<T> execute, Func<T, bool> canExecute = null)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
-
-        public event EventHandler CanExecuteChanged
-        {
-            add { CommandManager.RequerySuggested += value; }
-            remove { CommandManager.RequerySuggested -= value; }
-        }
-
-        public bool CanExecute(object parameter) => _canExecute?.Invoke((T)parameter) ?? true;
-
-        public void Execute(object parameter) => _execute((T)parameter);
-    }
-    #endregion
-
-    #region Event Arguments (View와의 통신용)
-    
-    /// <summary>
-    /// 판정 현황 업데이트 이벤트 인자
-    /// </summary>
-    public class JudgmentStatusUpdateEventArgs : EventArgs
-    {
-        public string RowName { get; set; }
-        public string Quantity { get; set; }
-        public string Rate { get; set; }
-
-        public JudgmentStatusUpdateEventArgs(string rowName, string quantity, string rate)
-        {
-            RowName = rowName;
-            Quantity = quantity;
-            Rate = rate;
-        }
-    }
-
-    /// <summary>
-    /// 그래프 표시 업데이트 이벤트 인자
-    /// </summary>
-    public class GraphDisplayUpdateEventArgs : EventArgs
-    {
-        public List<OpticPageViewModel.GraphDataPoint> DataPoints { get; set; }
-
-        public GraphDisplayUpdateEventArgs(List<OpticPageViewModel.GraphDataPoint> dataPoints)
-        {
-            DataPoints = dataPoints;
-        }
-    }
-
-    #endregion
 }
 

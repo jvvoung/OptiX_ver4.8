@@ -2,19 +2,20 @@ using System;
 using System.IO;
 using System.Text;
 using OptiX.DLL;
+using OptiX.Common;
 
 namespace OptiX.Result_LOG.IPVS
 {
     /// <summary>
     /// IPVS EECP 로그 파일 생성 및 관리 클래스 (Singleton)
-    /// 경로: D:\Project\Log\Result\IPVS
+    /// 경로: INI 파일에서 로드 (IPVS_PATHS.EECP_FOLDER)
     /// 파일명: EECP_YYYYMMDD.csv
     /// </summary>
     public class IPVSEECPLogger
     {
         private static readonly object _fileLock = new object();
         private static IPVSEECPLogger _instance;
-        private readonly string _basePath = @"D:\Project\Log\Result\IPVS\EECP";
+        private readonly string _basePath;
         private readonly string _fileName;
         private readonly string _fullPath;
 
@@ -45,6 +46,8 @@ namespace OptiX.Result_LOG.IPVS
             {
                 try
                 {
+                    // INI 파일에서 EECP 폴더 경로 읽기
+                    _basePath = GlobalDataManager.GetValue("IPVS_PATHS", "EECP_FOLDER", @"D:\Project\Log\Result\IPVS\EECP");
                     _fileName = $"EECP_{DateTime.Now:yyyyMMdd}.csv";
                     _fullPath = Path.Combine(_basePath, _fileName);
                     

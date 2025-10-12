@@ -1,19 +1,20 @@
 using System;
 using System.IO;
 using System.Text;
+using OptiX.Common;
 
 namespace OptiX.Result_LOG.IPVS
 {
     /// <summary>
     /// IPVS EECP_SUMMARY 로그 파일 생성 및 관리 클래스 (Singleton)
-    /// 경로: D:\Project\Log\Result\IPVS
+    /// 경로: INI 파일에서 로드 (IPVS_PATHS.EECP_SUMMARY_FOLDER)
     /// 파일명: EECP_SUMMARY_YYYYMMDD.csv
     /// </summary>
     public class IPVSEECPSummaryLogger
     {
         private static readonly object _fileLock = new object();
         private static IPVSEECPSummaryLogger _instance;
-        private readonly string _basePath = @"D:\Project\Log\Result\IPVS\EECP_Summary";
+        private readonly string _basePath;
         private readonly string _fileName;
         private readonly string _fullPath;
 
@@ -44,6 +45,8 @@ namespace OptiX.Result_LOG.IPVS
             {
                 try
                 {
+                    // INI 파일에서 EECP_SUMMARY 폴더 경로 읽기
+                    _basePath = GlobalDataManager.GetValue("IPVS_PATHS", "EECP_SUMMARY_FOLDER", @"D:\Project\Log\Result\IPVS\EECP_Summary");
                     _fileName = $"EECP_SUMMARY_{DateTime.Now:yyyyMMdd}.csv";
                     _fullPath = Path.Combine(_basePath, _fileName);
                     

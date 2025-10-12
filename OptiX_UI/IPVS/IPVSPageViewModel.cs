@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -53,15 +54,12 @@ namespace OptiX.IPVS
             get => isDarkMode;
             set => SetProperty(ref isDarkMode, value);
         }
-
-        public ObservableCollection<GraphDataPoint> GraphDataPoints { get; set; }
         #endregion
 
         #region Constructor
         public IPVSPageViewModel()
         {
             DataItems = new ObservableCollection<DataTableItem>();
-            GraphDataPoints = new ObservableCollection<GraphDataPoint>();
             
             // IPVS 데이터 초기화
             InitializeIPVSData();
@@ -187,22 +185,16 @@ namespace OptiX.IPVS
         // LoadInitialData() 제거됨 - InitializeIPVSData()가 이미 올바른 데이터 생성함
 
         /// <summary>
-        /// DLL 결과로 데이터 테이블 업데이트
-        /// ⚠️ 이 메서드는 반드시 UI 스레드에서 호출되어야 합니다!
-        /// POINT==1 행만 업데이트, 판정은 [0~6][0] 데이터로 수행
+        /// DLL 결과로 데이터 테이블 업데이트 (DllResultHandler로 위임)
         /// </summary>
-        /// <param name="output">DLL Output</param>
-        /// <param name="zoneNumber">Zone 번호</param>
-        public void UpdateDataTableWithDllResult(Output output, int zoneNumber = -1)
+        public void UpdateDataTableWithDllResult(Output output, int zoneNumber, IPVSDataTableManager dataTableManager, GraphManager graphManager)
         {
-            // zoneNumber가 전달되면 사용, 아니면 CurrentZone 사용
-            int actualZone = zoneNumber > 0 ? zoneNumber : CurrentZone;
-            System.Diagnostics.Debug.WriteLine($"IPVS UI 업데이트 시작... Zone: {actualZone}");
-
-            var targetZone = actualZone.ToString();
-            
             try
             {
+                System.Diagnostics.Debug.WriteLine($"=== IPVS UpdateDataTableWithDllResult 시작: Zone {zoneNumber} ===");
+
+                var targetZone = zoneNumber.ToString();
+
                 // IPVS_data 확인
                 if (output.IPVS_data == null || output.IPVS_data.Length == 0)
                 {
@@ -210,82 +202,18 @@ namespace OptiX.IPVS
                     return;
                 }
 
-                // Zone별 Cell ID와 Inner ID 가져오기 (IPVS 섹션에서)
-                string cellId = GlobalDataManager.GetValue("IPVS", $"CELL_ID_ZONE_{actualZone}", "");
-                string innerId = GlobalDataManager.GetValue("IPVS", $"INNER_ID_ZONE_{actualZone}", "");
-                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} - Cell ID: '{cellId}', Inner ID: '{innerId}'");
+                // DllResultHandler를 통해 결과 처리
+                var handler = new DLL.DllResultHandler();
+                string zoneJudgment = handler.ProcessIPVSResult(
+                    output,
+                    targetZone,
+                    dataTableManager,
+                    SelectedWadIndex,
+                    UpdateJudgmentStatusTable
+                );
 
-                // TACT 계산
-                DateTime zoneSeqStartTime = SeqExecutionManager.GetZoneSeqStartTime(actualZone);
-                DateTime zoneSeqEndTime = SeqExecutionManager.GetZoneSeqEndTime(actualZone);
-                
-                if (zoneSeqEndTime == default(DateTime) || zoneSeqEndTime < zoneSeqStartTime)
-                {
-                    zoneSeqEndTime = DateTime.Now;
-                }
-                
-                double tactSeconds = (zoneSeqEndTime - zoneSeqStartTime).TotalSeconds;
-                string tactValue = tactSeconds.ToString("F3");
-                
-                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} TACT: {tactValue}초");
-
-                // POINT==1 행만 업데이트 (현재 선택된 WAD의 첫 번째 포인트)
-                // IPVS_data는 1차원 배열 [IPVS_DATA_SIZE] (MAX_WAD_COUNT × MAX_POINT_COUNT)
-                // 접근: [wadIndex * MAX_POINT_COUNT + pointIndex]
-                int dataIndex = SelectedWadIndex * DLL.DllConstants.MAX_POINT_COUNT + 0; // POINT==1이므로 pointIndex=0
-                var pattern = output.IPVS_data[dataIndex];
-                
-                var existingItem = DataItems.FirstOrDefault(item =>
-                    item.Zone == targetZone && item.Point == "1");
-
-                if (existingItem != null)
-                {
-                    existingItem.X = pattern.x.ToString("F2");
-                    existingItem.Y = pattern.y.ToString("F2");
-                    existingItem.L = pattern.L.ToString("F2");
-                    existingItem.Current = pattern.cur.ToString("F3");
-                    existingItem.Efficiency = pattern.eff.ToString("F2");
-                    existingItem.CellId = cellId;
-                    existingItem.InnerId = innerId;
-                    existingItem.ErrorName = "";
-                    existingItem.Tact = tactValue;
-
-                    System.Diagnostics.Debug.WriteLine($"✅ Zone {targetZone} POINT==1 업데이트 완료");
-                }
-
-                // 판정: [0][0] ~ [MAX_WAD_COUNT-1][0] 데이터로 수행 (MAX_WAD_COUNT개 WAD 각도)
-                int okCount = 0;
-                int totalWad = 0;
-                
-                for (int wadIdx = 0; wadIdx < DLL.DllConstants.MAX_WAD_COUNT; wadIdx++)
-                {
-                    int idx = wadIdx * DLL.DllConstants.MAX_POINT_COUNT + 0; // 각 WAD의 첫 번째 포인트
-                    if (idx < output.IPVS_data.Length)
-                    {
-                        totalWad++;
-                        int result = output.IPVS_data[idx].result;
-                        
-                        // IPVSJudgment 클래스 사용 (OPTIC과 동일)
-                        string judgment = IPVSJudgment.Instance.GetPointJudgment(result);
-                        if (judgment == "OK") okCount++;
-                        
-                        System.Diagnostics.Debug.WriteLine($"WAD[{wadIdx}][0] (index={idx}) result={result} → {judgment}");
-                    }
-                }
-
-                string zoneJudgment = (okCount == totalWad) ? "OK" : "R/J";
-                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} 전체 판정: {zoneJudgment} (OK: {okCount}/{totalWad})");
-
-                // 판정을 모든 Point 행에 반영
-                var zoneItems = DataItems.Where(item => item.Zone == targetZone).ToList();
-                foreach (var item in zoneItems)
-                {
-                    item.Judgment = zoneJudgment;
-                }
-
-                // 판정 현황 표 및 그래프 업데이트
-                UpdateJudgmentStatusTable(zoneJudgment);
-                AddGraphDataPoint(actualZone, zoneJudgment);
+                // 그래프 데이터 추가 (GraphManager 사용)
+                AddGraphDataPoint(zoneNumber, zoneJudgment, graphManager);
 
                 // 데이터 변경 알림
                 OnPropertyChanged(nameof(DataItems));
@@ -293,7 +221,7 @@ namespace OptiX.IPVS
                 // 테이블 재생성 요청 (UI 업데이트)
                 DataTableUpdateRequested?.Invoke(this, EventArgs.Empty);
                 
-                System.Diagnostics.Debug.WriteLine($"IPVS UI 업데이트 완료");
+                System.Diagnostics.Debug.WriteLine($"=== IPVS UpdateDataTableWithDllResult 완료: Zone {zoneNumber}, 판정: {zoneJudgment} ===");
             }
             catch (Exception ex)
             {
@@ -340,38 +268,49 @@ namespace OptiX.IPVS
             JudgmentStatusUpdateRequested?.Invoke(this, new JudgmentStatusUpdateEventArgs { RowName = "RJ", Quantity = rjCount.ToString(), Rate = rjRate });
             JudgmentStatusUpdateRequested?.Invoke(this, new JudgmentStatusUpdateEventArgs { RowName = "PTN", Quantity = ptnCount.ToString(), Rate = ptnRate });
         }
-        
-        public void ClearGraphData()
-        {
-            GraphDataPoints.Clear();
-            GraphDisplayUpdateRequested?.Invoke(this, new GraphDisplayUpdateEventArgs { DataPoints = new System.Collections.Generic.List<GraphDataPoint>() });
-        }
         #endregion
 
-        #region Graph Data
-        public class GraphDataPoint
-        {
-            public int ZoneNumber { get; set; }
-            public string Judgment { get; set; }
-            public int GlobalIndex { get; set; }
-        }
+        #region Graph Data (GraphManager로 위임)
         
-        public void AddGraphDataPoint(int zoneNumber, string judgment)
+        /// <summary>
+        /// 그래프 데이터 포인트 추가 - GraphManager로 위임
+        /// </summary>
+        public void AddGraphDataPoint(int zoneNumber, string judgment, GraphManager graphManager)
         {
-            var newPoint = new GraphDataPoint
+            try
             {
-                ZoneNumber = zoneNumber,
-                Judgment = judgment,
-                GlobalIndex = GraphDataPoints.Count
-            };
-            GraphDataPoints.Add(newPoint);
-            
-            System.Diagnostics.Debug.WriteLine($"그래프 데이터 포인트 추가: Zone{zoneNumber} - {judgment} (총 {GraphDataPoints.Count}개, GlobalIndex: {newPoint.GlobalIndex})");
-            
-            GraphDisplayUpdateRequested?.Invoke(this, new GraphDisplayUpdateEventArgs
+                // GraphManager를 통해 데이터 추가 (Timestamp 미포함)
+                var dataPoints = graphManager.AddDataPoint(zoneNumber, judgment, includeTimestamp: false);
+                
+                GraphDisplayUpdateRequested?.Invoke(this, new GraphDisplayUpdateEventArgs
+                {
+                    DataPoints = dataPoints
+                });
+            }
+            catch (Exception ex)
             {
-                DataPoints = GraphDataPoints.ToList()
-            });
+                System.Diagnostics.Debug.WriteLine($"그래프 데이터 포인트 추가 오류: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 그래프 데이터 초기화 - GraphManager로 위임
+        /// </summary>
+        public void ClearGraphData(GraphManager graphManager)
+        {
+            try
+            {
+                graphManager.ClearDataPoints();
+                
+                GraphDisplayUpdateRequested?.Invoke(this, new GraphDisplayUpdateEventArgs
+                {
+                    DataPoints = new List<GraphManager.GraphDataPoint>()
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"그래프 데이터 초기화 오류: {ex.Message}");
+            }
         }
         #endregion
 
@@ -399,77 +338,4 @@ namespace OptiX.IPVS
         }
         #endregion
     }
-
-    #region Event Arguments
-    public class JudgmentStatusUpdateEventArgs : EventArgs
-    {
-        public string RowName { get; set; }
-        public string Quantity { get; set; }
-        public string Rate { get; set; }
-    }
-
-    public class GraphDisplayUpdateEventArgs : EventArgs
-    {
-        public System.Collections.Generic.List<IPVSPageViewModel.GraphDataPoint> DataPoints { get; set; }
-    }
-    #endregion
-
-    #region RelayCommand Classes
-    public class RelayCommand : ICommand
-    {
-        private readonly Action _execute;
-        private readonly Func<bool> _canExecute;
-
-        public RelayCommand(Action execute, Func<bool> canExecute = null)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
-
-        public event EventHandler CanExecuteChanged
-        {
-            add { CommandManager.RequerySuggested += value; }
-            remove { CommandManager.RequerySuggested -= value; }
-        }
-
-        public bool CanExecute(object parameter) => _canExecute?.Invoke() ?? true;
-
-        public void Execute(object parameter) => _execute();
-    }
-
-    public class RelayCommand<T> : ICommand
-    {
-        private readonly Action<T> _execute;
-        private readonly Func<T, bool> _canExecute;
-
-        public RelayCommand(Action<T> execute, Func<T, bool> canExecute = null)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
-
-        public event EventHandler CanExecuteChanged
-        {
-            add { CommandManager.RequerySuggested += value; }
-            remove { CommandManager.RequerySuggested -= value; }
-        }
-
-        public bool CanExecute(object parameter)
-        {
-            if (_canExecute == null) return true;
-            if (parameter == null) return false;
-            
-            if (parameter is T typedParam)
-                return _canExecute(typedParam);
-            
-            return false;
-        }
-
-        public void Execute(object parameter)
-        {
-            if (parameter is T typedParam)
-                _execute(typedParam);
-        }
-    }
-    #endregion
 }

@@ -876,6 +876,56 @@ namespace OptiX.OPTIC
         }
 
         // 불필요한 메서드 제거됨 - 원본 로직은 ViewModel과 OpticSeqExecutor에서 처리
+
+        #region DLL 결과 업데이트 메서드
+
+        /// <summary>
+        /// 개별 데이터 아이템 업데이트 (DllResultHandler에서 호출)
+        /// </summary>
+        public void UpdateDataItem(
+            string zone,
+            string category,
+            string x,
+            string y,
+            string l,
+            string current,
+            string efficiency,
+            string cellId,
+            string innerId,
+            string tact,
+            string judgment)
+        {
+            var existingItem = viewModel.DataItems.FirstOrDefault(item =>
+                item.Zone == zone && item.Category == category);
+
+            if (existingItem != null)
+            {
+                existingItem.X = x;
+                existingItem.Y = y;
+                existingItem.L = l;
+                existingItem.Current = current;
+                existingItem.Efficiency = efficiency;
+                existingItem.CellId = cellId;
+                existingItem.InnerId = innerId;
+                existingItem.ErrorName = "";
+                existingItem.Tact = tact;
+                existingItem.Judgment = judgment;
+            }
+        }
+
+        /// <summary>
+        /// Zone 전체 판정 업데이트 (DllResultHandler에서 호출)
+        /// </summary>
+        public void UpdateZoneJudgment(string zone, string judgment)
+        {
+            var zoneItems = viewModel.DataItems.Where(item => item.Zone == zone).ToList();
+            foreach (var item in zoneItems)
+            {
+                item.Judgment = judgment;
+            }
+        }
+
+        #endregion
     }
 }
 

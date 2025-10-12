@@ -147,14 +147,14 @@ namespace OptiX
                     () => {
                         // RESET 시 ViewModel 초기화
                         viewModel.InitializeJudgmentCounters();
-                        viewModel.ClearGraphData();
+                        viewModel.ClearGraphData(graphManager);
                         viewModel.UpdateJudgmentStatusUI();
                     }
                 );
                 zoneButtonManager.SetDataTableManager(dataTableManager);
             }
             
-            seqExecutor = new IPVSSeqExecutor(UpdateGraphDisplay, dataTableManager, viewModel);
+            seqExecutor = new IPVSSeqExecutor(UpdateGraphDisplay, dataTableManager, viewModel, graphManager);
             
             // 현재 다크모드 상태 가져오기 (MainWindow에서)
             try
@@ -199,17 +199,9 @@ namespace OptiX
         #endregion
 
         #region 그래프 업데이트
-        private void UpdateGraphDisplay(List<IPVSPageViewModel.GraphDataPoint> dataPoints)
+        private void UpdateGraphDisplay(List<GraphManager.GraphDataPoint> dataPoints)
         {
-            // IPVSPageViewModel.GraphDataPoint를 GraphManager.GraphDataPoint로 변환
-            var convertedPoints = dataPoints?.Select(p => new GraphManager.GraphDataPoint
-            {
-                ZoneNumber = p.ZoneNumber,
-                Judgment = p.Judgment,
-                GlobalIndex = p.GlobalIndex
-            }).ToList();
-            
-            graphManager?.UpdateGraphDisplay(convertedPoints);
+            graphManager?.UpdateGraphDisplay(dataPoints);
         }
         #endregion
 

@@ -41,6 +41,7 @@ namespace OptiX.Common
             public int ZoneNumber { get; set; }
             public string Judgment { get; set; }
             public int GlobalIndex { get; set; }
+            public DateTime Timestamp { get; set; }  // OPTIC에서 사용
         }
 
         /// <summary>
@@ -535,6 +536,103 @@ namespace OptiX.Common
                     return new SolidColorBrush(Color.FromRgb(255, 193, 7));
                 default:
                     return new SolidColorBrush(Color.FromRgb(158, 158, 158));
+            }
+        }
+
+        #endregion
+
+        #region 그래프 데이터 포인트 관리 (ViewModel에서 이동)
+
+        private List<GraphDataPoint> viewModelDataPoints = new List<GraphDataPoint>();
+
+        /// <summary>
+        /// 그래프 데이터 포인트 추가 (OPTIC/IPVS 공통)
+        /// </summary>
+        /// <param name="zoneNumber">Zone 번호</param>
+        /// <param name="judgment">판정 결과 (OK/NG/PTN/R/J)</param>
+        /// <param name="includeTimestamp">Timestamp 포함 여부 (OPTIC: true, IPVS: false)</param>
+        /// <returns>추가된 데이터 포인트 리스트</returns>
+        public List<GraphDataPoint> AddDataPoint(int zoneNumber, string judgment, bool includeTimestamp = true)
+        {
+            try
+            {
+                // 새로운 데이터 포인트 추가
+                var newPoint = new GraphDataPoint
+                {
+                    ZoneNumber = zoneNumber,
+                    Judgment = judgment,
+                    Timestamp = includeTimestamp ? DateTime.Now : default(DateTime),
+                    GlobalIndex = viewModelDataPoints.Count  // 현재 개수를 GlobalIndex로 설정
+                };
+
+                viewModelDataPoints.Add(newPoint);
+
+                // 최대 MAX_GRAPH_DATA_POINTS개까지만 유지 (FIFO) - 메모리 누수 방지
+                if (viewModelDataPoints.Count > DLL.DllConstants.MAX_GRAPH_DATA_POINTS)
+                {
+                    viewModelDataPoints.RemoveAt(0);
+                    
+                    // GlobalIndex 재조정 (0부터 다시 시작)
+                    for (int i = 0; i < viewModelDataPoints.Count; i++)
+                    {
+                        viewModelDataPoints[i].GlobalIndex = i;
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"그래프 데이터 포인트 추가: Zone{zoneNumber} - {judgment} (총 {viewModelDataPoints.Count}개, GlobalIndex: {newPoint.GlobalIndex})");
+
+                // cachedDataPoints도 업데이트 (그래프 렌더링용)
+                cachedDataPoints = new List<GraphDataPoint>(viewModelDataPoints);
+                
+                return new List<GraphDataPoint>(viewModelDataPoints);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"그래프 데이터 포인트 추가 오류: {ex.Message}");
+                return new List<GraphDataPoint>(viewModelDataPoints);
+            }
+        }
+
+        /// <summary>
+        /// 그래프 데이터 초기화
+        /// </summary>
+        public void ClearDataPoints()
+        {
+            try
+            {
+                viewModelDataPoints.Clear();
+                cachedDataPoints.Clear();
+                System.Diagnostics.Debug.WriteLine("그래프 데이터 포인트 초기화 완료");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"그래프 데이터 초기화 오류: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 현재 그래프 데이터 포인트 가져오기
+        /// </summary>
+        public List<GraphDataPoint> GetDataPoints()
+        {
+            return new List<GraphDataPoint>(viewModelDataPoints);
+        }
+
+        /// <summary>
+        /// 특정 Zone의 판정 결과 반환
+        /// </summary>
+        public string GetJudgmentForZone(int zoneNumber, System.Collections.ObjectModel.ObservableCollection<DataTableItem> dataItems)
+        {
+            try
+            {
+                // Zone별 판정 결과 찾기 (Zone은 string 타입)
+                var zoneData = dataItems?.Where(item => item.Zone == zoneNumber.ToString()).FirstOrDefault();
+                return zoneData?.Judgment ?? "";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} 판정 결과 조회 오류: {ex.Message}");
+                return "";
             }
         }
 

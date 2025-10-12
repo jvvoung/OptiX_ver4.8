@@ -10,6 +10,7 @@ namespace OptiX.Common
     public partial class PathSettingWindow : Window
     {
         public string EECPPath { get; private set; } = "";
+        public string SUMMARYPath { get; private set; } = "";
         public string CIMPath { get; private set; } = "";
         public string VALIDPath { get; private set; } = "";
         public string SequencePath { get; private set; } = "";
@@ -39,12 +40,14 @@ namespace OptiX.Common
             {
                 // INI 파일에서 기존 경로들을 로드 (지정된 섹션에서)
                 EECPPath = GlobalDataManager.GetValue(iniSection, "EECP_FOLDER", "");
+                SUMMARYPath = GlobalDataManager.GetValue(iniSection, "EECP_SUMMARY_FOLDER", "");
                 CIMPath = GlobalDataManager.GetValue(iniSection, "CIM_FOLDER", "");
                 VALIDPath = GlobalDataManager.GetValue(iniSection, "VALID_FOLDER", "");
                 SequencePath = GlobalDataManager.GetValue(iniSection, "SEQUENCE_FOLDER", "");
 
                 // 텍스트박스에 표시
                 EECPTextBox.Text = string.IsNullOrEmpty(EECPPath) ? "EECP 폴더를 선택하세요" : EECPPath;
+                SUMMARYTextBox.Text = string.IsNullOrEmpty(SUMMARYPath) ? "SUMMARY 폴더를 선택하세요" : SUMMARYPath;
                 CIMTextBox.Text = string.IsNullOrEmpty(CIMPath) ? "CIM 폴더를 선택하세요" : CIMPath;
                 VALIDTextBox.Text = string.IsNullOrEmpty(VALIDPath) ? "VALID 폴더를 선택하세요" : VALIDPath;
                 SequenceTextBox.Text = string.IsNullOrEmpty(SequencePath) ? "Sequence 파일을 선택하세요" : SequencePath;
@@ -99,6 +102,24 @@ namespace OptiX.Common
             {
                 EECPPath = Path.GetDirectoryName(dialog.FileName) ?? "";
                 EECPTextBox.Text = EECPPath;
+            }
+        }
+
+        private void SUMMARYButton_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = "SUMMARY 파일이 생성될 폴더를 선택하세요",
+                Filter = "폴더 선택|*.",
+                CheckFileExists = false,
+                CheckPathExists = true,
+                FileName = "폴더를 선택하세요"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                SUMMARYPath = Path.GetDirectoryName(dialog.FileName) ?? "";
+                SUMMARYTextBox.Text = SUMMARYPath;
             }
         }
 
@@ -186,6 +207,7 @@ namespace OptiX.Common
             {
                 // IniFileManager를 사용하여 경로 저장 (지정된 섹션에)
                 GlobalDataManager.SetValue(iniSection, "EECP_FOLDER", EECPPath);
+                GlobalDataManager.SetValue(iniSection, "EECP_SUMMARY_FOLDER", SUMMARYPath);
                 GlobalDataManager.SetValue(iniSection, "CIM_FOLDER", CIMPath);
                 GlobalDataManager.SetValue(iniSection, "VALID_FOLDER", VALIDPath);
                 GlobalDataManager.SetValue(iniSection, "SEQUENCE_FOLDER", SequencePath);
@@ -273,18 +295,20 @@ namespace OptiX.Common
                 if (FilePathSettingsTitle != null)
                     FilePathSettingsTitle.Text = LanguageManager.GetText("PathSettings.FilePathSettings");
                 
-                // 각 TextBox의 placeholder 텍스트 업데이트
-                if (EECPTextBox != null)
+                // 각 TextBox의 placeholder 텍스트 업데이트 (경로가 없을 때만)
+                if (EECPTextBox != null && string.IsNullOrEmpty(EECPPath))
                     EECPTextBox.Text = $"EECP {LanguageManager.GetText("PathSettings.SelectFolder")}";
                 
-                if (CIMTextBox != null)
+                if (SUMMARYTextBox != null && string.IsNullOrEmpty(SUMMARYPath))
+                    SUMMARYTextBox.Text = $"SUMMARY {LanguageManager.GetText("PathSettings.SelectFolder")}";
+                
+                if (CIMTextBox != null && string.IsNullOrEmpty(CIMPath))
                     CIMTextBox.Text = $"CIM {LanguageManager.GetText("PathSettings.SelectFolder")}";
                 
-                if (VALIDTextBox != null)
+                if (VALIDTextBox != null && string.IsNullOrEmpty(VALIDPath))
                     VALIDTextBox.Text = $"VALID {LanguageManager.GetText("PathSettings.SelectFolder")}";
                 
-                
-                if (SequenceTextBox != null)
+                if (SequenceTextBox != null && string.IsNullOrEmpty(SequencePath))
                     SequenceTextBox.Text = $"Seq. {LanguageManager.GetText("PathSettings.SelectFolder")}";
                 
                 System.Diagnostics.Debug.WriteLine($"PathSettingWindow 언어 적용 완료: {LanguageManager.CurrentLanguage}");

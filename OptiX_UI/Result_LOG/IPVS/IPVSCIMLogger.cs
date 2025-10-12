@@ -1,19 +1,20 @@
 using System;
 using System.IO;
 using System.Text;
+using OptiX.Common;
 
 namespace OptiX.Result_LOG.IPVS
 {
     /// <summary>
     /// IPVS CIM 로그 파일 생성 및 관리 클래스 (Singleton)
-    /// 경로: D:\Project\Log\Result\IPVS
+    /// 경로: INI 파일에서 로드 (IPVS_PATHS.CIM_FOLDER)
     /// 파일명: CIM_YYYYMMDD.dat
     /// </summary>
     public class IPVSCIMLogger
     {
         private static readonly object _fileLock = new object();
         private static IPVSCIMLogger _instance;
-        private readonly string _basePath = @"D:\Project\Log\Result\IPVS\CIM";
+        private readonly string _basePath;
         private readonly string _fileName;
         private readonly string _fullPath;
 
@@ -44,6 +45,8 @@ namespace OptiX.Result_LOG.IPVS
             {
                 try
                 {
+                    // INI 파일에서 CIM 폴더 경로 읽기
+                    _basePath = GlobalDataManager.GetValue("IPVS_PATHS", "CIM_FOLDER", @"D:\Project\Log\Result\IPVS\CIM");
                     _fileName = $"CIM_{DateTime.Now:yyyyMMdd}.dat";
                     _fullPath = Path.Combine(_basePath, _fileName);
                     

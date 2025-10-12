@@ -17,7 +17,7 @@ namespace OptiX
         {
             try
             {
-                // 전역 데이터 매니저 초기화 - INI 파일 경로 고정
+                // 전역 데이터 매니저 초기화 - INI 파일 경로 고정 (설비 표준 경로)
                 string iniPath = @"D:\Project\Recipe\OptiX.ini";
                 
                 GlobalDataManager.Initialize(iniPath);

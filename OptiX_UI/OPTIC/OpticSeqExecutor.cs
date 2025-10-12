@@ -39,21 +39,24 @@ namespace OptiX.OPTIC
     /// </summary>
     public class OpticSeqExecutor
     {
-        private readonly Action<List<OpticPageViewModel.GraphDataPoint>> updateGraphDisplay;
+        private readonly Action<List<GraphManager.GraphDataPoint>> updateGraphDisplay;
         private readonly OpticDataTableManager dataTableManager;
         private readonly OpticPageViewModel viewModel;
+        private readonly GraphManager graphManager;
         private bool isTestStarted = false;
         private bool[] zoneTestCompleted;
         private bool[] zoneMeasured;
 
         public OpticSeqExecutor(
-            Action<List<OpticPageViewModel.GraphDataPoint>> updateGraphDisplay,
+            Action<List<GraphManager.GraphDataPoint>> updateGraphDisplay,
             OpticDataTableManager dataTableManager,
-            OpticPageViewModel viewModel)
+            OpticPageViewModel viewModel,
+            GraphManager graphManager)
         {
             this.updateGraphDisplay = updateGraphDisplay ?? throw new ArgumentNullException(nameof(updateGraphDisplay));
             this.dataTableManager = dataTableManager ?? throw new ArgumentNullException(nameof(dataTableManager));
             this.viewModel = viewModel;
+            this.graphManager = graphManager ?? throw new ArgumentNullException(nameof(graphManager));
         }
 
         /// <summary>
@@ -164,20 +167,20 @@ namespace OptiX.OPTIC
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     // 각 Zone의 저장된 DLL 결과를 ViewModel에 전달하여 UI 업데이트
-                    if (viewModel != null)
+                    if (viewModel != null && dataTableManager != null)
                     {
                         foreach (int zoneNumber in zones)
                         {
                             var storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneNumber);
                             if (storedOutput.HasValue)
                             {
-                                viewModel.UpdateDataTableWithDllResult(storedOutput.Value, zoneNumber);
+                                viewModel.UpdateDataTableWithDllResult(storedOutput.Value, zoneNumber, dataTableManager);
                                 
                                 // 그래프 데이터 포인트 추가
                                 var judgment = viewModel.GetJudgmentForZone(zoneNumber);
                                 if (!string.IsNullOrEmpty(judgment))
                                 {
-                                    viewModel.AddGraphDataPoint(zoneNumber, judgment);
+                                    viewModel.AddGraphDataPoint(zoneNumber, judgment, graphManager);
                                     System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} 그래프 데이터 추가: {judgment}");
                                 }
                                 
@@ -187,10 +190,11 @@ namespace OptiX.OPTIC
                     }
                     
                     // 모든 Zone 처리 완료 후 그래프 업데이트
-                    if (viewModel != null && viewModel.GraphDataPoints != null && viewModel.GraphDataPoints.Count > 0)
+                    var graphDataPoints = graphManager?.GetDataPoints();
+                    if (graphDataPoints != null && graphDataPoints.Count > 0)
                     {
-                        System.Diagnostics.Debug.WriteLine($"그래프 표시 업데이트 호출: {viewModel.GraphDataPoints.Count}개 데이터 포인트");
-                        updateGraphDisplay?.Invoke(viewModel.GraphDataPoints);
+                        System.Diagnostics.Debug.WriteLine($"그래프 표시 업데이트 호출: {graphDataPoints.Count}개 데이터 포인트");
+                        updateGraphDisplay?.Invoke(graphDataPoints);
                     }
                     else
                     {

@@ -118,8 +118,8 @@ namespace OptiX.DLL
                     {
                         Debug.WriteLine($"[Zone {zoneNumber}] IPVS 실행 시작");
                         
-                        // Zone별 CELL_ID, INNER_ID 가져오기
-                        var (cellId, innerId) = GlobalDataManager.GetZoneInfo(zoneNumber);
+                        // Zone별 CELL_ID, INNER_ID 가져오기 (IPVS 전용)
+                        var (cellId, innerId) = GlobalDataManager.GetIPVSZoneInfo(zoneNumber);
                         
                         var input = new Input
                         {
@@ -128,6 +128,8 @@ namespace OptiX.DLL
                             total_point = DllConstants.DEFAULT_IPVS_TOTAL_POINT,  // IPVS는 5개 포인트
                             cur_point = DllConstants.DEFAULT_CURRENT_POINT
                         };
+                        
+                        Debug.WriteLine($"[Zone {zoneNumber}] IPVS Input - Cell ID: '{cellId}', Inner ID: '{innerId}'");
                         
                         var (output, ok) = DllFunctions.CallIPVSTestFunction(input);
                         

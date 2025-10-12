@@ -135,8 +135,8 @@ namespace OptiX
             graphManager = new GraphManager(graphContent, graphScrollViewer, viewModel);
             monitorManager = new MonitorManager(monitorGrid, this); // 동적 Ellipse 접근 필요
             judgmentStatusManager = new JudgmentStatusManager(statusTextBlocks, judgmentStatusContainer, this);
-            zoneButtonManager = new ZoneButtonManager(zoneButtonsPanel, viewModel);
-            seqExecutor = new OpticSeqExecutor(UpdateGraphDisplay, dataTableManager, viewModel);
+            zoneButtonManager = new ZoneButtonManager(zoneButtonsPanel, viewModel, graphManager);
+            seqExecutor = new OpticSeqExecutor(UpdateGraphDisplay, dataTableManager, viewModel, graphManager);
             
             // Manager 간 참조 설정
             zoneButtonManager.SetDataTableManager(dataTableManager);
@@ -330,12 +330,13 @@ namespace OptiX
                 
                 if (graphContent != null)
                 {
-                    // ViewModel에서 그래프 데이터 가져와서 포인트 업데이트
-                    if (viewModel != null && viewModel.GraphDataPoints != null && viewModel.GraphDataPoints.Count > 0)
+                    // GraphManager에서 그래프 데이터 가져와서 포인트 업데이트
+                    var graphDataPoints = graphManager?.GetDataPoints();
+                    if (graphDataPoints != null && graphDataPoints.Count > 0)
                     {
-                        UpdateGraphDisplay(viewModel.GraphDataPoints);
+                        UpdateGraphDisplay(graphDataPoints);
                         graphSw.Stop();
-                        System.Diagnostics.Debug.WriteLine($"[성능] 그래프 데이터 업데이트 완료: {graphSw.ElapsedMilliseconds}ms ({viewModel.GraphDataPoints.Count}개 포인트)");
+                        System.Diagnostics.Debug.WriteLine($"[성능] 그래프 데이터 업데이트 완료: {graphSw.ElapsedMilliseconds}ms ({graphDataPoints.Count}개 포인트)");
                     }
                     else
                     {
@@ -554,17 +555,9 @@ namespace OptiX
         /// <summary>
         /// 그래프 표시 업데이트 (OpticGraphManager로 위임)
         /// </summary>
-        public void UpdateGraphDisplay(List<OpticPageViewModel.GraphDataPoint> dataPoints)
+        public void UpdateGraphDisplay(List<GraphManager.GraphDataPoint> dataPoints)
         {
-            // OpticPageViewModel.GraphDataPoint를 GraphManager.GraphDataPoint로 변환
-            var convertedPoints = dataPoints?.Select(p => new GraphManager.GraphDataPoint
-            {
-                ZoneNumber = p.ZoneNumber,
-                Judgment = p.Judgment,
-                GlobalIndex = p.GlobalIndex
-            }).ToList();
-            
-            graphManager?.UpdateGraphDisplay(convertedPoints);
+            graphManager?.UpdateGraphDisplay(dataPoints);
         }
         #endregion
 

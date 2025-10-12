@@ -49,7 +49,7 @@ namespace OptiX.Common
         /// <summary>
         /// OPTIC 호환용 생성자
         /// </summary>
-        public ZoneButtonManager(StackPanel zoneButtonsPanel, object viewModel)
+        public ZoneButtonManager(StackPanel zoneButtonsPanel, object viewModel, GraphManager graphManager = null)
         {
             this.zoneButtonsPanel = zoneButtonsPanel ?? throw new ArgumentNullException(nameof(zoneButtonsPanel));
             
@@ -65,16 +65,23 @@ namespace OptiX.Common
             
             // Reflection으로 RESET 콜백 설정
             var initJudgmentMethod = viewModelType.GetMethod("InitializeJudgmentCounters");
-            var clearGraphMethod = viewModelType.GetMethod("ClearGraphData");
+            var clearGraphMethod = viewModelType.GetMethod("ClearGraphData", new[] { typeof(GraphManager) });
             var updateJudgmentMethod = viewModelType.GetMethod("UpdateJudgmentStatusUI");
             
             if (initJudgmentMethod != null && clearGraphMethod != null && updateJudgmentMethod != null)
             {
                 this.onResetRequested = () => {
                     initJudgmentMethod.Invoke(viewModel, null);
-                    clearGraphMethod.Invoke(viewModel, null);
+                    clearGraphMethod.Invoke(viewModel, new object[] { graphManager });
                     updateJudgmentMethod.Invoke(viewModel, null);
                 };
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("⚠️ ViewModel 메서드를 찾을 수 없습니다!");
+                System.Diagnostics.Debug.WriteLine($"InitializeJudgmentCounters: {initJudgmentMethod != null}");
+                System.Diagnostics.Debug.WriteLine($"ClearGraphData: {clearGraphMethod != null}");
+                System.Diagnostics.Debug.WriteLine($"UpdateJudgmentStatusUI: {updateJudgmentMethod != null}");
             }
         }
 
