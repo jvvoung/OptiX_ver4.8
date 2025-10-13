@@ -67,6 +67,7 @@ namespace OptiX.Common
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"INI 파일 읽기 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, $"INI 섹션 읽기 중 예외 - Section: [{section}], File: {_filePath}");
             }
 
             return result;
@@ -123,6 +124,7 @@ namespace OptiX.Common
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"INI 파일 읽기 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, $"INI 전체 섹션 읽기 중 예외 - File: {_filePath}");
             }
 
             return result;
@@ -185,6 +187,7 @@ namespace OptiX.Common
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"INI 파일 쓰기 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, $"INI 파일 쓰기 중 예외 - File: {_filePath}");
                 throw;
             }
         }

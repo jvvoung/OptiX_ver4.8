@@ -84,6 +84,7 @@ namespace OptiX.DLL
                     case "MTP":
                     {
                         Debug.WriteLine($"[Zone {zoneNumber}] MTP 실행 시작");
+                        Common.ErrorLogger.Log($"MTP 실행 시작", Common.ErrorLogger.LogLevel.INFO, zoneNumber);
                         
                         // Zone별 CELL_ID, INNER_ID 가져오기 (전역 변수에서 - INI 파일 읽기 없음)
                         var (cellId, innerId) = GlobalDataManager.GetZoneInfo(zoneNumber);
@@ -106,10 +107,12 @@ namespace OptiX.DLL
                                 _zoneResults[zoneNumber] = output;
                             }
                             Debug.WriteLine($"[Zone {zoneNumber}] MTP 완료 (성공)");
+                            Common.ErrorLogger.Log($"MTP 완료 (성공)", Common.ErrorLogger.LogLevel.INFO, zoneNumber);
                         }
                         else
                         {
                             Debug.WriteLine($"[Zone {zoneNumber}] MTP 완료 (실패)");
+                            Common.ErrorLogger.Log($"MTP 완료 (실패)", Common.ErrorLogger.LogLevel.WARNING, zoneNumber);
                         }
                         
                         return ok;
@@ -117,6 +120,7 @@ namespace OptiX.DLL
                     case "IPVS":
                     {
                         Debug.WriteLine($"[Zone {zoneNumber}] IPVS 실행 시작");
+                        Common.ErrorLogger.Log($"IPVS 실행 시작", Common.ErrorLogger.LogLevel.INFO, zoneNumber);
                         
                         // Zone별 CELL_ID, INNER_ID 가져오기 (IPVS 전용)
                         var (cellId, innerId) = GlobalDataManager.GetIPVSZoneInfo(zoneNumber);
@@ -130,6 +134,7 @@ namespace OptiX.DLL
                         };
                         
                         Debug.WriteLine($"[Zone {zoneNumber}] IPVS Input - Cell ID: '{cellId}', Inner ID: '{innerId}'");
+                        Common.ErrorLogger.Log($"IPVS Input - Cell ID: '{cellId}', Inner ID: '{innerId}'", Common.ErrorLogger.LogLevel.DEBUG, zoneNumber);
                         
                         var (output, ok) = DllFunctions.CallIPVSTestFunction(input);
                         
@@ -141,10 +146,12 @@ namespace OptiX.DLL
                                 _zoneResults[zoneNumber] = output;
                             }
                             Debug.WriteLine($"[Zone {zoneNumber}] IPVS 완료 (성공)");
+                            Common.ErrorLogger.Log($"IPVS 완료 (성공)", Common.ErrorLogger.LogLevel.INFO, zoneNumber);
                         }
                         else
                         {
                             Debug.WriteLine($"[Zone {zoneNumber}] IPVS 완료 (실패)");
+                            Common.ErrorLogger.Log($"IPVS 완료 (실패)", Common.ErrorLogger.LogLevel.WARNING, zoneNumber);
                         }
                         
                         return ok;
@@ -161,6 +168,7 @@ namespace OptiX.DLL
             catch (Exception ex)
             {
                 Debug.WriteLine($"[Zone {zoneNumber}] {functionName} 예외: {ex.Message}");
+                ErrorLogger.LogException(ex, $"SEQ 실행 중 예외 - Function: {functionName}", zoneNumber);
                 return false;
             }
         }

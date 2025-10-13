@@ -34,7 +34,8 @@ namespace OptiX.DLL
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"=== OPTIC 결과 처리 시작: Zone {targetZone} ===");
+                int zoneNum = int.TryParse(targetZone, out int zn) ? zn : 0;
+                Common.ErrorLogger.Log($"=== OPTIC 결과 처리 시작 ===", Common.ErrorLogger.LogLevel.INFO, zoneNum > 0 ? zoneNum : (int?)null);
 
                 // actualZone: Zone 번호를 int로 변환 (1~4)
                 int actualZone = int.TryParse(targetZone, out int z) ? z : 1;
@@ -42,7 +43,7 @@ namespace OptiX.DLL
                 // Cell ID와 Inner ID 읽기 (캐시된 Zone 정보 사용)
                 var (cellId, innerId) = Common.GlobalDataManager.GetZoneInfo(actualZone);
 
-                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} - Cell ID: {cellId}, Inner ID: {innerId}");
+                Common.ErrorLogger.Log($"Cell ID: '{cellId}', Inner ID: '{innerId}'", Common.ErrorLogger.LogLevel.INFO, actualZone);
 
                 // TACT 계산 (해당 Zone의 SEQ 시작 시간부터 종료 시간까지의 소요 시간)
                 DateTime zoneSeqStartTime = SeqExecutionManager.GetZoneSeqStartTime(actualZone);
@@ -52,13 +53,13 @@ namespace OptiX.DLL
                 if (zoneSeqEndTime == default(DateTime) || zoneSeqEndTime < zoneSeqStartTime)
                 {
                     zoneSeqEndTime = DateTime.Now;
-                    System.Diagnostics.Debug.WriteLine($"Zone {targetZone} 종료 시간이 아직 설정 안됨 - 현재 시간 사용");
+                    Common.ErrorLogger.Log($"종료 시간 미설정 - 현재 시간 사용", Common.ErrorLogger.LogLevel.WARNING, actualZone);
                 }
                 
                 double tactSeconds = (zoneSeqEndTime - zoneSeqStartTime).TotalSeconds;
                 string tactValue = tactSeconds.ToString("F3");
                 
-                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} TACT 계산: {tactValue}초 (시작: {zoneSeqStartTime:HH:mm:ss.fff}, 종료: {zoneSeqEndTime:HH:mm:ss.fff})");
+                Common.ErrorLogger.Log($"TACT: {tactValue}초 (시작: {zoneSeqStartTime:HH:mm:ss.fff}, 종료: {zoneSeqEndTime:HH:mm:ss.fff})", Common.ErrorLogger.LogLevel.INFO, actualZone);
 
                 // DLL output 구조체를 2차원 배열로 변환 (result 값 추출)
                 int[,] resultArray = new int[DllConstants.MAX_WAD_COUNT, DllConstants.MAX_PATTERN_COUNT];
@@ -76,7 +77,7 @@ namespace OptiX.DLL
 
                 // Zone 전체 판정 수행
                 string zoneJudgment = OpticJudgment.Instance.JudgeZoneFromResults(resultArray);
-                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} 전체 판정: {zoneJudgment}");
+                Common.ErrorLogger.Log($"Zone 전체 판정: {zoneJudgment}", Common.ErrorLogger.LogLevel.INFO, actualZone);
 
                 // DataTableManager를 통해 데이터 업데이트
                 int availableCategories = Math.Min(categoryNames.Length, DllConstants.MAX_PATTERN_COUNT);
@@ -91,7 +92,7 @@ namespace OptiX.DLL
                     var pattern = output.data[dataIndex];
                     int result = pattern.result;
 
-                    System.Diagnostics.Debug.WriteLine($"Zone {targetZone}, Category {categoryNames[categoryIndex]}, result={result}");
+                    //Common.ErrorLogger.Log($"Category {categoryNames[categoryIndex]}, result={result}", Common.ErrorLogger.LogLevel.DEBUG, actualZone);
 
                     // 개별 패턴 판정
                     string patternJudgment = OpticJudgment.Instance.GetPatternJudgment(result);
@@ -111,23 +112,24 @@ namespace OptiX.DLL
                         patternJudgment
                     );
 
-                    System.Diagnostics.Debug.WriteLine($"Zone {targetZone} 아이템 업데이트: {categoryNames[categoryIndex]} - Judgment: {patternJudgment}");
+                    Common.ErrorLogger.Log($"개별 판정 결과: {categoryNames[categoryIndex]} - Judgment: {patternJudgment}", Common.ErrorLogger.LogLevel.DEBUG, actualZone);
                 }
 
                 // Zone 전체 판정을 모든 아이템에 적용
                 dataTableManager.UpdateZoneJudgment(targetZone, zoneJudgment);
-                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} 전체 판정 적용: {zoneJudgment}");
+                Common.ErrorLogger.Log($"전체 판정 적용: {zoneJudgment}", Common.ErrorLogger.LogLevel.DEBUG, actualZone);
 
                 // 판정 현황 표 업데이트 콜백 호출
                 onZoneJudgmentUpdate?.Invoke(zoneJudgment);
 
-                System.Diagnostics.Debug.WriteLine($"=== OPTIC 결과 처리 완료: Zone {targetZone} ===");
+                Common.ErrorLogger.Log($"=== OPTIC 결과 처리 완료 - 판정: {zoneJudgment} ===", Common.ErrorLogger.LogLevel.INFO, zoneNum > 0 ? zoneNum : (int?)null);
                 
                 return zoneJudgment;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"OPTIC 결과 처리 중 오류: {ex.Message}");
+                int zoneNum = int.TryParse(targetZone, out int z) ? z : 0;
+                Common.ErrorLogger.LogException(ex, $"OPTIC 결과 처리 중 예외", zoneNum > 0 ? zoneNum : (int?)null);
                 throw;
             }
         }
@@ -154,15 +156,14 @@ namespace OptiX.DLL
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"=== IPVS 결과 처리 시작: Zone {targetZone} ===");
-
                 // actualZone: Zone 번호를 int로 변환 (1~4)
                 int actualZone = int.TryParse(targetZone, out int z) ? z : 1;
+                Common.ErrorLogger.Log($"=== IPVS 결과 처리 시작 ===", Common.ErrorLogger.LogLevel.INFO, actualZone);
 
                 // Cell ID와 Inner ID 읽기 (캐시된 IPVS Zone 정보 사용)
                 var (cellId, innerId) = Common.GlobalDataManager.GetIPVSZoneInfo(actualZone);
 
-                System.Diagnostics.Debug.WriteLine($"[IPVS] Zone {targetZone} - Cell ID: {cellId}, Inner ID: {innerId}");
+                Common.ErrorLogger.Log($"Cell ID: '{cellId}', Inner ID: '{innerId}'", Common.ErrorLogger.LogLevel.INFO, actualZone);
 
                 // TACT 계산
                 DateTime zoneSeqStartTime = SeqExecutionManager.GetZoneSeqStartTime(actualZone);
@@ -176,7 +177,7 @@ namespace OptiX.DLL
                 double tactSeconds = (zoneSeqEndTime - zoneSeqStartTime).TotalSeconds;
                 string tactValue = tactSeconds.ToString("F3");
                 
-                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} TACT: {tactValue}초");
+                Common.ErrorLogger.Log($"TACT: {tactValue}초 (시작: {zoneSeqStartTime:HH:mm:ss.fff}, 종료: {zoneSeqEndTime:HH:mm:ss.fff})", Common.ErrorLogger.LogLevel.INFO, actualZone);
 
                 // POINT==1 행만 업데이트 (현재 선택된 WAD의 첫 번째 포인트)
                 // IPVS_data는 1차원 배열 [IPVS_DATA_SIZE] (MAX_WAD_COUNT × MAX_POINT_COUNT)
@@ -198,7 +199,7 @@ namespace OptiX.DLL
                     tactValue
                 );
 
-                System.Diagnostics.Debug.WriteLine($"✅ Zone {targetZone} POINT==1 업데이트 완료");
+                //Common.ErrorLogger.Log($"POINT==1 업데이트 완료", Common.ErrorLogger.LogLevel.DEBUG, actualZone);
 
                 // 판정: [0][0] ~ [MAX_WAD_COUNT-1][0] 데이터로 수행 (MAX_WAD_COUNT개 WAD 각도)
                 int okCount = 0;
@@ -216,12 +217,12 @@ namespace OptiX.DLL
                         string judgment = IPVSJudgment.Instance.GetPointJudgment(result);
                         if (judgment == "OK") okCount++;
                         
-                        System.Diagnostics.Debug.WriteLine($"WAD[{wadIdx}][0] (index={idx}) result={result} → {judgment}");
+                       // Common.ErrorLogger.Log($"WAD[{wadIdx}][0] (index={idx}) result={result} → {judgment}", Common.ErrorLogger.LogLevel.DEBUG, actualZone);
                     }
                 }
 
                 string zoneJudgment = (okCount == totalWad) ? "OK" : "R/J";
-                System.Diagnostics.Debug.WriteLine($"Zone {targetZone} 전체 판정: {zoneJudgment} (OK: {okCount}/{totalWad})");
+                Common.ErrorLogger.Log($"Zone 전체 판정: {zoneJudgment} (OK: {okCount}/{totalWad})", Common.ErrorLogger.LogLevel.INFO, actualZone);
 
                 // Zone 전체 판정을 모든 아이템에 적용
                 dataTableManager.UpdateZoneJudgment(targetZone, zoneJudgment);
@@ -229,13 +230,14 @@ namespace OptiX.DLL
                 // 판정 현황 표 업데이트 콜백 호출
                 onZoneJudgmentUpdate?.Invoke(zoneJudgment);
 
-                System.Diagnostics.Debug.WriteLine($"=== IPVS 결과 처리 완료: Zone {targetZone} ===");
+                Common.ErrorLogger.Log($"=== IPVS 결과 처리 완료 - 판정: {zoneJudgment} ===", Common.ErrorLogger.LogLevel.INFO, actualZone);
                 
                 return zoneJudgment;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"IPVS 결과 처리 오류: {ex.Message}\n{ex.StackTrace}");
+                int zoneNum = int.TryParse(targetZone, out int z) ? z : 0;
+                Common.ErrorLogger.LogException(ex, $"IPVS 결과 처리 중 예외", zoneNum > 0 ? zoneNum : (int?)null);
                 throw;
             }
         }

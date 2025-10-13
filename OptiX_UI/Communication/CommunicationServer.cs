@@ -229,7 +229,7 @@ namespace OptiX.Communication
                     CommunicationLogger.WriteLog($"🟢 [CLIENT_CONNECT] 클라이언트 연결 성공 - IP: {tcpClient.Client.RemoteEndPoint}");
 
                     // 연결 상태 변경 이벤트 발생 (클라이언트가 연결되었음을 알림)
-                    CommunicationLogger.WriteLog($"🔍 [DEBUG] CommunicationServer - 클라이언트 연결 이벤트 발생 전");
+                   // CommunicationLogger.WriteLog($"🔍 [DEBUG] CommunicationServer - 클라이언트 연결 이벤트 발생 전");
                     ConnectionStatusChanged?.Invoke(this, true);
                     LogMessage?.Invoke(this, "🟢 클라이언트 연결됨 - AUTO MODE 활성화");
                     CommunicationLogger.WriteLog($"🟢 [CONNECTION_STATUS] 클라이언트 연결 - AUTO MODE 활성화");

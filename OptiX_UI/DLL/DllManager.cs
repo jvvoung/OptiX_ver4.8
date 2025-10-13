@@ -55,24 +55,30 @@ namespace OptiX.DLL
 
                 // DLL 경로 구성: Settings.DLL_FOLDER + "TestDll.dll"
                 string dllFolder = GlobalDataManager.GetValue("Settings", "DLL_FOLDER", "");
-                Console.WriteLine($"[DllManager] DLL 폴더 경로 = '{dllFolder}'");
+                Debug.WriteLine($"[DllManager] DLL 폴더 경로 = '{dllFolder}'");
+                ErrorLogger.Log($"DLL 폴더 경로: {dllFolder}", ErrorLogger.LogLevel.DEBUG);
                 
                 if (string.IsNullOrEmpty(dllFolder))
                 {
-                    Console.WriteLine("[DllManager] 초기화 실패: DLL 폴더 경로가 설정되지 않음");
+                    string errorMsg = "DLL 폴더 경로가 설정되지 않음";
+                    Debug.WriteLine($"[DllManager] 초기화 실패: {errorMsg}");
+                    ErrorLogger.Log(errorMsg, ErrorLogger.LogLevel.ERROR);
                     return false;
                 }
 
                 _dllPath = Path.Combine(dllFolder, "TestDll.dll");
-                Console.WriteLine($"[DllManager] DLL 전체 경로 = '{_dllPath}'");
+                Debug.WriteLine($"[DllManager] DLL 전체 경로 = '{_dllPath}'");
+                ErrorLogger.Log($"DLL 전체 경로: {_dllPath}", ErrorLogger.LogLevel.DEBUG);
                 
                 if (!File.Exists(_dllPath))
                 {
-                    Console.WriteLine($"[DllManager] 초기화 실패: DLL 파일을 찾을 수 없음 - {_dllPath}");
+                    string errorMsg = $"DLL 파일을 찾을 수 없음 - {_dllPath}";
+                    Debug.WriteLine($"[DllManager] 초기화 실패: {errorMsg}");
+                    ErrorLogger.LogFileError(_dllPath, "DLL 로드", "파일을 찾을 수 없음");
                     return false;
                 }
 
-                Console.WriteLine("[DllManager] DLL 파일 존재 확인됨, 로드 시도 중...");
+                Debug.WriteLine("[DllManager] DLL 파일 존재 확인됨, 로드 시도 중...");
                 
                 // Windows API를 통한 DLL 로드
                 _dllHandle = LoadLibrary(_dllPath);
@@ -80,17 +86,21 @@ namespace OptiX.DLL
                 {
                     // 로드 실패 시 Windows 오류 코드 확인
                     int error = Marshal.GetLastWin32Error();
-                    Console.WriteLine($"[DllManager] 초기화 실패: DLL 로딩 실패 - 경로: {_dllPath}, 오류 코드: {error}");
+                    string errorMsg = $"DLL 로딩 실패 - 경로: {_dllPath}, 오류 코드: {error}";
+                    Debug.WriteLine($"[DllManager] 초기화 실패: {errorMsg}");
+                    ErrorLogger.LogDllError("LoadLibrary", errorMsg, returnCode: error);
                     return false;
                 }
 
                 _isInitialized = true;
-                Console.WriteLine($"[DllManager] 초기화 성공: {_dllPath}");
+                Debug.WriteLine($"[DllManager] 초기화 성공: {_dllPath}");
+                ErrorLogger.Log($"DLL 초기화 성공: {_dllPath}", ErrorLogger.LogLevel.INFO);
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[DllManager] 초기화 오류: {ex.Message}");
+                Debug.WriteLine($"[DllManager] 초기화 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, "DLL 초기화 중 예외 발생");
                 _isInitialized = false;
                 return false;
             }
@@ -102,11 +112,13 @@ namespace OptiX.DLL
             try
             {
                 Debug.WriteLine("DllManager 재로드 시작...");
+                ErrorLogger.Log("DLL 재로드 시작", ErrorLogger.LogLevel.INFO);
                 return Initialize();
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"DllManager 재로드 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, "DLL 재로드 중 예외 발생");
                 return false;
             }
         }
@@ -122,11 +134,13 @@ namespace OptiX.DLL
                     _dllHandle = IntPtr.Zero;
                     _isInitialized = false;
                     Debug.WriteLine("DllManager 해제 완료");
+                    ErrorLogger.Log("DLL 해제 완료", ErrorLogger.LogLevel.INFO);
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"DllManager 해제 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, "DLL 해제 중 예외 발생");
             }
         }
         #endregion

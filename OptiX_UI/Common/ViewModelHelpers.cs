@@ -108,6 +108,9 @@ namespace OptiX.Common
         public string RowName { get; set; }
         public string Quantity { get; set; }
         public string Rate { get; set; }
+        
+        // 판정 결과 (OK, R/J, NG, PTN) - 카운터 증가용
+        public string Judgment { get; set; }
 
         public JudgmentStatusUpdateEventArgs()
         {
@@ -118,6 +121,11 @@ namespace OptiX.Common
             RowName = rowName;
             Quantity = quantity;
             Rate = rate;
+        }
+        
+        public JudgmentStatusUpdateEventArgs(string judgment)
+        {
+            Judgment = judgment;
         }
     }
 

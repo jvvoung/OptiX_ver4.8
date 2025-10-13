@@ -35,11 +35,11 @@ namespace OptiX.Common
                 LoadAllIniData();
                 _isInitialized = true;
                 
-                System.Diagnostics.Debug.WriteLine($"GlobalDataManager 초기화 완료: {_iniData.Count}개 항목 로드됨");
+                ErrorLogger.Log($"GlobalDataManager 초기화 완료: {_iniData.Count}개 항목", ErrorLogger.LogLevel.INFO);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"GlobalDataManager 초기화 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, "GlobalDataManager 초기화 중 예외 발생");
                 throw;
             }
         }
@@ -64,7 +64,7 @@ namespace OptiX.Common
                 // MTP Sequence 경로 캐시 (MTP_PATHS 로드 직후)
                 string mtpSeqKey = "MTP_PATHS.SEQUENCE_FOLDER";
                 _mtpSequencePath = _iniData.ContainsKey(mtpSeqKey) ? _iniData[mtpSeqKey] : @"D:\Project\Recipe\Sequence\Sequence_Optic.ini";
-                System.Diagnostics.Debug.WriteLine($"[MTP] SEQUENCE_FOLDER 캐시: {_mtpSequencePath}");
+                ErrorLogger.Log($"[MTP] SEQUENCE_FOLDER: {_mtpSequencePath}", ErrorLogger.LogLevel.DEBUG);
                 
                 // IPVS 섹션
                 LoadSectionData("IPVS");
@@ -73,8 +73,8 @@ namespace OptiX.Common
                 LoadSectionData("IPVS_PATHS");
                 // IPVS Sequence 경로 캐시 (IPVS_PATHS 로드 직후)
                 string ipvsSeqKey = "IPVS_PATHS.SEQUENCE_FOLDER";
-                _ipvsSequencePath = _iniData.ContainsKey(ipvsSeqKey) ? _iniData[ipvsSeqKey] : System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sequence_IPVS.ini");
-                System.Diagnostics.Debug.WriteLine($"[IPVS] SEQUENCE_FOLDER 캐시: {_ipvsSequencePath}");
+                _ipvsSequencePath = _iniData.ContainsKey(ipvsSeqKey) ? _iniData[ipvsSeqKey] : @"D:\Project\Recipe\Sequence\Sequence_IPVS.ini";
+                ErrorLogger.Log($"[IPVS] SEQUENCE_FOLDER: {_ipvsSequencePath}", ErrorLogger.LogLevel.DEBUG);
                 
                 // Settings 섹션
                 LoadSectionData("Settings");
@@ -85,11 +85,11 @@ namespace OptiX.Common
                 // Zone 정보 로드 (MTP 성능 최적화)
                 LoadZoneInfo();
 
-                System.Diagnostics.Debug.WriteLine($"전역 데이터 로드 완료: {_iniData.Count}개 항목");
+                ErrorLogger.Log($"전역 데이터 로드 완료: {_iniData.Count}개 항목", ErrorLogger.LogLevel.INFO);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"INI 데이터 로드 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, "INI 데이터 로드 중 예외 발생");
                 throw;
             }
         }
@@ -102,7 +102,6 @@ namespace OptiX.Common
         {
             if (_iniManager == null)
             {
-                System.Diagnostics.Debug.WriteLine($"오류: _iniManager가 null입니다!");
                 return;
             }
 
@@ -157,7 +156,7 @@ namespace OptiX.Common
                 string ipvsZoneStr = _iniManager.ReadValue("Settings", "IPVS_ZONE", "2");
                 int ipvsZoneCount = int.Parse(ipvsZoneStr);
                 
-                System.Diagnostics.Debug.WriteLine($"[LoadSectionData] IPVS 섹션 로드 시작: {ipvsZoneCount}개 Zone");
+                ErrorLogger.Log($"[LoadSectionData] IPVS 섹션 로드 시작: {ipvsZoneCount}개 Zone", ErrorLogger.LogLevel.DEBUG);
                 
                 for (int zone = 1; zone <= ipvsZoneCount; zone++)
                 {
@@ -167,33 +166,22 @@ namespace OptiX.Common
                     string cellId = _iniManager.ReadValue(section, cellIdKey, "");
                     string innerId = _iniManager.ReadValue(section, innerIdKey, "");
                     
-                    System.Diagnostics.Debug.WriteLine($"[LoadSectionData] IPVS Zone {zone} - INI에서 읽음: Cell ID='{cellId}', Inner ID='{innerId}'");
+                    ErrorLogger.Log($"IPVS Zone {zone} 읽음: Cell ID='{cellId}', Inner ID='{innerId}'", ErrorLogger.LogLevel.DEBUG);
                     
                     if (!string.IsNullOrEmpty(cellId))
                     {
                         string fullKey = $"{section}.{cellIdKey}";
                         _iniData[fullKey] = cellId;
-                        System.Diagnostics.Debug.WriteLine($"[LoadSectionData] 캐시에 저장: {fullKey} = '{cellId}'");
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[LoadSectionData] ❌ Cell ID가 비어있음: {section}.{cellIdKey}");
                     }
                     
                     if (!string.IsNullOrEmpty(innerId))
                     {
                         string fullKey = $"{section}.{innerIdKey}";
                         _iniData[fullKey] = innerId;
-                        System.Diagnostics.Debug.WriteLine($"[LoadSectionData] 캐시에 저장: {fullKey} = '{innerId}'");
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[LoadSectionData] ❌ Inner ID가 비어있음: {section}.{innerIdKey}");
                     }
                 }
             }
             
-            System.Diagnostics.Debug.WriteLine($"LoadSectionData 완료: {section}");
         }
 
         /// <summary>
@@ -207,7 +195,6 @@ namespace OptiX.Common
         {
             if (!_isInitialized)
             {
-                System.Diagnostics.Debug.WriteLine("GlobalDataManager가 초기화되지 않았습니다.");
                 return defaultValue;
             }
 
@@ -228,7 +215,6 @@ namespace OptiX.Common
             {
                 if (_iniManager == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("GlobalDataManager가 초기화되지 않았습니다.");
                     return new Dictionary<string, string>();
                 }
 
@@ -236,7 +222,7 @@ namespace OptiX.Common
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"ReadSection 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, $"ReadSection 오류 - Section: [{section}]");
                 return new Dictionary<string, string>();
             }
         }
@@ -250,7 +236,6 @@ namespace OptiX.Common
             {
                 if (_iniManager == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("GlobalDataManager가 초기화되지 않았습니다.");
                     return;
                 }
 
@@ -260,12 +245,10 @@ namespace OptiX.Common
                 // 메모리 캐시도 업데이트
                 string fullKey = $"{section}.{key}";
                 _iniData[fullKey] = value;
-                
-                System.Diagnostics.Debug.WriteLine($"GlobalDataManager.SetValue: [{section}] {key} = {value}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"SetValue 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, "SetValue 중 오류");
                 throw;
             }
         }
@@ -277,13 +260,13 @@ namespace OptiX.Common
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine("GlobalDataManager.Reload() 호출됨");
+                ErrorLogger.Log("GlobalDataManager Reload 시작", ErrorLogger.LogLevel.INFO);
                 LoadAllIniData();
-                System.Diagnostics.Debug.WriteLine("GlobalDataManager 갱신 완료");
+                ErrorLogger.Log("GlobalDataManager Reload 완료", ErrorLogger.LogLevel.INFO);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Reload 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, "Reload 중 오류");
                 throw;
             }
         }
@@ -305,7 +288,7 @@ namespace OptiX.Common
                 string mtpZoneStr = _iniData.ContainsKey(mtpZoneKey) ? _iniData[mtpZoneKey] : "2";
                 int mtpZoneCount = int.Parse(mtpZoneStr);
                 
-                System.Diagnostics.Debug.WriteLine($"=== MTP Zone 정보 로드 시작 (총 {mtpZoneCount}개) ===");
+                ErrorLogger.Log($"=== MTP Zone 정보 로드 시작 (총 {mtpZoneCount}개) ===", ErrorLogger.LogLevel.INFO);
                 
                 for (int zone = 1; zone <= mtpZoneCount; zone++)
                 {
@@ -317,7 +300,7 @@ namespace OptiX.Common
                     
                     _mtpZoneInfo[zone] = (cellId, innerId);
                     
-                    System.Diagnostics.Debug.WriteLine($"[MTP] Zone {zone} 로드: Cell ID='{cellId}', Inner ID='{innerId}'");
+                    ErrorLogger.Log($"Zone {zone} 로드: Cell ID='{cellId}', Inner ID='{innerId}'", ErrorLogger.LogLevel.INFO, zone);
                 }
                 
                 // IPVS Zone 정보 로드
@@ -325,7 +308,7 @@ namespace OptiX.Common
                 string ipvsZoneStr = _iniData.ContainsKey(ipvsZoneKey) ? _iniData[ipvsZoneKey] : "2";
                 int ipvsZoneCount = int.Parse(ipvsZoneStr);
                 
-                System.Diagnostics.Debug.WriteLine($"=== IPVS Zone 정보 로드 시작 (총 {ipvsZoneCount}개) ===");
+                ErrorLogger.Log($"=== IPVS Zone 정보 로드 시작 (총 {ipvsZoneCount}개) ===", ErrorLogger.LogLevel.INFO);
                 
                 for (int zone = 1; zone <= ipvsZoneCount; zone++)
                 {
@@ -337,14 +320,14 @@ namespace OptiX.Common
                     
                     _ipvsZoneInfo[zone] = (cellId, innerId);
                     
-                    System.Diagnostics.Debug.WriteLine($"[IPVS] Zone {zone} 로드: Cell ID='{cellId}', Inner ID='{innerId}'");
+                    ErrorLogger.Log($"Zone {zone} 로드: Cell ID='{cellId}', Inner ID='{innerId}'", ErrorLogger.LogLevel.INFO, zone);
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"Zone 정보 로드 완료: MTP {_mtpZoneInfo.Count}개, IPVS {_ipvsZoneInfo.Count}개");
+                ErrorLogger.Log($"Zone 정보 로드 완료: MTP {_mtpZoneInfo.Count}개, IPVS {_ipvsZoneInfo.Count}개", ErrorLogger.LogLevel.INFO);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Zone 정보 로드 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, "Zone 정보 로드 중 오류");
             }
         }
         
@@ -356,12 +339,11 @@ namespace OptiX.Common
             if (_mtpZoneInfo.ContainsKey(zoneNumber))
             {
                 var result = _mtpZoneInfo[zoneNumber];
-                System.Diagnostics.Debug.WriteLine($"[MTP] Zone {zoneNumber} 정보 반환: Cell ID='{result.cellId}', Inner ID='{result.innerId}'");
                 return result;
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine($"[MTP] Zone {zoneNumber} 정보가 없음 - 기본값 반환 (총 {_mtpZoneInfo.Count}개 Zone)");
+                ErrorLogger.Log($"Zone {zoneNumber} 정보가 없음 - 기본값 반환", ErrorLogger.LogLevel.WARNING, zoneNumber);
                 return ("", "");
             }
         }
@@ -374,12 +356,11 @@ namespace OptiX.Common
             if (_ipvsZoneInfo.ContainsKey(zoneNumber))
             {
                 var result = _ipvsZoneInfo[zoneNumber];
-                System.Diagnostics.Debug.WriteLine($"[IPVS] Zone {zoneNumber} 정보 반환: Cell ID='{result.cellId}', Inner ID='{result.innerId}'");
                 return result;
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine($"[IPVS] Zone {zoneNumber} 정보가 없음 - 기본값 반환 (총 {_ipvsZoneInfo.Count}개 Zone)");
+                ErrorLogger.Log($"Zone {zoneNumber} 정보가 없음 - 기본값 반환", ErrorLogger.LogLevel.WARNING, zoneNumber);
                 return ("", "");
             }
         }
@@ -391,7 +372,6 @@ namespace OptiX.Common
         {
             if (!_isInitialized)
             {
-                System.Diagnostics.Debug.WriteLine("GlobalDataManager가 초기화되지 않음!");
                 return @"D:\Project\Recipe\Sequence\Sequence_Optic.ini";
             }
             
@@ -405,7 +385,6 @@ namespace OptiX.Common
         {
             if (!_isInitialized)
             {
-                System.Diagnostics.Debug.WriteLine("GlobalDataManager가 초기화되지 않음!");
                 return System.IO.Path.Combine(
                     AppDomain.CurrentDomain.BaseDirectory,
                     "Sequence_IPVS.ini"

@@ -54,10 +54,17 @@ namespace OptiX.Common
             // 다크모드 변경 시 그래프 재생성
             try
             {
-                if (cachedDataPoints != null && cachedDataPoints.Count > 0)
+                // 그래프 영역이 이미 생성되어 있으면 재생성 (데이터 유무와 관계없이)
+                if (graphContent != null && graphContent.Children.Count > 0)
                 {
-                    CreateDynamicGraph(cachedDataPoints);
-                    System.Diagnostics.Debug.WriteLine($"다크모드 변경으로 그래프 재생성: {darkMode}");
+                    // 빈 데이터 포인트 리스트를 사용하여 그래프 구조만 재생성
+                    var dataToRender = cachedDataPoints ?? new List<GraphDataPoint>();
+                    CreateDynamicGraph(dataToRender);
+                    System.Diagnostics.Debug.WriteLine($"다크모드 변경으로 그래프 재생성: {darkMode}, 데이터 포인트: {dataToRender.Count}개");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"다크모드 설정됨: {darkMode} (그래프 미생성 상태)");
                 }
             }
             catch (Exception ex)

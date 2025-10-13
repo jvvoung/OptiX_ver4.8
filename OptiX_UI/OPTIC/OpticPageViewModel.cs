@@ -69,12 +69,6 @@ namespace OptiX.OPTIC
         }
         #endregion
 
-        #region 시퀀스 캐싱
-        private static Queue<string> _cachedSequence = null;
-        private static bool _sequenceLoaded = false;
-        private static readonly object _sequenceLock = new object();
-        #endregion
-
         #region Commands
         public ICommand TestStartCommand { get; }
         public ICommand SettingCommand { get; }
@@ -101,113 +95,11 @@ namespace OptiX.OPTIC
             
             InitializeTimers();
             LoadSettingsFromIni();
-            LoadSequenceFromIni(); // 시퀀스 로드 추가
-            CreateZoneButtons();
-            InitializeJudgmentCounters();
+            SequenceCacheManager.Instance.LoadOpticSequence(); // 시퀀스 캐싱 (한 번만 실행)
         }
         #endregion
 
         #region Private Methods
-        /// <summary>
-        /// 시퀀스 INI 파일에서 시퀀스 로드 및 캐싱
-        /// </summary>
-        private void LoadSequenceFromIni()
-        {
-            lock (_sequenceLock)
-            {
-                if (_sequenceLoaded && _cachedSequence != null)
-                {
-                    System.Diagnostics.Debug.WriteLine("시퀀스가 이미 로드되어 있음 - 캐시된 시퀀스 사용");
-                    return;
-                }
-
-                try
-                {
-                    string seqIniPath = GlobalDataManager.GetMTPSequencePath();
-                    System.Diagnostics.Debug.WriteLine($"시퀀스 INI 파일 로드: {seqIniPath}");
-
-                    var seqIniManager = new IniFileManager(seqIniPath);
-                    
-                    // SEQ_COUNT 읽기
-                    string seqCountStr = seqIniManager.ReadValue("SETTING", "SEQ_COUNT", "0");
-                    if (!int.TryParse(seqCountStr, out int seqCount) || seqCount <= 0)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"SEQ_COUNT가 유효하지 않음: {seqCountStr}");
-                        return;
-                    }
-
-                    // 시퀀스 Queue 생성
-                    _cachedSequence = new Queue<string>();
-                    
-                    // SEQ00부터 SEQ{seqCount-1}까지 읽기
-                    for (int i = 0; i < seqCount; i++)
-                    {
-                        string seqKey = $"SEQ{i:D2}"; // SEQ00, SEQ01, SEQ02, ...
-                        string seqValue = seqIniManager.ReadValue("SEQ", seqKey, "");
-                        
-                        if (!string.IsNullOrEmpty(seqValue))
-                        {
-                            _cachedSequence.Enqueue(seqValue);
-                            System.Diagnostics.Debug.WriteLine($"시퀀스 추가: {seqKey}={seqValue}");
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine($"시퀀스 {seqKey}가 비어있음 - 건너뜀");
-                        }
-                    }
-
-                    _sequenceLoaded = true;
-                    System.Diagnostics.Debug.WriteLine($"시퀀스 로드 완료 - 총 {_cachedSequence.Count}개 시퀀스");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"시퀀스 로드 오류: {ex.Message}");
-                    _cachedSequence = new Queue<string>();
-                    _sequenceLoaded = false;
-                }
-            }
-        }
-
-        /// <summary>
-        /// 캐시된 시퀀스의 복사본 반환 (Queue 복사)
-        /// </summary>
-        public static Queue<string> GetCachedSequence()
-        {
-            lock (_sequenceLock)
-            {
-                if (_cachedSequence == null || !_sequenceLoaded)
-                {
-                    System.Diagnostics.Debug.WriteLine("캐시된 시퀀스가 없음 - 빈 Queue 반환");
-                    return new Queue<string>();
-                }
-
-                // Queue 복사본 반환 (원본 보호)
-                var sequenceCopy = new Queue<string>(_cachedSequence);
-                System.Diagnostics.Debug.WriteLine($"캐시된 시퀀스 복사본 반환 - {sequenceCopy.Count}개 시퀀스");
-                return sequenceCopy;
-            }
-        }
-
-        /// <summary>
-        /// 판정 현황 카운터 초기화
-        /// </summary>
-        public void InitializeJudgmentCounters()
-        {
-            try
-            {
-                totalCount = 0;
-                okCount = 0;
-                ngCount = 0;
-                ptnCount = 0;
-                
-                System.Diagnostics.Debug.WriteLine("판정 현황 카운터 초기화 완료");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"판정 현황 카운터 초기화 오류: {ex.Message}");
-            }
-        }
-
         private void InitializeTimers()
         {
             characteristicsTimer = new DispatcherTimer();
@@ -289,11 +181,6 @@ namespace OptiX.OPTIC
             {
                 System.Diagnostics.Debug.WriteLine($"INI 데이터 로드 오류: {ex.Message}");
             }
-        }
-
-        private void CreateZoneButtons()
-        {
-            // Zone 버튼 생성 로직은 View에서 처리
         }
 
         private void CheckCharacteristicsHover()
@@ -502,44 +389,21 @@ namespace OptiX.OPTIC
         }
 
 
-        #region 판정 현황 관리
-        private int totalCount = 0;
-        private int okCount = 0;
-        private int ngCount = 0;
-        private int ptnCount = 0;
+        #region 판정 현황 관리 (JudgmentStatusManager로 위임)
 
         /// <summary>
-        /// 판정 현황 표 업데이트
+        /// 판정 현황 표 업데이트 (이제 JudgmentStatusManager가 카운터 관리)
         /// </summary>
-        /// <param name="judgment">새로운 판정 결과 (OK/NG/PTN)</param>
+        /// <param name="judgment">새로운 판정 결과 (OK/NG/PTN/R/J)</param>
         private void UpdateJudgmentStatusTable(string judgment)
         {
             try
             {
-                // 카운트 업데이트
-                totalCount++;
-                
-                switch (judgment)
-                {
-                    case "OK":
-                        okCount++;
-                        break;
-                    case "NG":
-                    case "R/J": // R/J도 NG와 동일하게 처리
-                        ngCount++;
-                        break;
-                    case "PTN":
-                        ptnCount++;
-                        break;
-                }
+                System.Diagnostics.Debug.WriteLine($"판정 결과 전달: {judgment} → JudgmentStatusManager");
 
-                System.Diagnostics.Debug.WriteLine($"판정 현황 업데이트: Total={totalCount}, OK={okCount}, NG={ngCount}, PTN={ptnCount}");
-
-                // UI 스레드에서 판정 현황 표 업데이트
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                {
-                    UpdateJudgmentStatusUI();
-                });
+                // 판정 결과를 JudgmentStatusManager에게 전달 (이벤트 발생)
+                JudgmentStatusUpdateRequested?.Invoke(this, 
+                    new JudgmentStatusUpdateEventArgs(judgment));
             }
             catch (Exception ex)
             {
@@ -547,52 +411,6 @@ namespace OptiX.OPTIC
             }
         }
 
-        /// <summary>
-        /// 판정 현황 표 UI 업데이트 (이벤트 기반)
-        /// </summary>
-        public void UpdateJudgmentStatusUI()
-        {
-            try
-            {
-                System.Diagnostics.Debug.WriteLine($"판정 현황 표 업데이트: Total={totalCount}, OK={okCount}, NG={ngCount}, PTN={ptnCount}");
-
-                // Total 행 업데이트
-                UpdateStatusTableRow("Total", totalCount.ToString(), "1.00");
-
-                // OK 행 업데이트
-                double okRate = totalCount > 0 ? (double)okCount / totalCount : 0.0;
-                UpdateStatusTableRow("OK", okCount.ToString(), okRate.ToString("F2"));
-
-                // R/J(NG) 행 업데이트
-                double ngRate = totalCount > 0 ? (double)ngCount / totalCount : 0.0;
-                UpdateStatusTableRow("R/J", ngCount.ToString(), ngRate.ToString("F2"));
-
-                // PTN 행 업데이트
-                double ptnRate = totalCount > 0 ? (double)ptnCount / totalCount : 0.0;
-                UpdateStatusTableRow("PTN", ptnCount.ToString(), ptnRate.ToString("F2"));
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"판정 현황 표 UI 업데이트 오류: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 판정 현황 표의 특정 행 업데이트 (이벤트 발생)
-        /// </summary>
-        private void UpdateStatusTableRow(string rowName, string quantity, string rate)
-        {
-            try
-            {
-                // View에게 업데이트 요청 이벤트 발생
-                JudgmentStatusUpdateRequested?.Invoke(this, 
-                    new JudgmentStatusUpdateEventArgs(rowName, quantity, rate));
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"판정 현황 행 업데이트 오류 ({rowName}): {ex.Message}");
-            }
-        }
         #endregion
 
         #region 그래프 영역 관리 (GraphManager로 위임)

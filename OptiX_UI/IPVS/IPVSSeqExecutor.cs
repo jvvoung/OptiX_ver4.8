@@ -81,16 +81,15 @@ namespace OptiX.IPVS
             {
                 if (isTestStarted)
                 {
-                    System.Diagnostics.Debug.WriteLine("이미 테스트가 실행 중입니다.");
                     return false;
                 }
 
-                System.Diagnostics.Debug.WriteLine("IPVS 테스트 시작");
+                Common.ErrorLogger.Log("=== IPVS 테스트 시작 ===", Common.ErrorLogger.LogLevel.INFO);
                 isTestStarted = true;
 
                 // Zone 개수 읽기
                 int zoneCount = int.Parse(GlobalDataManager.GetValue("Settings", "IPVS_ZONE", "2"));
-                System.Diagnostics.Debug.WriteLine($"Zone 개수: {zoneCount}");
+                Common.ErrorLogger.Log($"Zone 개수: {zoneCount}", Common.ErrorLogger.LogLevel.INFO);
 
                 // Zone별 비동기 실행
                 var tasks = new List<Task>();
@@ -106,14 +105,14 @@ namespace OptiX.IPVS
                 // Zone 완료 대기 (finally 블록 실행 대기)
                 await Task.Delay(DLL.DllConstants.ZONE_COMPLETION_DELAY_MS);
 
-                System.Diagnostics.Debug.WriteLine("모든 Zone 테스트 완료");
+                Common.ErrorLogger.Log("=== IPVS 테스트 완료 ===", Common.ErrorLogger.LogLevel.INFO);
                 isTestStarted = false;
 
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"IPVS 테스트 시작 오류: {ex.Message}");
+                Common.ErrorLogger.LogException(ex, "IPVS 테스트 시작 중 오류");
                 isTestStarted = false;
                 return false;
             }
@@ -126,7 +125,7 @@ namespace OptiX.IPVS
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"[Zone {zoneNumber}] IPVS SEQ 실행 시작");
+                Common.ErrorLogger.Log($"IPVS SEQ 실행 시작", Common.ErrorLogger.LogLevel.INFO, zoneNumber);
 
                 // Zone SEQ 시작 시간 기록
                 SeqExecutionManager.SetZoneSeqStartTime(zoneNumber, DateTime.Now);
@@ -146,11 +145,11 @@ namespace OptiX.IPVS
                     zoneTestCompleted[zoneNumber - 1] = true;
                 }
 
-                System.Diagnostics.Debug.WriteLine($"[Zone {zoneNumber}] IPVS SEQ 실행 완료");
+                Common.ErrorLogger.Log($"IPVS SEQ 실행 완료", Common.ErrorLogger.LogLevel.INFO, zoneNumber);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[Zone {zoneNumber}] SEQ 실행 오류: {ex.Message}");
+                Common.ErrorLogger.LogException(ex, "IPVS SEQ 실행 중 오류", zoneNumber);
             }
             finally
             {
@@ -160,169 +159,68 @@ namespace OptiX.IPVS
         }
 
         /// <summary>
-        /// SEQ 순서 읽기 (Sequence_IPVS.ini)
+        /// SEQ 순서 읽기 (SequenceCacheManager에서 캐시된 데이터 사용)
         /// </summary>
         private List<string> ReadSeqOrder()
         {
-            var seqList = new List<string>();
+            // SequenceCacheManager에서 캐시된 시퀀스 가져오기 (파일 I/O 없음, 빠름!)
+            return SequenceCacheManager.Instance.GetIPVSSequenceList();
+        }
 
+
+        /// <summary>
+        /// SEQ 단계 실행 (OPTIC과 동일한 방식)
+        /// </summary>
+        private async Task ExecuteSeqStep(int zoneNumber, string item)
+        {
             try
             {
-                // Sequence_IPVS.ini 파일 경로 (GlobalDataManager에서 캐시된 경로 사용)
-                string seqIniPath = GlobalDataManager.GetIPVSSequencePath();
+                // 예: "PGTurn,1" 또는 "MEAS" 또는 "DELAY,50" 같은 항목
+                string fnName;
+                int? arg = null;
 
-                if (!System.IO.File.Exists(seqIniPath))
+                var parts = item.Split(',');
+                fnName = parts[0].Trim();
+                if (parts.Length > 1 && int.TryParse(parts[1].Trim(), out int parsed))
+                    arg = parsed;
+                
+                // 함수 진입 로그
+                MonitorLogService.Instance.Log(zoneNumber - 1, $"ENTER {fnName}{(arg.HasValue ? "(" + arg.Value + ")" : string.Empty)}");
+
+                // DELAY 처리: 밀리초 지연 (비동기)
+                if (string.Equals(fnName, "DELAY", StringComparison.OrdinalIgnoreCase))
                 {
-                    System.Diagnostics.Debug.WriteLine($"SEQ 파일 없음: {seqIniPath}");
-                    return GetDefaultSeqOrder();
-                }
-
-                var seqIniManager = new IniFileManager(seqIniPath);
-                string seqCountStr = seqIniManager.ReadValue("SEQ", "SEQ_COUNT", "5");
-                int seqCount = int.Parse(seqCountStr);
-
-                for (int i = 1; i <= seqCount; i++)
-                {
-                    string seqValue = seqIniManager.ReadValue("SEQ", $"SEQ_{i}", "");
-                    if (!string.IsNullOrEmpty(seqValue))
+                    int delayMs = arg ?? 0;
+                    if (delayMs > 0)
                     {
-                        seqList.Add(seqValue);
+                        MonitorLogService.Instance.Log(zoneNumber - 1, $"DELAY start {delayMs}ms");
+                        await Task.Delay(delayMs);  // 비동기 지연
+                        MonitorLogService.Instance.Log(zoneNumber - 1, "DELAY end");
                     }
+                    return; // 다음 SEQ 항목으로
                 }
 
-                System.Diagnostics.Debug.WriteLine($"SEQ 순서 로드 완료: {seqList.Count}개");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"SEQ 순서 읽기 오류: {ex.Message}");
-                return GetDefaultSeqOrder();
-            }
-
-            return seqList.Count > 0 ? seqList : GetDefaultSeqOrder();
-        }
-
-        /// <summary>
-        /// 기본 SEQ 순서
-        /// </summary>
-        private List<string> GetDefaultSeqOrder()
-        {
-            return new List<string>
-            {
-                "PGTurn",
-                "MEASTurn",
-                "PGPattern",
-                "MEAS",
-                "IPVS_TEST"
-            };
-        }
-
-        /// <summary>
-        /// SEQ 단계 실행
-        /// </summary>
-        private async Task ExecuteSeqStep(int zoneNumber, string seqName)
-        {
-            try
-            {
-                System.Diagnostics.Debug.WriteLine($"[Zone {zoneNumber}] SEQ 실행: {seqName}");
-
-                switch (seqName.ToUpper())
+                // IPVS 테스트는 직접 처리
+                if (string.Equals(fnName, "IPVS", StringComparison.OrdinalIgnoreCase))
                 {
-                    case "PGTURN":
-                        await Task.Run(() => ExecutePGTurn(zoneNumber));
-                        break;
+                    await Task.Run(() => ExecuteIPVSTest(zoneNumber));
+                    return;
+                }
 
-                    case "MEASTURN":
-                        await Task.Run(() => ExecuteMEASTurn(zoneNumber));
-                        break;
-
-                    case "PGPATTERN":
-                        await Task.Run(() => ExecutePGPattern(zoneNumber));
-                        break;
-
-                    case "MEAS":
-                        await Task.Run(() => ExecuteMEAS(zoneNumber));
-                        break;
-
-                    case "IPVS_TEST":
-                        await Task.Run(() => ExecuteIPVSTest(zoneNumber));
-                        break;
-
-                    default:
-                        System.Diagnostics.Debug.WriteLine($"알 수 없는 SEQ: {seqName}");
-                        break;
+                // 나머지 함수들은 SeqExecutionManager.ExecuteMapped로 통일 처리
+                bool ok = await Task.Run(() => SeqExecutionManager.ExecuteMapped(fnName, arg, zoneNumber));
+                
+                // 실행 결과 로그
+                MonitorLogService.Instance.Log(zoneNumber - 1, $"Execute {fnName}({(arg.HasValue ? arg.Value.ToString() : "-")}) => {(ok ? "OK" : "FAIL")}");
+                
+                if (!ok)
+                {
+                    Common.ErrorLogger.Log($"{fnName} 실행 실패", Common.ErrorLogger.LogLevel.WARNING, zoneNumber);
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[Zone {zoneNumber}] SEQ 실행 오류 ({seqName}): {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// PGTurn 실행
-        /// </summary>
-        private void ExecutePGTurn(int zoneNumber)
-        {
-            try
-            {
-                MonitorLogService.Instance.Log(zoneNumber - 1, $"ENTER PGTurn");
-                bool result = DllFunctions.CallPGTurn(zoneNumber);
-                MonitorLogService.Instance.Log(zoneNumber - 1, $"Execute PGTurn => {(result ? "OK" : "FAIL")}");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"PGTurn 오류: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// MEASTurn 실행
-        /// </summary>
-        private void ExecuteMEASTurn(int zoneNumber)
-        {
-            try
-            {
-                MonitorLogService.Instance.Log(zoneNumber - 1, $"ENTER MEASTurn");
-                bool result = DllFunctions.CallMeasTurn(zoneNumber);
-                MonitorLogService.Instance.Log(zoneNumber - 1, $"Execute MEASTurn => {(result ? "OK" : "FAIL")}");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"MEASTurn 오류: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// PGPattern 실행
-        /// </summary>
-        private void ExecutePGPattern(int zoneNumber)
-        {
-            try
-            {
-                MonitorLogService.Instance.Log(zoneNumber - 1, $"ENTER PGPattern");
-                bool result = DllFunctions.CallPGPattern(zoneNumber);
-                MonitorLogService.Instance.Log(zoneNumber - 1, $"Execute PGPattern => {(result ? "OK" : "FAIL")}");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"PGPattern 오류: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// MEAS 실행
-        /// </summary>
-        private void ExecuteMEAS(int zoneNumber)
-        {
-            try
-            {
-                MonitorLogService.Instance.Log(zoneNumber - 1, $"ENTER MEAS");
-                var (measureData, success) = DllFunctions.CallGetdata();
-                MonitorLogService.Instance.Log(zoneNumber - 1, $"Execute MEAS => {(success ? "OK" : "FAIL")}");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"MEAS 오류: {ex.Message}");
+                Common.ErrorLogger.LogException(ex, $"SEQ 실행 오류 ({item})", zoneNumber);
             }
         }
 
@@ -340,7 +238,7 @@ namespace OptiX.IPVS
 
                 // MAX_POINT 읽기
                 int maxPoint = int.Parse(GlobalDataManager.GetValue("IPVS", "MAX_POINT", "5"));
-                System.Diagnostics.Debug.WriteLine($"[Zone {zoneNumber}] IPVS 테스트 시작 (total_point={maxPoint})");
+                Common.ErrorLogger.Log($"IPVS 테스트 시작 (total_point={maxPoint}, Cell ID: '{cellId}', Inner ID: '{innerId}')", Common.ErrorLogger.LogLevel.INFO, zoneNumber);
 
                 // IPVS 테스트 실행 (한 번만)
                 var input = new Input
@@ -382,11 +280,11 @@ namespace OptiX.IPVS
                     MonitorLogService.Instance.Log(zoneNumber - 1, $"Execute IPVS_TEST => FAIL");
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"[Zone {zoneNumber}] IPVS 테스트 완료");
+                Common.ErrorLogger.Log($"IPVS 테스트 완료", Common.ErrorLogger.LogLevel.INFO, zoneNumber);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"IPVS_TEST 오류: {ex.Message}");
+                Common.ErrorLogger.LogException(ex, "IPVS_TEST 실행 중 오류", zoneNumber);
                 MonitorLogService.Instance.Log(zoneNumber - 1, $"IPVS_TEST failed");
             }
         }

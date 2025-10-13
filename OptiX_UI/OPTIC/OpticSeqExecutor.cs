@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using OptiX.OPTIC;
@@ -76,11 +77,11 @@ namespace OptiX.OPTIC
                     zoneMeasured[i] = false;
                 }
 
-                System.Diagnostics.Debug.WriteLine($"Zone 테스트 상태 초기화 완료 - {zoneCount}개 Zone");
+                ErrorLogger.Log($"Zone 테스트 상태 초기화 완료 - {zoneCount}개 Zone", ErrorLogger.LogLevel.INFO);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Zone 테스트 상태 초기화 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, "Zone 테스트 상태 초기화 중 오류");
             }
         }
 
@@ -100,7 +101,7 @@ namespace OptiX.OPTIC
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine("=== 테스트 시작 ===");
+                ErrorLogger.Log("=== OPTIC 테스트 시작 ===", ErrorLogger.LogLevel.INFO);
 
                 // DLL 초기화 확인
                 if (!DllManager.IsInitialized)
@@ -115,17 +116,16 @@ namespace OptiX.OPTIC
 
                 // SEQ 시작/종료 시간 및 Zone별 시간 초기화
                 SeqExecutionManager.ResetSeqStartTime();
-                System.Diagnostics.Debug.WriteLine("SEQ 시작/종료 시간 및 Zone별 시간 초기화 완료");
 
                 // Zone 개수 읽기 (올바른 INI 섹션/키 사용)
                 int zoneCount = int.Parse(GlobalDataManager.GetValue("Settings", "MTP_ZONE", "2"));
-                System.Diagnostics.Debug.WriteLine($"Zone 개수: {zoneCount}");
+                ErrorLogger.Log($"Zone 개수: {zoneCount}", ErrorLogger.LogLevel.INFO);
 
-                // ViewModel에서 캐싱된 시퀀스 가져오기
-                var cachedSeq = OpticPageViewModel.GetCachedSequence();
+                // SequenceCacheManager에서 캐싱된 시퀀스 가져오기
+                var cachedSeq = SequenceCacheManager.Instance.GetOpticSequenceCopy();
                 if (cachedSeq == null || cachedSeq.Count == 0)
                 {
-                    System.Diagnostics.Debug.WriteLine("⚠️ 시퀀스가 로드되지 않음!");
+                    ErrorLogger.Log("시퀀스가 로드되지 않음", ErrorLogger.LogLevel.WARNING);
                     Application.Current.Dispatcher.Invoke(() =>
                     {
                         MessageBox.Show("시퀀스가 로드되지 않았습니다. Sequence_Optic.ini 파일을 확인해주세요.",
@@ -136,7 +136,7 @@ namespace OptiX.OPTIC
 
                 // Queue를 List로 변환 (모든 Zone에서 같은 시퀀스 사용)
                 var orderedSeq = cachedSeq.ToList();
-                System.Diagnostics.Debug.WriteLine($"SEQ 개수: {orderedSeq.Count}");
+                ErrorLogger.Log($"SEQ 개수: {orderedSeq.Count}", ErrorLogger.LogLevel.INFO);
 
                 // Zone별로 병렬 실행
                 var tasks = new List<Task>();
@@ -154,14 +154,13 @@ namespace OptiX.OPTIC
 
                 // SEQ 종료 시간 설정
                 SeqExecutionManager.SetSeqEndTime(DateTime.Now);
-
-                System.Diagnostics.Debug.WriteLine("=== 모든 Zone SEQ 완료 ===");
+                ErrorLogger.Log("=== 모든 Zone OPTIC SEQ 완료 ===", ErrorLogger.LogLevel.INFO);
 
                 // 결과 로그 생성
                 int[] zones = Enumerable.Range(1, zoneCount).ToArray();
                 await CreateAllResultLogs(zones);
 
-                System.Diagnostics.Debug.WriteLine("=== 테스트 완료 ===");
+                ErrorLogger.Log("=== OPTIC 테스트 완료 ===", ErrorLogger.LogLevel.INFO);
 
                 // 모든 존 완료 후 테이블 렌더링 (UI 스레드에서 - 원본 코드 그대로)
                 await Application.Current.Dispatcher.InvokeAsync(() =>
@@ -181,10 +180,7 @@ namespace OptiX.OPTIC
                                 if (!string.IsNullOrEmpty(judgment))
                                 {
                                     viewModel.AddGraphDataPoint(zoneNumber, judgment, graphManager);
-                                    System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} 그래프 데이터 추가: {judgment}");
                                 }
-                                
-                                System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} DLL 결과로 UI 업데이트 완료");
                             }
                         }
                     }
@@ -193,25 +189,19 @@ namespace OptiX.OPTIC
                     var graphDataPoints = graphManager?.GetDataPoints();
                     if (graphDataPoints != null && graphDataPoints.Count > 0)
                     {
-                        System.Diagnostics.Debug.WriteLine($"그래프 표시 업데이트 호출: {graphDataPoints.Count}개 데이터 포인트");
                         updateGraphDisplay?.Invoke(graphDataPoints);
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine("그래프 데이터 포인트가 없습니다.");
                     }
                     
                     // 테이블 재생성만 수행 (UpdateDataForWad 호출하지 않음 - 이미 viewModel.UpdateDataTableWithDllResult로 업데이트됨)
                     if (dataTableManager != null)
                     {
                         dataTableManager.CreateCustomTable();
-                        System.Diagnostics.Debug.WriteLine("All zones completed → redraw once");
                     }
                 });
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"테스트 실행 오류: {ex.Message}\n{ex.StackTrace}");
+                ErrorLogger.LogException(ex, "OPTIC 테스트 실행 중 오류");
             }
         }
 
@@ -226,20 +216,18 @@ namespace OptiX.OPTIC
             try
             {
                 await ExecuteSeqForZone(zoneId, orderedSeq);
-                
+
                 // 존 완료 표시
                 SetZoneTestCompleted(zoneId - 1, true);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Zone {zoneId} SEQ 실행 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, $"Zone SEQ 실행 중 오류", zoneId);
             }
             finally
             {
                 // Zone SEQ 종료 시간 설정 (예외 발생 여부와 관계없이 항상 실행)
-                // TACT 계산을 위해 필수적으로 필요
                 SeqExecutionManager.SetZoneSeqEndTime(zoneId, DateTime.Now);
-                System.Diagnostics.Debug.WriteLine($"Zone {zoneId} SEQ 종료 시간 설정: {DateTime.Now:HH:mm:ss.fff}");
             }
         }
 
@@ -248,17 +236,16 @@ namespace OptiX.OPTIC
         /// </summary>
         private async Task ExecuteSeqForZone(int zoneId, List<string> orderedSeq)
         {
-            System.Diagnostics.Debug.WriteLine($"[Zone {zoneId}] ExecuteSeqForZone 시작 - 스레드: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
-            System.Diagnostics.Debug.WriteLine($"[Zone {zoneId}] Zone 2 실행 확인: {zoneId == 2}");
+            ErrorLogger.Log($"Zone SEQ 실행 시작", ErrorLogger.LogLevel.INFO, zoneId);
             
             // 시퀀스를 Queue로 변환 (POP 방식으로 진행)
             var sequenceQueue = new Queue<string>(orderedSeq);
             bool isFirstCommand = true; // 첫 번째 명령어(SEQ00) 감지용
-            
+
             while (sequenceQueue.Count > 0)
             {
                 var item = sequenceQueue.Dequeue(); // Queue에서 POP
-                
+
                 // 예: "PGTurn,1" 또는 "MEAS" 같은 항목
                 string fnName;
                 int? arg = null;
@@ -267,14 +254,12 @@ namespace OptiX.OPTIC
                 fnName = parts[0].Trim();
                 if (parts.Length > 1 && int.TryParse(parts[1].Trim(), out int parsed))
                     arg = parsed;
-
-                System.Diagnostics.Debug.WriteLine($"[Zone {zoneId}] SEQ 실행: {fnName}({arg}) - 시간: {DateTime.Now:HH:mm:ss.fff}");
                 
                 // SEQ00(첫 번째 명령어) 시작 시 Zone별 SEQ 시작 시간 설정
                 if (isFirstCommand)
                 {
                     SeqExecutionManager.SetZoneSeqStartTime(zoneId, DateTime.Now);
-                    System.Diagnostics.Debug.WriteLine($"[Zone {zoneId}] SEQ00({fnName}) 시작 - Zone SEQ 시작 시간 설정: {DateTime.Now:HH:mm:ss.fff}");
+                    ErrorLogger.Log($"SEQ00 시작: {fnName}, 시간: {DateTime.Now:HH:mm:ss.fff}", ErrorLogger.LogLevel.DEBUG, zoneId);
                     isFirstCommand = false;
                 }
                 
@@ -307,32 +292,16 @@ namespace OptiX.OPTIC
 
                 // 모든 함수를 ExecuteMapped로 통일 처리 (비동기로 UI 스레드 블록 방지)
                 bool ok = await Task.Run(() => SeqExecutionManager.ExecuteMapped(fnName, arg, zoneId));
-                
+
                 // 실행 결과 로그 (별도 스레드에서 처리 - UI 지연 없음)
                 Task.Run(() =>
                 {
                     MonitorLogService.Instance.Log(zoneId - 1, $"Execute {fnName}({(arg.HasValue ? arg.Value.ToString() : "-")}) => {(ok ? "OK" : "FAIL")}");
                 });
                 
-                // MEAS나 MTP 함수 실행 후 실제 DLL 결과를 UI에 업데이트
-                if (ok && (string.Equals(fnName, "MEAS", StringComparison.OrdinalIgnoreCase) || 
-                          string.Equals(fnName, "MTP", StringComparison.OrdinalIgnoreCase)))
-                {
-                    try
-                    {
-                        // MTP의 경우 저장된 실제 데이터 사용, MEAS의 경우 새로 호출
-                        // MTP와 MEAS 명령어 실행 확인 (UI 업데이트는 SEQ 완료 후 한 번만)
-                        System.Diagnostics.Debug.WriteLine($"[Zone {zoneId}] {fnName} 명령어 실행 완료 - UI 업데이트는 SEQ 완료 후 처리");
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[Zone {zoneId}] UI 업데이트 오류: {ex.Message}");
-                    }
-                }
-                
                 if (!ok)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[Zone {zoneId}] {fnName} 실패");
+                    ErrorLogger.Log($"{fnName} 실행 실패", ErrorLogger.LogLevel.WARNING, zoneId);
                     Task.Run(() =>
                     {
                         MonitorLogService.Instance.Log(zoneId - 1, $"{fnName} failed");
@@ -349,7 +318,7 @@ namespace OptiX.OPTIC
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"결과 로그 생성 시작 - {zones.Length}개 Zone");
+                ErrorLogger.Log($"결과 로그 생성 시작 - {zones.Length}개 Zone", ErrorLogger.LogLevel.INFO);
 
                 foreach (int zoneNumber in zones)
                 {
@@ -372,26 +341,26 @@ namespace OptiX.OPTIC
                                 storedOutput.Value
                             );
 
-                            System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} 로그 생성 결과: {logResult}");
+                            ErrorLogger.Log($"로그 생성 결과: {logResult}", ErrorLogger.LogLevel.INFO, zoneNumber);
                         }
                         else
                         {
-                            System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} 저장된 데이터 없음 - 로그 생성 스킵");
+                            ErrorLogger.Log($"저장된 데이터 없음 - 로그 생성 스킵", ErrorLogger.LogLevel.WARNING, zoneNumber);
                         }
 
                         await Task.Delay(DLL.DllConstants.LOG_GENERATION_DELAY_MS);
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} 로그 생성 오류: {ex.Message}");
+                        ErrorLogger.LogException(ex, "로그 생성 중 오류", zoneNumber);
                     }
                 }
 
-                System.Diagnostics.Debug.WriteLine("결과 로그 생성 완료");
+                ErrorLogger.Log("결과 로그 생성 완료", ErrorLogger.LogLevel.INFO);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"결과 로그 생성 전체 오류: {ex.Message}");
+                ErrorLogger.LogException(ex, "결과 로그 생성 전체 오류");
             }
         }
 
@@ -401,7 +370,7 @@ namespace OptiX.OPTIC
         public void StopTest()
         {
             isTestStarted = false;
-            System.Diagnostics.Debug.WriteLine("테스트 중지 요청");
+            ErrorLogger.Log("테스트 중지 요청", ErrorLogger.LogLevel.INFO);
         }
 
         /// <summary>
@@ -412,18 +381,12 @@ namespace OptiX.OPTIC
             // null 체크
             if (zoneTestCompleted == null)
             {
-                System.Diagnostics.Debug.WriteLine("⚠️ zoneTestCompleted가 null - 초기화 필요");
                 InitializeZoneTestStates();
             }
 
             if (zoneTestCompleted != null && zoneIndex >= 0 && zoneIndex < zoneTestCompleted.Length)
             {
                 zoneTestCompleted[zoneIndex] = completed;
-                System.Diagnostics.Debug.WriteLine($"Zone {zoneIndex + 1} 테스트 완료 상태: {completed}");
-            }
-            else
-            {
-                System.Diagnostics.Debug.WriteLine($"❌ Zone {zoneIndex + 1} 인덱스 오류 (배열 크기: {zoneTestCompleted?.Length ?? 0})");
             }
         }
 
@@ -432,10 +395,8 @@ namespace OptiX.OPTIC
         /// </summary>
         public bool IsZoneTestCompleted(int zoneIndex)
         {
-            // null 체크
             if (zoneTestCompleted == null)
             {
-                System.Diagnostics.Debug.WriteLine("⚠️ zoneTestCompleted가 null - false 반환");
                 return false;
             }
 
@@ -455,4 +416,5 @@ namespace OptiX.OPTIC
         }
     }
 }
+
 

@@ -22,12 +22,6 @@ namespace OptiX.IPVS
         private int currentZone = 0;
         private int selectedWadIndex = 0;
         private bool isDarkMode = false;
-        
-        // 판정 카운터
-        private int totalCount = 0;
-        private int okCount = 0;
-        private int rjCount = 0;
-        private int ptnCount = 0;
         #endregion
 
         #region Properties
@@ -73,8 +67,8 @@ namespace OptiX.IPVS
             TotalTabCommand = new RelayCommand(ExecuteTotalTab);
             BackCommand = new RelayCommand(ExecuteBack);
             
-            // 초기 데이터는 InitializeIPVSData()에서 이미 로드됨
-            // LoadInitialData(); // 제거: InitializeIPVSData()와 중복
+            // IPVS 시퀀스 캐싱 (한 번만 실행)
+            OptiX.DLL.SequenceCacheManager.Instance.LoadIPVSSequence();
         }
         #endregion
 
@@ -180,11 +174,6 @@ namespace OptiX.IPVS
 
         #region Data Management
         /// <summary>
-        /// 초기 데이터 로드
-        /// </summary>
-        // LoadInitialData() 제거됨 - InitializeIPVSData()가 이미 올바른 데이터 생성함
-
-        /// <summary>
         /// DLL 결과로 데이터 테이블 업데이트 (DllResultHandler로 위임)
         /// </summary>
         public void UpdateDataTableWithDllResult(Output output, int zoneNumber, IPVSDataTableManager dataTableManager, GraphManager graphManager)
@@ -230,43 +219,23 @@ namespace OptiX.IPVS
         }
 
         /// <summary>
-        /// 판정 현황 표 업데이트
+        /// 판정 현황 표 업데이트 (이제 JudgmentStatusManager가 카운터 관리)
         /// </summary>
+        /// <param name="judgment">새로운 판정 결과 (OK/R/J/PTN)</param>
         private void UpdateJudgmentStatusTable(string judgment)
         {
-            totalCount++;
-            
-            if (judgment == "OK")
-                okCount++;
-            else if (judgment == "R/J")
-                rjCount++;
-            else if (judgment == "PTN")
-                ptnCount++;
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"[IPVS] 판정 결과 전달: {judgment} → JudgmentStatusManager");
 
-            UpdateJudgmentStatusUI();
-        }
-        #endregion
-
-        #region Judgment Counters
-        public void InitializeJudgmentCounters()
-        {
-            totalCount = 0;
-            okCount = 0;
-            rjCount = 0;
-            ptnCount = 0;
-        }
-        
-        public void UpdateJudgmentStatusUI()
-        {
-            this.totalCount = okCount + rjCount + ptnCount;
-            string okRate = this.totalCount > 0 ? (okCount / (double)this.totalCount).ToString("0.00") : "0.00";
-            string rjRate = this.totalCount > 0 ? (rjCount / (double)this.totalCount).ToString("0.00") : "0.00";
-            string ptnRate = this.totalCount > 0 ? (ptnCount / (double)this.totalCount).ToString("0.00") : "0.00";
-
-            JudgmentStatusUpdateRequested?.Invoke(this, new JudgmentStatusUpdateEventArgs { RowName = "Total", Quantity = this.totalCount.ToString(), Rate = "1.00" });
-            JudgmentStatusUpdateRequested?.Invoke(this, new JudgmentStatusUpdateEventArgs { RowName = "OK", Quantity = okCount.ToString(), Rate = okRate });
-            JudgmentStatusUpdateRequested?.Invoke(this, new JudgmentStatusUpdateEventArgs { RowName = "RJ", Quantity = rjCount.ToString(), Rate = rjRate });
-            JudgmentStatusUpdateRequested?.Invoke(this, new JudgmentStatusUpdateEventArgs { RowName = "PTN", Quantity = ptnCount.ToString(), Rate = ptnRate });
+                // 판정 결과를 JudgmentStatusManager에게 전달 (이벤트 발생)
+                JudgmentStatusUpdateRequested?.Invoke(this, 
+                    new JudgmentStatusUpdateEventArgs(judgment));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"판정 현황 표 업데이트 오류: {ex.Message}");
+            }
         }
         #endregion
 

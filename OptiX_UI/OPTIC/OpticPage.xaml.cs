@@ -134,7 +134,7 @@ namespace OptiX
             dataTableManager = new OpticDataTableManager(dataTableGrid, wadComboBox, viewModel);
             graphManager = new GraphManager(graphContent, graphScrollViewer, viewModel);
             monitorManager = new MonitorManager(monitorGrid, this); // 동적 Ellipse 접근 필요
-            judgmentStatusManager = new JudgmentStatusManager(statusTextBlocks, judgmentStatusContainer, this);
+            judgmentStatusManager = new JudgmentStatusManager(statusTextBlocks, judgmentStatusContainer, this, InspectionType.OPTIC);
             zoneButtonManager = new ZoneButtonManager(zoneButtonsPanel, viewModel, graphManager);
             seqExecutor = new OpticSeqExecutor(UpdateGraphDisplay, dataTableManager, viewModel, graphManager);
             
@@ -319,6 +319,9 @@ namespace OptiX
                 graphScrollViewer.UpdateLayout(); // 강제 렌더링
             }
             if (totalContent != null) totalContent.Visibility = Visibility.Collapsed;
+            
+            // 그래프 영역 다크모드 적용
+            graphManager?.SetDarkMode(this.isDarkMode);
             
             sw.Stop();
             System.Diagnostics.Debug.WriteLine($"[성능] 탭 전환 완료: {sw.ElapsedMilliseconds}ms");
@@ -596,7 +599,17 @@ namespace OptiX
         /// </summary>
         private void OnJudgmentStatusUpdateRequested(object sender, JudgmentStatusUpdateEventArgs e)
         {
-            UpdateJudgmentStatusRow(e.RowName, e.Quantity, e.Rate);
+            // 판정 결과 전달 방식 (새 방식)
+            if (!string.IsNullOrEmpty(e.Judgment))
+            {
+                // JudgmentStatusManager가 카운터 관리
+                judgmentStatusManager.IncrementCounter(e.Judgment);
+            }
+            // 레거시 방식 (행별 업데이트)
+            else if (!string.IsNullOrEmpty(e.RowName))
+            {
+                UpdateJudgmentStatusRow(e.RowName, e.Quantity, e.Rate);
+            }
         }
 
         /// <summary>

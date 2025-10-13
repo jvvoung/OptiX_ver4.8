@@ -30,86 +30,86 @@ namespace OptiX.DLL
             {
                 try
                 {
-                    Debug.WriteLine($"[Zone {zoneNumber}] 로그 생성 시작 (Lock 획득)");
+                    ErrorLogger.Log($"로그 생성 시작", ErrorLogger.LogLevel.INFO, zoneNumber);
                 
-                bool allSuccess = true;
+                    bool allSuccess = true;
                 
                 // EECP 로그 생성 (OPTIC)
                 try
                 {
                     string createEecp = GlobalDataManager.GetValue("MTP", "CREATE_EECP", "F");
                     if (createEecp == "T")
-                    {
-                        var eecpLogger = OptiX.Result_LOG.OPTIC.OpticEECPLogger.Instance;
-                        eecpLogger.LogEECPData(startTime, endTime, cellId, innerId, zoneNumber, output);
-                        Debug.WriteLine($"[Zone {zoneNumber}] OPTIC EECP 로그 생성 완료");
+                        {
+                            var eecpLogger = OptiX.Result_LOG.OPTIC.OpticEECPLogger.Instance;
+                            eecpLogger.LogEECPData(startTime, endTime, cellId, innerId, zoneNumber, output);
+                            ErrorLogger.Log($"OPTIC EECP 로그 생성 완료", ErrorLogger.LogLevel.INFO, zoneNumber);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[Zone {zoneNumber}] OPTIC EECP 로그 오류: {ex.Message}");
-                    allSuccess = false;
-                }
+                    catch (Exception ex)
+                    {
+                        ErrorLogger.LogException(ex, "OPTIC EECP 로그 생성 중 오류", zoneNumber);
+                        allSuccess = false;
+                    }
                 
                 // EECP_SUMMARY 로그 생성 (OPTIC)
                 try
                 {
                     string createEecpSummary = GlobalDataManager.GetValue("MTP", "CREATE_EECP_SUMMARY", "F");
                     if (createEecpSummary == "T")
-                    {
-                        var eecpSummaryLogger = OptiX.Result_LOG.OPTIC.OpticEECPSummaryLogger.Instance;
-                        string summaryData = $"Zone_{zoneNumber}_Summary_Data";
-                        eecpSummaryLogger.LogEECPSummaryData(startTime, endTime, cellId, innerId, zoneNumber, summaryData);
-                        Debug.WriteLine($"[Zone {zoneNumber}] OPTIC EECP_SUMMARY 로그 생성 완료");
+                        {
+                            var eecpSummaryLogger = OptiX.Result_LOG.OPTIC.OpticEECPSummaryLogger.Instance;
+                            string summaryData = $"Zone_{zoneNumber}_Summary_Data";
+                            eecpSummaryLogger.LogEECPSummaryData(startTime, endTime, cellId, innerId, zoneNumber, summaryData);
+                            ErrorLogger.Log($"OPTIC EECP_SUMMARY 로그 생성 완료", ErrorLogger.LogLevel.INFO, zoneNumber);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[Zone {zoneNumber}] OPTIC EECP_SUMMARY 로그 오류: {ex.Message}");
-                    allSuccess = false;
-                }
+                    catch (Exception ex)
+                    {
+                        ErrorLogger.LogException(ex, "OPTIC EECP_SUMMARY 로그 생성 중 오류", zoneNumber);
+                        allSuccess = false;
+                    }
                 
                 // CIM 로그 생성 (OPTIC)
                 try
                 {
                     string createCim = GlobalDataManager.GetValue("MTP", "CREATE_CIM", "F");
                     if (createCim == "T")
-                    {
-                        var cimLogger = OptiX.Result_LOG.OPTIC.OpticCIMLogger.Instance;
-                        string cimData = $"Zone_{zoneNumber}_CIM_Data";
-                        cimLogger.LogCIMData(startTime, endTime, cellId, innerId, zoneNumber, cimData);
-                        Debug.WriteLine($"[Zone {zoneNumber}] OPTIC CIM 로그 생성 완료");
+                        {
+                            var cimLogger = OptiX.Result_LOG.OPTIC.OpticCIMLogger.Instance;
+                            string cimData = $"Zone_{zoneNumber}_CIM_Data";
+                            cimLogger.LogCIMData(startTime, endTime, cellId, innerId, zoneNumber, cimData);
+                            ErrorLogger.Log($"OPTIC CIM 로그 생성 완료", ErrorLogger.LogLevel.INFO, zoneNumber);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[Zone {zoneNumber}] OPTIC CIM 로그 오류: {ex.Message}");
-                    allSuccess = false;
-                }
+                    catch (Exception ex)
+                    {
+                        ErrorLogger.LogException(ex, "OPTIC CIM 로그 생성 중 오류", zoneNumber);
+                        allSuccess = false;
+                    }
                 
                 // VALIDATION 로그 생성 (OPTIC)
                 try
                 {
                     string createValidation = GlobalDataManager.GetValue("MTP", "CREATE_VALIDATION", "F");
                     if (createValidation == "T")
-                    {
-                        var validationLogger = OptiX.Result_LOG.OPTIC.OpticValidationLogger.Instance;
-                        string validationData = $"Zone_{zoneNumber}_Validation_Data";
-                        validationLogger.LogValidationData(startTime, endTime, cellId, innerId, zoneNumber, validationData);
-                        Debug.WriteLine($"[Zone {zoneNumber}] OPTIC VALIDATION 로그 생성 완료");
+                        {
+                            var validationLogger = OptiX.Result_LOG.OPTIC.OpticValidationLogger.Instance;
+                            string validationData = $"Zone_{zoneNumber}_Validation_Data";
+                            validationLogger.LogValidationData(startTime, endTime, cellId, innerId, zoneNumber, validationData);
+                            ErrorLogger.Log($"OPTIC VALIDATION 로그 생성 완료", ErrorLogger.LogLevel.INFO, zoneNumber);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[Zone {zoneNumber}] OPTIC VALIDATION 로그 오류: {ex.Message}");
-                    allSuccess = false;
-                }
+                    catch (Exception ex)
+                    {
+                        ErrorLogger.LogException(ex, "OPTIC VALIDATION 로그 생성 중 오류", zoneNumber);
+                        allSuccess = false;
+                    }
                 
                     return allSuccess;
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[Zone {zoneNumber}] 로그 생성 전체 오류: {ex.Message}");
+                    ErrorLogger.LogException(ex, "로그 생성 전체 오류", zoneNumber);
                     return false;
                 }
             } // lock 종료
@@ -131,7 +131,7 @@ namespace OptiX.DLL
             {
                 try
                 {
-                    Debug.WriteLine($"[IPVS Zone {zoneNumber}] 로그 생성 시작 (Lock 획득)");
+                    ErrorLogger.Log($"IPVS 로그 생성 시작", ErrorLogger.LogLevel.INFO, zoneNumber);
                 
                     bool allSuccess = true;
                     
@@ -143,12 +143,12 @@ namespace OptiX.DLL
                         {
                             var eecpLogger = OptiX.Result_LOG.IPVS.IPVSEECPLogger.Instance;
                             eecpLogger.LogEECPData(startTime, endTime, cellId, innerId, zoneNumber, output);
-                            Debug.WriteLine($"[IPVS Zone {zoneNumber}] EECP 로그 생성 완료 (모든 Point 데이터 포함)");
+                            ErrorLogger.Log($"IPVS EECP 로그 생성 완료 (모든 Point 데이터 포함)", ErrorLogger.LogLevel.INFO, zoneNumber);
                         }
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"[IPVS Zone {zoneNumber}] EECP 로그 오류: {ex.Message}");
+                        ErrorLogger.LogException(ex, "IPVS EECP 로그 생성 중 오류", zoneNumber);
                         allSuccess = false;
                     }
                     
@@ -161,12 +161,12 @@ namespace OptiX.DLL
                             var eecpSummaryLogger = OptiX.Result_LOG.IPVS.IPVSEECPSummaryLogger.Instance;
                             string summaryData = $"Zone_{zoneNumber}_Summary_Data";
                             eecpSummaryLogger.LogEECPSummaryData(startTime, endTime, cellId, innerId, zoneNumber, summaryData);
-                            Debug.WriteLine($"[IPVS Zone {zoneNumber}] EECP_SUMMARY 로그 생성 완료");
+                            ErrorLogger.Log($"IPVS EECP_SUMMARY 로그 생성 완료", ErrorLogger.LogLevel.INFO, zoneNumber);
                         }
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"[IPVS Zone {zoneNumber}] EECP_SUMMARY 로그 오류: {ex.Message}");
+                        ErrorLogger.LogException(ex, "IPVS EECP_SUMMARY 로그 생성 중 오류", zoneNumber);
                         allSuccess = false;
                     }
                     
@@ -179,12 +179,12 @@ namespace OptiX.DLL
                             var cimLogger = OptiX.Result_LOG.IPVS.IPVSCIMLogger.Instance;
                             string cimData = $"Zone_{zoneNumber}_CIM_Data";
                             cimLogger.LogCIMData(startTime, endTime, cellId, innerId, zoneNumber, cimData);
-                            Debug.WriteLine($"[IPVS Zone {zoneNumber}] CIM 로그 생성 완료");
+                            ErrorLogger.Log($"IPVS CIM 로그 생성 완료", ErrorLogger.LogLevel.INFO, zoneNumber);
                         }
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"[IPVS Zone {zoneNumber}] CIM 로그 오류: {ex.Message}");
+                        ErrorLogger.LogException(ex, "IPVS CIM 로그 생성 중 오류", zoneNumber);
                         allSuccess = false;
                     }
                     
@@ -197,12 +197,12 @@ namespace OptiX.DLL
                             var validationLogger = OptiX.Result_LOG.IPVS.IPVSValidationLogger.Instance;
                             string validationData = $"Zone_{zoneNumber}_Validation_Data";
                             validationLogger.LogValidationData(startTime, endTime, cellId, innerId, zoneNumber, validationData);
-                            Debug.WriteLine($"[IPVS Zone {zoneNumber}] VALIDATION 로그 생성 완료");
+                            ErrorLogger.Log($"IPVS VALIDATION 로그 생성 완료", ErrorLogger.LogLevel.INFO, zoneNumber);
                         }
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"[IPVS Zone {zoneNumber}] VALIDATION 로그 오류: {ex.Message}");
+                        ErrorLogger.LogException(ex, "IPVS VALIDATION 로그 생성 중 오류", zoneNumber);
                         allSuccess = false;
                     }
                     
@@ -210,7 +210,7 @@ namespace OptiX.DLL
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[IPVS Zone {zoneNumber}] 로그 생성 전체 오류: {ex.Message}");
+                    ErrorLogger.LogException(ex, "IPVS 로그 생성 전체 오류", zoneNumber);
                     return false;
                 }
             } // lock 종료

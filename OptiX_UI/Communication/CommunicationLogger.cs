@@ -9,7 +9,7 @@ namespace OptiX.Communication
     /// </summary>
     public class CommunicationLogger
     {
-        private static readonly string LogDirectory = @"D:\Project\Log\protocol";
+        private static readonly string LogDirectory = @"D:\Project\Log\TraceLog\Protocol";
         private static readonly object _lock = new object();
 
         /// <summary>

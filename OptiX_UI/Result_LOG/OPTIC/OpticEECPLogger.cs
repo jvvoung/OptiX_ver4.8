@@ -47,7 +47,10 @@ namespace OptiX.Result_LOG.OPTIC
                 try
                 {
                     // INI 파일에서 EECP 폴더 경로 읽기
-                    _basePath = GlobalDataManager.GetValue("MTP_PATHS", "EECP_FOLDER", @"D:\Project\Log\Result\특성\EECP");
+                    string rawPath = GlobalDataManager.GetValue("MTP_PATHS", "EECP_FOLDER", @"D:\Project\Log\Result\OPTIC\EECP");
+                    
+                    // 경로 정리 및 검증
+                    _basePath = CleanPath(rawPath);
                     _fileName = $"EECP_{DateTime.Now:yyyyMMdd}.csv";
                     _fullPath = Path.Combine(_basePath, _fileName);
                     
@@ -73,6 +76,35 @@ namespace OptiX.Result_LOG.OPTIC
                     throw;
                 }
             }
+        }
+
+        /// <summary>
+        /// 경로 정리 및 검증
+        /// </summary>
+        private string CleanPath(string rawPath)
+        {
+            if (string.IsNullOrWhiteSpace(rawPath))
+            {
+                return @"D:\Project\Log\Result\OPTIC\EECP";
+            }
+            
+            // 앞뒤 공백 제거
+            rawPath = rawPath.Trim();
+            
+            // 잘못된 문자 제거 또는 대체
+            char[] invalidChars = Path.GetInvalidPathChars();
+            foreach (char c in invalidChars)
+            {
+                rawPath = rawPath.Replace(c, '_');
+            }
+            
+            // 연속된 백슬래시 정리
+            while (rawPath.Contains("\\\\"))
+            {
+                rawPath = rawPath.Replace("\\\\", "\\");
+            }
+            
+            return rawPath;
         }
 
         /// <summary>

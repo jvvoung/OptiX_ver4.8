@@ -48,9 +48,9 @@ namespace OptiX.Common
             var now = DateTime.Now;
             string date = now.ToString("yyMMdd");
             string hour = now.ToString("HH");
-            // 예: D:\Project\Log\Seq\Seq_251007_10_1zone.txt
+            // 예: D:\Project\Log\TraceLog\Monitor\Seq_251007_10_1zone.txt
             string fileName = $"Seq_{date}_{hour}_{zoneIndex + 1}zone.txt";
-            return Path.Combine(@"D:\Project\Log\Seq", fileName);
+            return Path.Combine(@"D:\Project\Log\TraceLog\Monitor", fileName);
         }
     }
 }

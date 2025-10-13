@@ -8,11 +8,21 @@ using System.Windows.Media;
 namespace OptiX.Common
 {
     /// <summary>
+    /// 검사 타입 Enum (OPTIC/IPVS 구분)
+    /// </summary>
+    public enum InspectionType
+    {
+        OPTIC,
+        IPVS
+    }
+
+    /// <summary>
     /// 판정 현황 테이블 관리 클래스 (OPTIC/IPVS 공통)
     /// 
     /// 역할:
     /// - 판정 현황 테이블 생성 (OK, R/J, PTN 행)
     /// - 판정 현황 업데이트 (수량, 비율)
+    /// - 판정 카운터 관리 (totalCount, okCount, rejectCount, ptnCount)
     /// - Total, Pass, Fail 집계
     /// - 다크모드 전환 시 색상 업데이트
     /// 
@@ -22,7 +32,7 @@ namespace OptiX.Common
     /// 판정 현황 행:
     /// - Total: 전체 개수
     /// - OK: 합격 개수
-    /// - R/J: 불합격 개수 (Reject/Judgment)
+    /// - R/J (또는 NG): 불합격 개수
     /// - PTN: Pattern 개수
     /// </summary>
     public class JudgmentStatusManager
@@ -32,15 +42,24 @@ namespace OptiX.Common
         private readonly Grid judgmentStatusContainer;
         private readonly UserControl page; // 동적 탐색용 (OPTIC/IPVS Page)
         private bool isDarkMode = false;
+        private InspectionType inspectionType;
+
+        // 판정 카운터 (OPTIC/IPVS 공통)
+        private int totalCount = 0;
+        private int okCount = 0;
+        private int rejectCount = 0;  // NG 또는 R/J
+        private int ptnCount = 0;
 
         public JudgmentStatusManager(
             Dictionary<string, (TextBlock quantity, TextBlock rate)> statusTextBlocks,
             Grid judgmentStatusContainer,
-            UserControl page)
+            UserControl page,
+            InspectionType type = InspectionType.OPTIC)
         {
             this.statusTextBlocks = statusTextBlocks ?? throw new ArgumentNullException(nameof(statusTextBlocks));
             this.judgmentStatusContainer = judgmentStatusContainer;
             this.page = page; // ClearJudgmentStatus의 동적 탐색용
+            this.inspectionType = type;
         }
 
         /// <summary>
@@ -58,24 +77,44 @@ namespace OptiX.Common
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"판정 현황 업데이트: {rowName} - 수량: {quantity}, 비율: {rate}");
+                System.Diagnostics.Debug.WriteLine($"✍️ 판정 현황 업데이트 시도: {rowName} - 수량: {quantity}, 비율: {rate}");
+                System.Diagnostics.Debug.WriteLine($"   Dictionary 전체 키: {string.Join(", ", statusTextBlocks.Keys)}");
                 
                 // Dictionary에서 TextBlock 가져와서 업데이트
                 if (statusTextBlocks.TryGetValue(rowName, out var textBlocks))
                 {
-                    if (textBlocks.quantity != null) textBlocks.quantity.Text = quantity;
-                    if (textBlocks.rate != null) textBlocks.rate.Text = rate;
+                    System.Diagnostics.Debug.WriteLine($"   ✅ Dictionary에서 '{rowName}' 키 찾음");
+                    
+                    if (textBlocks.quantity != null)
+                    {
+                        textBlocks.quantity.Text = quantity;
+                        System.Diagnostics.Debug.WriteLine($"   ✅ 수량 TextBlock 업데이트 완료: {quantity}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"   ⚠️ 수량 TextBlock이 null입니다!");
+                    }
+                    
+                    if (textBlocks.rate != null)
+                    {
+                        textBlocks.rate.Text = rate;
+                        System.Diagnostics.Debug.WriteLine($"   ✅ 비율 TextBlock 업데이트 완료: {rate}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"   ⚠️ 비율 TextBlock이 null입니다!");
+                    }
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine($"⚠️ 판정 현황 TextBlock 못 찾음: {rowName}");
+                    System.Diagnostics.Debug.WriteLine($"   ❌ Dictionary에서 '{rowName}' 키를 찾을 수 없습니다!");
                 }
                 
-                System.Diagnostics.Debug.WriteLine($"판정 현황 업데이트 완료: {rowName}");
+                System.Diagnostics.Debug.WriteLine($"✅ 판정 현황 업데이트 완료: {rowName}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"판정 현황 행 업데이트 오류 ({rowName}): {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ 판정 현황 행 업데이트 오류 ({rowName}): {ex.Message}\n{ex.StackTrace}");
             }
         }
 
@@ -295,21 +334,111 @@ namespace OptiX.Common
         }
 
         /// <summary>
-        /// 판정 현황 테이블 초기화
+        /// 판정 카운터 증가 (판정 결과를 받아서 카운트)
         /// </summary>
-        public void ClearJudgmentStatus()
+        /// <param name="judgment">판정 결과 (OK, R/J, NG, PTN)</param>
+        public void IncrementCounter(string judgment)
         {
             try
             {
-                UpdateJudgmentStatusRow("Total", "0", "1.00");
-                UpdateJudgmentStatusRow("OK", "0", "0.00");
-                UpdateJudgmentStatusRow("R/J", "0", "0.00");
-                UpdateJudgmentStatusRow("PTN", "0", "0.00");
+                totalCount++;
+                
+                // 판정에 따라 카운터 증가
+                switch (judgment)
+                {
+                    case "OK":
+                        okCount++;
+                        break;
+                    case "R/J":
+                    case "NG":  // OPTIC의 NG도 처리
+                        rejectCount++;
+                        break;
+                    case "PTN":
+                        ptnCount++;
+                        break;
+                    default:
+                        System.Diagnostics.Debug.WriteLine($"⚠️ 알 수 없는 판정 값: {judgment}");
+                        break;
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"판정 카운터 업데이트: Total={totalCount}, OK={okCount}, Reject={rejectCount}, PTN={ptnCount}");
+                
+                // UI 업데이트
+                UpdateJudgmentStatusUI();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"판정 현황 초기화 오류: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"판정 카운터 증가 오류: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 판정 현황 UI 업데이트 (카운터 기반)
+        /// </summary>
+        private void UpdateJudgmentStatusUI()
+        {
+            try
+            {
+                // Total
+                UpdateJudgmentStatusRow("Total", 
+                    totalCount.ToString(), 
+                    "1.00");
+                
+                // OK
+                double okRate = totalCount > 0 ? (double)okCount / totalCount : 0.0;
+                UpdateJudgmentStatusRow("OK",
+                    okCount.ToString(),
+                    okRate.ToString("F2"));
+                
+                // R/J (OPTIC/IPVS 모두 동일)
+                double rejectRate = totalCount > 0 ? (double)rejectCount / totalCount : 0.0;
+                UpdateJudgmentStatusRow("R/J",
+                    rejectCount.ToString(),
+                    rejectRate.ToString("F2"));
+                
+                // PTN
+                double ptnRate = totalCount > 0 ? (double)ptnCount / totalCount : 0.0;
+                UpdateJudgmentStatusRow("PTN",
+                    ptnCount.ToString(),
+                    ptnRate.ToString("F2"));
+                
+                System.Diagnostics.Debug.WriteLine($"판정 현황 UI 업데이트 완료");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"판정 현황 UI 업데이트 오류: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 판정 카운터 초기화
+        /// </summary>
+        public void ResetCounters()
+        {
+            try
+            {
+                totalCount = 0;
+                okCount = 0;
+                rejectCount = 0;
+                ptnCount = 0;
+                
+                System.Diagnostics.Debug.WriteLine("판정 카운터 초기화 완료");
+                
+                // UI도 초기화
+                UpdateJudgmentStatusUI();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"판정 카운터 초기화 오류: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 판정 현황 테이블 초기화 (레거시 메서드 - ResetCounters 사용 권장)
+        /// </summary>
+        public void ClearJudgmentStatus()
+        {
+            ResetCounters();
         }
     }
 }

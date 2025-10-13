@@ -104,10 +104,12 @@
     <Compile Include="Language\LanguageManager.cs" />
     <Compile Include="Language\LanguageHelper.cs" />
     <Compile Include="DLL\DllConstants.cs" />
+    <Compile Include="Common\ErrorLogger.cs" />
     <Compile Include="DLL\DllManager.cs" />
     <Compile Include="DLL\DllStructures.cs" />
     <Compile Include="DLL\DllFunctions.cs" />
     <Compile Include="DLL\SeqExecutionManager.cs" />
+    <Compile Include="DLL\SequenceCacheManager.cs" />
     <Compile Include="DLL\ResultLogManager.cs" />
     <Compile Include="DLL\DllResultHandler.cs" />
     <Compile Include="Communication\CommunicationServer.cs" />

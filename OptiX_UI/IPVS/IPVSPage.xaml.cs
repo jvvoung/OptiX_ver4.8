@@ -87,7 +87,7 @@ namespace OptiX
         private void SubscribeToViewModelEvents()
         {
             viewModel.TestStartRequested += (s, e) => StartTest();
-            viewModel.JudgmentStatusUpdateRequested += (s, e) => UpdateJudgmentStatusRow(e);
+            viewModel.JudgmentStatusUpdateRequested += (s, e) => OnJudgmentStatusUpdateRequested(e);
             viewModel.GraphDisplayUpdateRequested += (s, e) => UpdateGraphDisplay(e.DataPoints);
             viewModel.DataTableUpdateRequested += (s, e) => dataTableManager.CreateCustomTable(); // TEST START 후 테이블 재생성
         }
@@ -131,10 +131,10 @@ namespace OptiX
                 {
                     ["Total"] = (this.FindName("TotalQuantity") as TextBlock, this.FindName("TotalRate") as TextBlock),
                     ["OK"] = (this.FindName("OKQuantity") as TextBlock, this.FindName("OKRate") as TextBlock),
-                    ["RJ"] = (this.FindName("RJQuantity") as TextBlock, this.FindName("RJRate") as TextBlock),
+                    ["R/J"] = (this.FindName("RJQuantity") as TextBlock, this.FindName("RJRate") as TextBlock),
                     ["PTN"] = (this.FindName("PTNQuantity") as TextBlock, this.FindName("PTNRate") as TextBlock)
                 };
-                judgmentStatusManager = new JudgmentStatusManager(statusTextBlocks, judgmentStatusContainer, this);
+                judgmentStatusManager = new JudgmentStatusManager(statusTextBlocks, judgmentStatusContainer, this, InspectionType.IPVS);
             }
             
             // ZoneButtonManager 생성
@@ -145,10 +145,9 @@ namespace OptiX
                     (zone) => viewModel.CurrentZone = zone,
                     () => viewModel.CurrentZone,
                     () => {
-                        // RESET 시 ViewModel 초기화
-                        viewModel.InitializeJudgmentCounters();
+                        // RESET 시 초기화
                         viewModel.ClearGraphData(graphManager);
-                        viewModel.UpdateJudgmentStatusUI();
+                        judgmentStatusManager?.ResetCounters(); // 카운터 초기화는 Manager가 처리
                     }
                 );
                 zoneButtonManager.SetDataTableManager(dataTableManager);
@@ -192,9 +191,19 @@ namespace OptiX
         #endregion
 
         #region 판정 현황 업데이트
-        private void UpdateJudgmentStatusRow(JudgmentStatusUpdateEventArgs e)
+        private void OnJudgmentStatusUpdateRequested(JudgmentStatusUpdateEventArgs e)
         {
-            judgmentStatusManager?.UpdateJudgmentStatusRow(e.RowName, e.Quantity, e.Rate);
+            // 판정 결과 전달 방식 (새 방식)
+            if (!string.IsNullOrEmpty(e.Judgment))
+            {
+                // JudgmentStatusManager가 카운터 관리
+                judgmentStatusManager?.IncrementCounter(e.Judgment);
+            }
+            // 레거시 방식 (행별 업데이트)
+            else if (!string.IsNullOrEmpty(e.RowName))
+            {
+                judgmentStatusManager?.UpdateJudgmentStatusRow(e.RowName, e.Quantity, e.Rate);
+            }
         }
         #endregion
 
@@ -231,6 +240,9 @@ namespace OptiX
                 if (monitorContent != null) monitorContent.Visibility = Visibility.Collapsed;
                 if (graphScrollViewer != null) graphScrollViewer.Visibility = Visibility.Visible;
                 if (totalContent != null) totalContent.Visibility = Visibility.Collapsed;
+                
+                // 그래프 영역 다크모드 적용
+                graphManager?.SetDarkMode(this.isDarkMode);
                 
                 // 그래프 업데이트
                 graphManager?.RestoreExistingGraphData();
