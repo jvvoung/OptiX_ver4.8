@@ -690,17 +690,17 @@
                                        VerticalAlignment="Center" 
                                        Margin="8,0"/>
                         </Border>
-                        
+
                         <!-- 콘텐츠 영역 -->
-                <Border Grid.Row="1" 
-                                Background="{DynamicResource DynamicSurfaceColor}" 
-                                CornerRadius="0,0,6,6">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        
+                        <Border Grid.Row="1" 
+                Background="{DynamicResource DynamicSurfaceColor}" 
+                CornerRadius="0,0,6,6">
+                            <Grid x:Name="JudgmentStatusContainer">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
                                 <!-- 표 헤더 -->
                         <Border Grid.Row="0" 
                                         Background="{DynamicResource DynamicBackgroundColor}" 

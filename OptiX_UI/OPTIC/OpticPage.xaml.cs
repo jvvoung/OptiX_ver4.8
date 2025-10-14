@@ -121,26 +121,48 @@ namespace OptiX
             var monitorGrid = this.FindName("MonitorGrid") as Grid;
             var judgmentStatusContainer = this.FindName("JudgmentStatusContainer") as Grid;
             
-            // 판정 현황 TextBlock들 준비
-            var statusTextBlocks = new Dictionary<string, (TextBlock quantity, TextBlock rate)>
-            {
-                ["Total"] = (this.FindName("TotalQuantity") as TextBlock, this.FindName("TotalRate") as TextBlock),
-                ["PTN"] = (this.FindName("PTNQuantity") as TextBlock, this.FindName("PTNRate") as TextBlock),
-                ["R/J"] = (this.FindName("RJQuantity") as TextBlock, this.FindName("RJRate") as TextBlock),
-                ["OK"] = (this.FindName("OKQuantity") as TextBlock, this.FindName("OKRate") as TextBlock)
-            };
             
             // Manager 생성 (필요한 UI 요소만 전달)
             dataTableManager = new OpticDataTableManager(dataTableGrid, wadComboBox, viewModel);
-            graphManager = new GraphManager(graphContent, graphScrollViewer, viewModel);
-            monitorManager = new MonitorManager(monitorGrid, this); // 동적 Ellipse 접근 필요
-            judgmentStatusManager = new JudgmentStatusManager(statusTextBlocks, judgmentStatusContainer, this, InspectionType.OPTIC);
-            zoneButtonManager = new ZoneButtonManager(zoneButtonsPanel, viewModel, graphManager);
+            // GraphManager 생성
+            if (graphContent != null && graphScrollViewer != null)
+            {
+                graphManager = new GraphManager(graphContent, graphScrollViewer);
+            }
+            // MonitorGrid가 존재하는 경우에만 MonitorManager 생성
+            if (monitorGrid != null)
+            {
+                monitorManager = new MonitorManager(monitorGrid, this);
+            }
+            // JudgmentStatusManager 생성
+            if (judgmentStatusContainer != null)
+            {
+                var statusTextBlocks = new Dictionary<string, (TextBlock quantity, TextBlock rate)>
+                {
+                    ["Total"] = (this.FindName("TotalQuantity") as TextBlock, this.FindName("TotalRate") as TextBlock),
+                    ["OK"] = (this.FindName("OKQuantity") as TextBlock, this.FindName("OKRate") as TextBlock),
+                    ["R/J"] = (this.FindName("RJQuantity") as TextBlock, this.FindName("RJRate") as TextBlock),
+                    ["PTN"] = (this.FindName("PTNQuantity") as TextBlock, this.FindName("PTNRate") as TextBlock)
+                };
+                judgmentStatusManager = new JudgmentStatusManager(statusTextBlocks, judgmentStatusContainer, this, InspectionType.OPTIC);
+            }
+            // ZoneButtonManager 생성
+            if (zoneButtonsPanel != null)
+            {
+                zoneButtonManager = new ZoneButtonManager(
+                    zoneButtonsPanel,
+                    (zone) => viewModel.CurrentZone = zone,
+                    () => viewModel.CurrentZone,
+                    () => {
+                        // RESET 시 초기화
+                        viewModel.ClearGraphData(graphManager);
+                        judgmentStatusManager?.ResetCounters(); // 카운터 초기화는 Manager가 처리
+                    }
+                );
+                zoneButtonManager.SetDataTableManager(dataTableManager);
+            }
             seqExecutor = new OpticSeqExecutor(UpdateGraphDisplay, dataTableManager, viewModel, graphManager);
-            
-            // Manager 간 참조 설정
-            zoneButtonManager.SetDataTableManager(dataTableManager);
-            
+                       
             // 현재 다크모드 상태 가져오기 (MainWindow에서)
             try
             {
