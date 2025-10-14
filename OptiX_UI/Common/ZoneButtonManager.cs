@@ -369,30 +369,31 @@ namespace OptiX.Common
                 }
                 
                 System.Diagnostics.Debug.WriteLine("Zone 테스트 상태 초기화 완료");
-                
+
                 // UI 스레드에서 초기화 실행
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    // RESET 콜백 호출 (ViewModel 초기화)
-                    onResetRequested?.Invoke();
-                    
-                    // DataTableManager를 통해 데이터 테이블 초기화
-                    if (dataTableManager != null)
+                    try
                     {
-                        try
+                        // RESET 콜백 호출 (ViewModel 초기화)
+                        onResetRequested?.Invoke();
+
+                        // DataTableManager를 통해 데이터 테이블 초기화
+                        if (dataTableManager != null)
                         {
                             var resetMethod = dataTableManager.GetType().GetMethod("ResetDataTable");
                             resetMethod?.Invoke(dataTableManager, null);
                         }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"DataTableManager.ResetDataTable() 호출 오류: {ex.Message}");
-                        }
+
+                        System.Diagnostics.Debug.WriteLine("모든 데이터 초기화 완료");
                     }
-                    
-                    System.Diagnostics.Debug.WriteLine("모든 데이터 초기화 완료");
-                });
-                
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"데이터 초기화 중 오류: {ex.Message}");
+                        // 추가적인 예외 처리 로직
+                    }
+                }, System.Windows.Threading.DispatcherPriority.Background);
+
                 ShowResetCompleteMessage();
             }
             catch (Exception ex)
@@ -408,7 +409,7 @@ namespace OptiX.Common
         {
             try
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     MessageBox.Show(
                         "데이터 RESET이 완료되었습니다.",
@@ -418,7 +419,7 @@ namespace OptiX.Common
                     );
                     
                     System.Diagnostics.Debug.WriteLine("RESET 완료 팝업 표시됨");
-                });
+                }, System.Windows.Threading.DispatcherPriority.Background);
             }
             catch (Exception ex)
             {

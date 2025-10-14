@@ -228,7 +228,7 @@ namespace OptiX.OPTIC
             try
             {
                 // IPVS페이지와 동일한 방식으로 설정 창 열기 (MVVM 패턴 유지)
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     // 현재 Zone 번호를 Setting 창에 전달 (1-based)
                     int currentZoneNumber = CurrentZone + 1;
@@ -239,7 +239,7 @@ namespace OptiX.OPTIC
 
                     // Non-Modal로 열기 (메인 프로그램 계속 동작)
                     settingWindow.Show();
-                });
+                }, System.Windows.Threading.DispatcherPriority.Background);
             }
             catch (Exception ex)
             {
@@ -252,7 +252,7 @@ namespace OptiX.OPTIC
             try
             {
                 // IPVS페이지와 동일한 방식으로 Path 설정 창 열기 (MVVM 패턴 유지)
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     var pathWindow = new PathSettingWindow("MTP_PATHS", IsDarkMode); // MTP_PATHS 섹션 사용, 다크모드 상태 전달
                     pathWindow.Owner = System.Windows.Application.Current.MainWindow;
@@ -260,7 +260,7 @@ namespace OptiX.OPTIC
 
                     // Non-Modal로 열기 (메인 프로그램 계속 동작)
                     pathWindow.Show();
-                });
+                }, System.Windows.Threading.DispatcherPriority.Background);
             }
             catch (Exception ex)
             {
@@ -298,11 +298,11 @@ namespace OptiX.OPTIC
         private void ExecuteBack()
         {
             // 뒤로가기 로직 - MainWindow에서 처리
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 var mainWindow = System.Windows.Application.Current.MainWindow as MainWindow;
                 mainWindow?.ShowMainPage();
-            });
+            }, System.Windows.Threading.DispatcherPriority.Background);
         }
 
         public void UpdateDataTableWithDllResult(Output output, int zoneNumber, OpticDataTableManager dataTableManager)
@@ -424,12 +424,12 @@ namespace OptiX.OPTIC
             {
                 // GraphManager를 통해 데이터 추가 (Timestamp 포함)
                 var dataPoints = graphManager.AddDataPoint(zoneNumber, judgment, includeTimestamp: true);
-                
+
                 // UI 스레드에서 그래프 업데이트
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     GraphDisplayUpdateRequested?.Invoke(this, new GraphDisplayUpdateEventArgs(dataPoints));
-                });
+                }, System.Windows.Threading.DispatcherPriority.Background);
             }
             catch (Exception ex)
             {
@@ -462,12 +462,12 @@ namespace OptiX.OPTIC
             try
             {
                 graphManager.ClearDataPoints();
-                
+
                 // UI 스레드에서 그래프 업데이트 (빈 데이터로)
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     GraphDisplayUpdateRequested?.Invoke(this, new GraphDisplayUpdateEventArgs(new List<GraphManager.GraphDataPoint>()));
-                });
+                }, System.Windows.Threading.DispatcherPriority.Background);
             }
             catch (Exception ex)
             {

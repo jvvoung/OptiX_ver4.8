@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using OptiX.Common;
 
 namespace OptiX.DLL
@@ -52,7 +53,7 @@ namespace OptiX.DLL
         }
         
         // SEQ 함수명을 받아 해당 DLL 함수 호출
-        public static bool ExecuteMapped(string functionName, int? arg, int zoneNumber = 1)
+        public static async Task<bool> ExecuteMappedAsync(string functionName, int? arg, int zoneNumber)
         {
             if (!DllManager.IsInitialized)
                 throw new InvalidOperationException("DLL이 초기화되지 않았습니다.");
@@ -71,11 +72,14 @@ namespace OptiX.DLL
                 switch (functionName?.Trim().ToUpperInvariant())
                 {
                     case "PGTURN":
-                        return DllFunctions.CallPGTurn(arg ?? 0);
+                        return await Task.Run(() => DllFunctions.CallPGTurn(arg ?? 0));
+
                     case "MEASTURN":
-                        return DllFunctions.CallMeasTurn(arg ?? 0);
+                        return await Task.Run(() => DllFunctions.CallMeasTurn(arg ?? 0));
+
                     case "PGPATTERN":
-                        return DllFunctions.CallPGPattern(arg ?? 0);
+                        return await Task.Run(() => DllFunctions.CallPGPattern(arg ?? 0));
+
                     case "MEAS":
                     {
                         // MEAS는 실제 DLL 호출하지 않음
@@ -96,12 +100,11 @@ namespace OptiX.DLL
                             total_point = DllConstants.DEFAULT_CURRENT_POINT,
                             cur_point = DllConstants.DEFAULT_CURRENT_POINT
                         };
-                        
-                        var (output, ok) = DllFunctions.CallMTPTestFunction(input);
-                        
-                        // 실제 DLL 결과를 Zone별로 저장
-                        if (ok)
-                        {
+
+                        var (output, ok) = await Task.Run(() => DllFunctions.CallMTPTestFunction(input));
+
+                            // 실제 DLL 결과를 Zone별로 저장
+                            if (ok)  {
                             lock (_zoneResults)
                             {
                                 _zoneResults[zoneNumber] = output;
@@ -136,7 +139,7 @@ namespace OptiX.DLL
                         Debug.WriteLine($"[Zone {zoneNumber}] IPVS Input - Cell ID: '{cellId}', Inner ID: '{innerId}'");
                         Common.ErrorLogger.Log($"IPVS Input - Cell ID: '{cellId}', Inner ID: '{innerId}'", Common.ErrorLogger.LogLevel.DEBUG, zoneNumber);
                         
-                        var (output, ok) = DllFunctions.CallIPVSTestFunction(input);
+                        var (output, ok) = await Task.Run(() => DllFunctions.CallIPVSTestFunction(input));
                         
                         // 실제 DLL 결과를 Zone별로 저장
                         if (ok)

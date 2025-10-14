@@ -106,11 +106,11 @@ namespace OptiX.OPTIC
                 // DLL 초기화 확인
                 if (!DllManager.IsInitialized)
                 {
-                    Application.Current.Dispatcher.Invoke(() =>
+                    _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         MessageBox.Show("DLL이 초기화되지 않았습니다. 메인 설정창에서 DLL 경로를 확인해주세요.",
                                       "오류", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    });
+                    }, System.Windows.Threading.DispatcherPriority.Background);
                     return;
                 }
 
@@ -126,11 +126,11 @@ namespace OptiX.OPTIC
                 if (cachedSeq == null || cachedSeq.Count == 0)
                 {
                     ErrorLogger.Log("시퀀스가 로드되지 않음", ErrorLogger.LogLevel.WARNING);
-                    Application.Current.Dispatcher.Invoke(() =>
+                    _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         MessageBox.Show("시퀀스가 로드되지 않았습니다. Sequence_Optic.ini 파일을 확인해주세요.",
                                       "오류", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    });
+                    }, System.Windows.Threading.DispatcherPriority.Background);
                     return;
                 }
 
@@ -162,42 +162,49 @@ namespace OptiX.OPTIC
 
                 ErrorLogger.Log("=== OPTIC 테스트 완료 ===", ErrorLogger.LogLevel.INFO);
 
-                // 모든 존 완료 후 테이블 렌더링 (UI 스레드에서 - 원본 코드 그대로)
-                await Application.Current.Dispatcher.InvokeAsync(() =>
+                // 모든 존 완료 후 테이블 렌더링 (비동기 처리)
+                _ = Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    // 각 Zone의 저장된 DLL 결과를 ViewModel에 전달하여 UI 업데이트
-                    if (viewModel != null && dataTableManager != null)
+                    try
                     {
-                        foreach (int zoneNumber in zones)
+                        // 각 Zone의 저장된 DLL 결과를 ViewModel에 전달하여 UI 업데이트
+                        if (viewModel != null && dataTableManager != null)
                         {
-                            var storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneNumber);
-                            if (storedOutput.HasValue)
+                            foreach (int zoneNumber in zones)
                             {
-                                viewModel.UpdateDataTableWithDllResult(storedOutput.Value, zoneNumber, dataTableManager);
-                                
-                                // 그래프 데이터 포인트 추가
-                                var judgment = viewModel.GetJudgmentForZone(zoneNumber);
-                                if (!string.IsNullOrEmpty(judgment))
+                                var storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneNumber);
+                                if (storedOutput.HasValue)
                                 {
-                                    viewModel.AddGraphDataPoint(zoneNumber, judgment, graphManager);
+                                    viewModel.UpdateDataTableWithDllResult(storedOutput.Value, zoneNumber, dataTableManager);
+
+                                    // 그래프 데이터 포인트 추가
+                                    var judgment = viewModel.GetJudgmentForZone(zoneNumber);
+                                    if (!string.IsNullOrEmpty(judgment))
+                                    {
+                                        viewModel.AddGraphDataPoint(zoneNumber, judgment, graphManager);
+                                    }
                                 }
                             }
                         }
+
+                        // 모든 Zone 처리 완료 후 그래프 업데이트
+                        var graphDataPoints = graphManager?.GetDataPoints();
+                        if (graphDataPoints != null && graphDataPoints.Count > 0)
+                        {
+                            updateGraphDisplay?.Invoke(graphDataPoints);
+                        }
+
+                        // 테이블 재생성
+                        if (dataTableManager != null)
+                        {
+                            dataTableManager.CreateCustomTable();
+                        }
                     }
-                    
-                    // 모든 Zone 처리 완료 후 그래프 업데이트
-                    var graphDataPoints = graphManager?.GetDataPoints();
-                    if (graphDataPoints != null && graphDataPoints.Count > 0)
+                    catch (Exception ex)
                     {
-                        updateGraphDisplay?.Invoke(graphDataPoints);
+                        System.Diagnostics.Debug.WriteLine($"최종 UI 업데이트 중 오류: {ex.Message}");
                     }
-                    
-                    // 테이블 재생성만 수행 (UpdateDataForWad 호출하지 않음 - 이미 viewModel.UpdateDataTableWithDllResult로 업데이트됨)
-                    if (dataTableManager != null)
-                    {
-                        dataTableManager.CreateCustomTable();
-                    }
-                });
+                }, System.Windows.Threading.DispatcherPriority.Normal); // Normal이 적절
             }
             catch (Exception ex)
             {
@@ -291,8 +298,7 @@ namespace OptiX.OPTIC
                 }
 
                 // 모든 함수를 ExecuteMapped로 통일 처리 (비동기로 UI 스레드 블록 방지)
-                bool ok = await Task.Run(() => SeqExecutionManager.ExecuteMapped(fnName, arg, zoneId));
-
+                bool ok = await SeqExecutionManager.ExecuteMappedAsync(fnName, arg, zoneId);
                 // 실행 결과 로그 (별도 스레드에서 처리 - UI 지연 없음)
                 Task.Run(() =>
                 {
@@ -332,14 +338,14 @@ namespace OptiX.OPTIC
                         Output? storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneNumber);
                         if (storedOutput.HasValue)
                         {
-                            bool logResult = ResultLogManager.CreateResultLogsForZone(
+                            bool logResult = await Task.Run(() => ResultLogManager.CreateResultLogsForZone(
                                 startTime,
                                 endTime,
                                 cellId,
                                 innerId,
                                 zoneNumber,
                                 storedOutput.Value
-                            );
+                            ));
 
                             ErrorLogger.Log($"로그 생성 결과: {logResult}", ErrorLogger.LogLevel.INFO, zoneNumber);
                         }

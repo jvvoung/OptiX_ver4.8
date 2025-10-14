@@ -328,7 +328,7 @@ namespace OptiX
             if (graphTabBtn != null) 
             {
                 graphTabBtn.Style = (Style)FindResource("ActiveTabButtonStyle");
-                graphTabBtn.UpdateLayout(); // 강제 렌더링
+                //graphTabBtn.UpdateLayout(); // 강제 렌더링
             }
             if (monitorTabBtn != null) monitorTabBtn.Style = (Style)FindResource("TabButtonStyle");
             if (totalTabBtn != null) totalTabBtn.Style = (Style)FindResource("TabButtonStyle");
@@ -338,7 +338,7 @@ namespace OptiX
             if (graphScrollViewer != null) 
             {
                 graphScrollViewer.Visibility = Visibility.Visible;
-                graphScrollViewer.UpdateLayout(); // 강제 렌더링
+               // graphScrollViewer.UpdateLayout(); // 강제 렌더링
             }
             if (totalContent != null) totalContent.Visibility = Visibility.Collapsed;
             

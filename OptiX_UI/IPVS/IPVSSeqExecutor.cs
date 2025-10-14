@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using OptiX.DLL;
 using OptiX.Common;
+using System.Security.Policy;
 
 namespace OptiX.IPVS
 {
@@ -208,8 +209,8 @@ namespace OptiX.IPVS
                 }
 
                 // 나머지 함수들은 SeqExecutionManager.ExecuteMapped로 통일 처리
-                bool ok = await Task.Run(() => SeqExecutionManager.ExecuteMapped(fnName, arg, zoneNumber));
-                
+                bool ok = await SeqExecutionManager.ExecuteMappedAsync(fnName, arg, zoneNumber);
+
                 // 실행 결과 로그
                 MonitorLogService.Instance.Log(zoneNumber - 1, $"Execute {fnName}({(arg.HasValue ? arg.Value.ToString() : "-")}) => {(ok ? "OK" : "FAIL")}");
                 
@@ -258,10 +259,10 @@ namespace OptiX.IPVS
                     SeqExecutionManager.SetZoneResult(zoneNumber, output);
 
                     // ViewModel 업데이트 (UI 스레드에서 실행)
-                    Application.Current.Dispatcher.Invoke(() =>
+                    _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         viewModel.UpdateDataTableWithDllResult(output, zoneNumber, dataTableManager, graphManager);
-                    });
+                    }, System.Windows.Threading.DispatcherPriority.Background);
 
                     // IPVS 결과 로그 생성
                     DateTime startTime = SeqExecutionManager.GetZoneSeqStartTime(zoneNumber);
