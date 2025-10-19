@@ -7,7 +7,9 @@ namespace OptiX.DLL
     // TestDll.dll 함수 호출을 담당하는 클래스
     public static class DllFunctions
     {
-        // MTP_test 함수 호출
+        /// <summary>
+        /// MTP_test 함수 호출
+        /// </summary>
         public static (Output output, bool success) CallMTPTestFunction(Input input)
         {
             if (!DllManager.IsInitialized)
@@ -27,9 +29,8 @@ namespace OptiX.DLL
                     // 입력 구조체를 비관리 메모리에 복사
                     Marshal.StructureToPtr(input, inputPtr, false);
 
-                    // DLL 함수 호출
-                    var testFunc = DllManager.GetFunction<DllManager.TestFunction>("MTP_test");
-                    int result = testFunc(inputPtr, outputPtr);
+                    // DLL 함수 직접 호출 (DllImport 방식)
+                    int result = DllManager.MTP_test(inputPtr, outputPtr);
 
                     if (result == 1) // 성공
                     {
@@ -64,7 +65,9 @@ namespace OptiX.DLL
             }
         }
 
-        // IPVS_test 함수 호출
+        /// <summary>
+        /// IPVS_test 함수 호출
+        /// </summary>
         public static (Output output, bool success) CallIPVSTestFunction(Input input)
         {
             if (!DllManager.IsInitialized)
@@ -84,9 +87,8 @@ namespace OptiX.DLL
                     // 입력 구조체를 비관리 메모리에 복사
                     Marshal.StructureToPtr(input, inputPtr, false);
 
-                    // DLL 함수 호출
-                    var testFunc = DllManager.GetFunction<DllManager.TestFunction>("IPVS_test");
-                    int result = testFunc(inputPtr, outputPtr);
+                    // DLL 함수 직접 호출 (DllImport 방식)
+                    int result = DllManager.IPVS_test(inputPtr, outputPtr);
 
                     if (result == 1) // 성공
                     {
@@ -121,7 +123,9 @@ namespace OptiX.DLL
             }
         }
 
-        // PG 포트 연결/해제
+        /// <summary>
+        /// PG 포트 연결/해제
+        /// </summary>
         public static bool CallPGTurn(int port)
         {
             if (!DllManager.IsInitialized)
@@ -131,8 +135,7 @@ namespace OptiX.DLL
 
             try
             {
-                var pgTurnFunc = DllManager.GetFunction<DllManager.PGTurnFunction>("PGTurn");
-                return pgTurnFunc(port);
+                return DllManager.PGTurn(port);
             }
             catch (Exception ex)
             {
@@ -141,7 +144,9 @@ namespace OptiX.DLL
             }
         }
 
-        // PG 패턴 전송
+        /// <summary>
+        /// PG 패턴 전송
+        /// </summary>
         public static bool CallPGPattern(int pattern)
         {
             if (!DllManager.IsInitialized)
@@ -151,8 +156,7 @@ namespace OptiX.DLL
 
             try
             {
-                var pgPatternFunc = DllManager.GetFunction<DllManager.PGPatternFunction>("PGPattern");
-                return pgPatternFunc(pattern);
+                return DllManager.PGPattern(pattern);
             }
             catch (Exception ex)
             {
@@ -161,7 +165,9 @@ namespace OptiX.DLL
             }
         }
 
-        // RGB 전압 전송
+        /// <summary>
+        /// RGB 전압 전송
+        /// </summary>
         public static bool CallPGVoltagesnd(int RV, int GV, int BV)
         {
             if (!DllManager.IsInitialized)
@@ -171,8 +177,7 @@ namespace OptiX.DLL
 
             try
             {
-                var pgVoltagesndFunc = DllManager.GetFunction<DllManager.PGVoltagesndFunction>("PGVoltagesnd");
-                return pgVoltagesndFunc(RV, GV, BV);
+                return DllManager.PGVoltagesnd(RV, GV, BV);
             }
             catch (Exception ex)
             {
@@ -181,7 +186,9 @@ namespace OptiX.DLL
             }
         }
 
-        // 측정 포트 연결/해제
+        /// <summary>
+        /// 측정 포트 연결/해제
+        /// </summary>
         public static bool CallMeasTurn(int port)
         {
             if (!DllManager.IsInitialized)
@@ -191,8 +198,7 @@ namespace OptiX.DLL
 
             try
             {
-                var measTurnFunc = DllManager.GetFunction<DllManager.MeasTurnFunction>("Meas_Turn");
-                return measTurnFunc(port);
+                return DllManager.Meas_Turn(port);
             }
             catch (Exception ex)
             {
@@ -201,7 +207,9 @@ namespace OptiX.DLL
             }
         }
 
-        // 측정 데이터 가져오기
+        /// <summary>
+        /// 측정 데이터 가져오기
+        /// </summary>
         public static (Pattern measureData, bool success) CallGetdata()
         {
             if (!DllManager.IsInitialized)
@@ -216,9 +224,8 @@ namespace OptiX.DLL
 
                 try
                 {
-                    // 네이티브 Getdata 함수 호출 (C++: bool Getdata(struct output* out))
-                    var getdataFunc = DllManager.GetFunction<DllManager.GetdataFunction>("Getdata");
-                    bool result = getdataFunc(outputPtr);
+                    // DLL 함수 직접 호출 (DllImport 방식)
+                    bool result = DllManager.Getdata(outputPtr);
 
                     if (result)
                     {
@@ -263,7 +270,9 @@ namespace OptiX.DLL
             }
         }
 
-        // LUT 데이터 계산
+        /// <summary>
+        /// LUT 데이터 계산
+        /// </summary>
         public static (LUTParameter lutParam, bool success) CallGetLUTdata(int rgb, float RV, float GV, float BV, int interval, int cnt)
         {
             if (!DllManager.IsInitialized)
@@ -278,9 +287,8 @@ namespace OptiX.DLL
 
                 try
                 {
-                    // 네이티브 getLUTdata 함수 호출 (C++: bool getLUTdata(int rgb, float RV, float GV, float BV, int interval, int cnt, struct output* out))
-                    var getLUTdataFunc = DllManager.GetFunction<DllManager.GetLUTdataFunction>("getLUTdata");
-                    bool result = getLUTdataFunc(rgb, RV, GV, BV, interval, cnt, outputPtr);
+                    // DLL 함수 직접 호출 (DllImport 방식)
+                    bool result = DllManager.getLUTdata(rgb, RV, GV, BV, interval, cnt, outputPtr);
 
                     if (result)
                     {
