@@ -431,6 +431,15 @@ namespace OptiX.DLL
                    EntryPoint = "IPVS_test", ExactSpelling = true)]
         public static extern int IPVS_test(IntPtr input, IntPtr output);
 
+        //25.10.29 - Graycrushing 함수 추가
+        /// <summary>
+        /// Graycrushing 함수
+        /// C++: int Graycrushing(int zone, struct output* out)
+        /// </summary>
+        [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl,
+                   EntryPoint = "Graycrushing", ExactSpelling = true)]
+        public static extern int Graycrushing(int zone, IntPtr output);
+
         /// <summary>
         /// PG 포트 연결/해제
         /// C++: bool PGTurn(int port)

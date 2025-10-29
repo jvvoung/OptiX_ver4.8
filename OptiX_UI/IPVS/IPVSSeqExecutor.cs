@@ -107,18 +107,23 @@ namespace OptiX.IPVS
                 await Task.Delay(DLL.DllConstants.ZONE_COMPLETION_DELAY_MS);
 
                 Common.ErrorLogger.Log("=== IPVS 테스트 완료 ===", Common.ErrorLogger.LogLevel.INFO);
-                isTestStarted = false;
-
+                
                 return true;
             }
             catch (Exception ex)
             {
                 Common.ErrorLogger.LogException(ex, "IPVS 테스트 시작 중 오류");
-                isTestStarted = false;
                 return false;
+            }
+            finally
+            {
+                //25.10.29 - 전체 SEQ 종료 - 모든 Zone 컨텍스트 초기화
+                SeqExecutionManager.ResetAllZones();
+                isTestStarted = false;
             }
         }
 
+        //25.10.29 - Zone SEQ 실행 메서드 리팩토링 (새로운 API 사용)
         /// <summary>
         /// Zone별 SEQ 실행
         /// </summary>
@@ -128,13 +133,16 @@ namespace OptiX.IPVS
             {
                 Common.ErrorLogger.Log($"IPVS SEQ 실행 시작", Common.ErrorLogger.LogLevel.INFO, zoneNumber);
 
-                // Zone SEQ 시작 시간 기록
-                SeqExecutionManager.SetZoneSeqStartTime(zoneNumber, DateTime.Now);
+                //25.10.29 - Zone SEQ 시작 - 컨텍스트 생성 및 Input 설정
+                var (cellId, innerId) = GlobalDataManager.GetIPVSZoneInfo(zoneNumber);
+                int maxPoint = int.Parse(GlobalDataManager.GetValue("IPVS", "MAX_POINT", "5"));
+                
+                SeqExecutionManager.StartZoneSeq(zoneNumber, cellId, innerId, maxPoint, isIPVS: true);
 
                 // SEQ 순서 읽기 (Sequence_IPVS.ini)
                 var seqOrder = ReadSeqOrder();
 
-                // SEQ 실행
+                // SEQ 실행 (각 함수는 공유 Input/Output 사용)
                 foreach (var seq in seqOrder)
                 {
                     await ExecuteSeqStep(zoneNumber, seq);
@@ -154,8 +162,8 @@ namespace OptiX.IPVS
             }
             finally
             {
-                // Zone SEQ 종료 시간 기록 (반드시 실행)
-                SeqExecutionManager.SetZoneSeqEndTime(zoneNumber, DateTime.Now);
+                //25.10.29 - Zone SEQ 종료 - 종료 시간 기록
+                SeqExecutionManager.EndZoneSeq(zoneNumber);
             }
         }
 
@@ -225,6 +233,7 @@ namespace OptiX.IPVS
             }
         }
 
+        //25.10.29 - IPVS 테스트 메서드 리팩토링 (공유 컨텍스트 사용)
         /// <summary>
         /// IPVS 테스트 실행 (한 번만 호출, 운영설비가 모든 포인트 측정)
         /// </summary>
@@ -234,29 +243,18 @@ namespace OptiX.IPVS
             {
                 MonitorLogService.Instance.Log(zoneNumber - 1, $"ENTER IPVS_TEST");
 
-                // Zone별 CELL_ID, INNER_ID 가져오기 (캐시된 IPVS Zone 정보 사용)
-                var (cellId, innerId) = GlobalDataManager.GetIPVSZoneInfo(zoneNumber);
+                //25.10.29 - 공유 컨텍스트에서 Input/Output 가져오기
+                var context = SeqExecutionManager.GetZoneContext(zoneNumber);
+                
+                Common.ErrorLogger.Log($"IPVS 테스트 시작 (CELL_ID: {context.SharedInput.CELL_ID}, total_point: {context.SharedInput.total_point})", Common.ErrorLogger.LogLevel.INFO, zoneNumber);
 
-                // MAX_POINT 읽기
-                int maxPoint = int.Parse(GlobalDataManager.GetValue("IPVS", "MAX_POINT", "5"));
-                Common.ErrorLogger.Log($"IPVS 테스트 시작 (total_point={maxPoint}, Cell ID: '{cellId}', Inner ID: '{innerId}')", Common.ErrorLogger.LogLevel.INFO, zoneNumber);
-
-                // IPVS 테스트 실행 (한 번만)
-                var input = new Input
-                {
-                    CELL_ID = cellId,
-                    INNER_ID = innerId,
-                    total_point = maxPoint,
-                    cur_point = DLL.DllConstants.DEFAULT_CURRENT_POINT  // 항상 0
-                };
-
-                SeqExecutionManager.SetCurrentZone(zoneNumber);
-                var (output, result) = DllFunctions.CallIPVSTestFunction(input);
+                //25.10.29 - DLL 함수 호출 (공유 Input 사용)
+                var (output, result) = DllFunctions.CallIPVSTestFunction(context.SharedInput);
 
                 if (result)
                 {
-                    // 결과 저장
-                    SeqExecutionManager.SetZoneResult(zoneNumber, output);
+                    //25.10.29 - 공유 Output에 저장 (자동으로 컨텍스트에 저장됨)
+                    context.SharedOutput = output;
 
                     // ViewModel 업데이트 (UI 스레드에서 실행)
                     _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
@@ -265,14 +263,11 @@ namespace OptiX.IPVS
                     }, System.Windows.Threading.DispatcherPriority.Background);
 
                     // IPVS 결과 로그 생성
-                    DateTime startTime = SeqExecutionManager.GetZoneSeqStartTime(zoneNumber);
-                    DateTime endTime = SeqExecutionManager.GetZoneSeqEndTime(zoneNumber);
-                    if (endTime == default(DateTime) || endTime < startTime)
-                    {
-                        endTime = DateTime.Now;
-                    }
+                    DateTime startTime = context.SeqStartTime;
+                    DateTime endTime = context.SeqEndTime != default(DateTime) ? context.SeqEndTime : DateTime.Now;
                     
-                    ResultLogManager.CreateIPVSResultLogsForZone(startTime, endTime, cellId, innerId, zoneNumber, output);
+                    ResultLogManager.CreateIPVSResultLogsForZone(startTime, endTime, 
+                        context.SharedInput.CELL_ID, context.SharedInput.INNER_ID, zoneNumber, output);
 
                     MonitorLogService.Instance.Log(zoneNumber - 1, $"Execute IPVS_TEST => OK");
                 }

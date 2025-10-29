@@ -114,8 +114,8 @@ namespace OptiX.OPTIC
                     return;
                 }
 
-                // SEQ 시작/종료 시간 및 Zone별 시간 초기화
-                SeqExecutionManager.ResetSeqStartTime();
+                //25.10.29 - 전체 Zone 컨텍스트 초기화
+                SeqExecutionManager.ResetAllZones();
 
                 // Zone 개수 읽기 (올바른 INI 섹션/키 사용)
                 int zoneCount = int.Parse(GlobalDataManager.GetValue("Settings", "MTP_ZONE", "2"));
@@ -161,6 +161,9 @@ namespace OptiX.OPTIC
                 await CreateAllResultLogs(zones);
 
                 ErrorLogger.Log("=== OPTIC 테스트 완료 ===", ErrorLogger.LogLevel.INFO);
+                
+                //25.10.29 - 전체 SEQ 종료 - 모든 Zone 컨텍스트 초기화 (선택적)
+                // 참고: 각 Zone은 이미 EndZoneSeq()로 종료 시간이 기록되어 있음
 
                 // 모든 존 완료 후 테이블 렌더링 (비동기 처리)
                 _ = Application.Current.Dispatcher.InvokeAsync(() =>
@@ -233,11 +236,12 @@ namespace OptiX.OPTIC
             }
             finally
             {
-                // Zone SEQ 종료 시간 설정 (예외 발생 여부와 관계없이 항상 실행)
-                SeqExecutionManager.SetZoneSeqEndTime(zoneId, DateTime.Now);
+                //25.10.29 - Zone SEQ 종료 - 종료 시간 기록
+                SeqExecutionManager.EndZoneSeq(zoneId);
             }
         }
 
+        //25.10.29 - Zone SEQ 실행 메서드 리팩토링 (새로운 API 사용)
         /// <summary>
         /// Zone별 SEQ 실행 (최신 버전 - View와 동일)
         /// </summary>
@@ -245,9 +249,14 @@ namespace OptiX.OPTIC
         {
             ErrorLogger.Log($"Zone SEQ 실행 시작", ErrorLogger.LogLevel.INFO, zoneId);
             
+            //25.10.29 - Zone SEQ 시작 - 컨텍스트 생성 및 Input 설정
+            var (cellId, innerId) = GlobalDataManager.GetZoneInfo(zoneId);
+            int totalPoint = DllConstants.DEFAULT_CURRENT_POINT; // MTP는 119 포인트 (기본값)
+            
+            SeqExecutionManager.StartZoneSeq(zoneId, cellId, innerId, totalPoint, isIPVS: false);
+            
             // 시퀀스를 Queue로 변환 (POP 방식으로 진행)
             var sequenceQueue = new Queue<string>(orderedSeq);
-            bool isFirstCommand = true; // 첫 번째 명령어(SEQ00) 감지용
 
             while (sequenceQueue.Count > 0)
             {
@@ -261,14 +270,6 @@ namespace OptiX.OPTIC
                 fnName = parts[0].Trim();
                 if (parts.Length > 1 && int.TryParse(parts[1].Trim(), out int parsed))
                     arg = parsed;
-                
-                // SEQ00(첫 번째 명령어) 시작 시 Zone별 SEQ 시작 시간 설정
-                if (isFirstCommand)
-                {
-                    SeqExecutionManager.SetZoneSeqStartTime(zoneId, DateTime.Now);
-                    ErrorLogger.Log($"SEQ00 시작: {fnName}, 시간: {DateTime.Now:HH:mm:ss.fff}", ErrorLogger.LogLevel.DEBUG, zoneId);
-                    isFirstCommand = false;
-                }
                 
                 // 함수 진입 즉시 로그 (별도 스레드에서 처리 - UI 지연 없음)
                 Task.Run(() =>

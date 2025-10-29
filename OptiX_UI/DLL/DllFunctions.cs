@@ -123,6 +123,58 @@ namespace OptiX.DLL
             }
         }
 
+        //25.10.29 - Graycrushing 함수 래퍼 추가 (MTP 결과를 입력으로 전달)
+        /// <summary>
+        /// Graycrushing 함수 호출
+        /// MTP 실행 후 저장된 Output을 입력으로 받아서 보정 처리
+        /// </summary>
+        public static (Output output, bool success) CallGraycrushing(int zone, Output currentOutput)
+        {
+            if (!DllManager.IsInitialized)
+            {
+                Debug.WriteLine("[Graycrushing] 오류: DLL이 초기화되지 않았습니다.");
+                throw new InvalidOperationException("DLL이 초기화되지 않았습니다.");
+            }
+
+            try
+            {
+                // Output 구조체를 비관리 메모리에 마샬링
+                IntPtr outputPtr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Output)));
+
+                try
+                {
+                    //25.10.29 - 현재 Output(MTP 결과)을 DLL에 전달
+                    Marshal.StructureToPtr(currentOutput, outputPtr, false);
+                    
+                    // DLL 함수 호출 (DLL이 currentOutput을 읽고 보정 처리)
+                    int result = DllManager.Graycrushing(zone, outputPtr);
+
+                    if (result == 1) // 성공
+                    {
+                        // DLL이 보정한 출력 구조체를 관리 메모리로 복사
+                        Output output = Marshal.PtrToStructure<Output>(outputPtr);
+                        return (output, true);
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"[Graycrushing] DLL 함수 실패 (결과 코드: {result})");
+                        // 실패 시 원본 출력 반환 (보정 실패)
+                        return (currentOutput, false);
+                    }
+                }
+                finally
+                {
+                    // 메모리 해제
+                    Marshal.FreeHGlobal(outputPtr);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Graycrushing] 예외 발생: {ex.Message}");
+                throw;
+            }
+        }
+
         /// <summary>
         /// PG 포트 연결/해제
         /// </summary>
