@@ -305,7 +305,8 @@ namespace OptiX.OPTIC
             }, System.Windows.Threading.DispatcherPriority.Background);
         }
 
-        public void UpdateDataTableWithDllResult(Output output, int zoneNumber, OpticDataTableManager dataTableManager)
+        //25.10.31 - suppressNotification 파라미터 추가 (배치 업데이트 지원)
+        public void UpdateDataTableWithDllResult(Output output, int zoneNumber, OpticDataTableManager dataTableManager, bool suppressNotification = false)
         {
             try
             {
@@ -326,7 +327,11 @@ namespace OptiX.OPTIC
                     UpdateJudgmentStatusTable
                 );
 
-                OnPropertyChanged(nameof(DataItems));
+                //25.10.31 - 배치 업데이트 시 UI 갱신 억제 (모든 Zone 업데이트 후 한 번만 갱신)
+                if (!suppressNotification)
+                {
+                    OnPropertyChanged(nameof(DataItems));
+                }
             }
             catch (Exception ex)
             {
@@ -363,30 +368,8 @@ namespace OptiX.OPTIC
             }
         }
 
-        /// <summary>
-        /// 결과 로그 생성 메서드
-        /// </summary>
-        private void CreateResultLogs(Output output, string cellId, string innerId)
-        {
-            try
-            {
-                System.Diagnostics.Debug.WriteLine("=== MAKE_RESULT_LOG 시작 ===");
-                System.Diagnostics.Debug.WriteLine($"Cell ID: {cellId}, Inner ID: {innerId}");
-                
-                var startTime = DateTime.Now.AddSeconds(-10); // 테스트 시작 시간 (예시)
-                var endTime = DateTime.Now; // 테스트 종료 시간
-
-                // ResultLogManager를 통해 모든 로그 생성 (OPTIC)
-                ResultLogManager.CreateResultLogsForZone(startTime, endTime, cellId, innerId, CurrentZone + 1, output);
-                
-                System.Diagnostics.Debug.WriteLine("=== MAKE_RESULT_LOG 완료 ===");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"결과 로그 생성 중 오류: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"스택 트레이스: {ex.StackTrace}");
-            }
-        }
+        //25.10.30 - CreateResultLogs 메서드 제거 (SEQ 실행 시 자동으로 로그 생성됨)
+        // OpticSeqExecutor에서 Zone별 CIM + 전체 EECP/Summary 생성
 
 
         #region 판정 현황 관리 (JudgmentStatusManager로 위임)

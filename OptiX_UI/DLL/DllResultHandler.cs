@@ -112,12 +112,14 @@ namespace OptiX.DLL
                         patternJudgment
                     );
 
-                    Common.ErrorLogger.Log($"개별 판정 결과: {categoryNames[categoryIndex]} - Judgment: {patternJudgment}", Common.ErrorLogger.LogLevel.DEBUG, actualZone);
+                    //25.10.31 - DEBUG 로그 제거 (UI 병목 해결)
+                    //Common.ErrorLogger.Log($"개별 판정 결과: {categoryNames[categoryIndex]} - Judgment: {patternJudgment}", Common.ErrorLogger.LogLevel.DEBUG, actualZone);
                 }
 
                 // Zone 전체 판정을 모든 아이템에 적용
                 dataTableManager.UpdateZoneJudgment(targetZone, zoneJudgment);
-                Common.ErrorLogger.Log($"전체 판정 적용: {zoneJudgment}", Common.ErrorLogger.LogLevel.DEBUG, actualZone);
+                //25.10.31 - DEBUG 로그 제거 (UI 병목 해결)
+                //Common.ErrorLogger.Log($"전체 판정 적용: {zoneJudgment}", Common.ErrorLogger.LogLevel.DEBUG, actualZone);
 
                 // 판정 현황 표 업데이트 콜백 호출
                 onZoneJudgmentUpdate?.Invoke(zoneJudgment);

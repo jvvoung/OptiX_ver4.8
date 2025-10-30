@@ -18,6 +18,10 @@ namespace OptiX.DLL
                 throw new InvalidOperationException("DLL이 초기화되지 않았습니다.");
             }
 
+            //25.10.30 - 성능 측정 (Debug.WriteLine 최소화로 Lock 경쟁 제거)
+            string cellId = input.CELL_ID?.Length > 10 ? input.CELL_ID.Substring(0, 10) : input.CELL_ID;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
             try
             {
                 // 구조체를 비관리 메모리에 마샬링
@@ -36,6 +40,11 @@ namespace OptiX.DLL
                     {
                         // 출력 구조체를 관리 메모리로 복사
                         Output output = Marshal.PtrToStructure<Output>(outputPtr);
+                        
+                        sw.Stop();
+                        //25.10.30 - 한 번에 출력 (Lock 최소화)
+                        Debug.WriteLine($"[MTP_test][{cellId}] Total: {sw.Elapsed.TotalMilliseconds:F3}ms");
+                        
                         return (output, true);
                     }
                     else
@@ -60,7 +69,7 @@ namespace OptiX.DLL
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[MTP_test] 예외 발생: {ex.Message}");
+                Debug.WriteLine($"[MTP_test][{cellId}] 예외 발생: {ex.Message}");
                 throw;
             }
         }
@@ -75,6 +84,10 @@ namespace OptiX.DLL
                 Debug.WriteLine("[IPVS_test] 오류: DLL이 초기화되지 않았습니다.");
                 throw new InvalidOperationException("DLL이 초기화되지 않았습니다.");
             }
+
+            //25.10.30 - 성능 측정 (Debug.WriteLine 최소화로 Lock 경쟁 제거)
+            string cellId = input.CELL_ID?.Length > 10 ? input.CELL_ID.Substring(0, 10) : input.CELL_ID;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
 
             try
             {
@@ -94,6 +107,11 @@ namespace OptiX.DLL
                     {
                         // 출력 구조체를 관리 메모리로 복사
                         Output output = Marshal.PtrToStructure<Output>(outputPtr);
+                        
+                        sw.Stop();
+                        //25.10.30 - 한 번에 출력 (Lock 최소화)
+                        Debug.WriteLine($"[IPVS_test][{cellId}] Total: {sw.Elapsed.TotalMilliseconds:F3}ms");
+                        
                         return (output, true);
                     }
                     else
@@ -118,7 +136,7 @@ namespace OptiX.DLL
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[IPVS_test] 예외 발생: {ex.Message}");
+                Debug.WriteLine($"[IPVS_test][{cellId}] 예외 발생: {ex.Message}");
                 throw;
             }
         }

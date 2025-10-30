@@ -68,12 +68,20 @@ namespace OptiX.IPVS
             }
         }
 
+        //25.10.30 - 중복 실행 방지 개선 (async void 제거)
         /// <summary>
         /// 테스트 시작
         /// </summary>
-        public async void StartTest()
+        public void StartTest()
         {
-            await StartTestAsync();
+            //25.10.30 - 이미 실행 중이면 무시 (중복 클릭 방지)
+            if (isTestStarted)
+            {
+                System.Diagnostics.Debug.WriteLine("[IPVSSeqExecutor] 이미 테스트 실행 중 - 중복 실행 무시");
+                return;
+            }
+            
+            Task.Run(() => StartTestAsync());
         }
         
         public async Task<bool> StartTestAsync()
@@ -106,7 +114,19 @@ namespace OptiX.IPVS
                 // Zone 완료 대기 (finally 블록 실행 대기)
                 await Task.Delay(DLL.DllConstants.ZONE_COMPLETION_DELAY_MS);
 
-                Common.ErrorLogger.Log("=== IPVS 테스트 완료 ===", Common.ErrorLogger.LogLevel.INFO);
+                //25.10.31 - EECP/Summary 로그 생성은 백그라운드에서 (UI 블록 제거!)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await CreateAllResultLogsAsync(zoneCount);
+                        Common.ErrorLogger.Log("=== IPVS 테스트 완료 ===", Common.ErrorLogger.LogLevel.INFO);
+                    }
+                    catch (Exception ex)
+                    {
+                        Common.ErrorLogger.LogException(ex, "IPVS 결과 로그 생성 중 오류");
+                    }
+                });
                 
                 return true;
             }
@@ -164,6 +184,32 @@ namespace OptiX.IPVS
             {
                 //25.10.29 - Zone SEQ 종료 - 종료 시간 기록
                 SeqExecutionManager.EndZoneSeq(zoneNumber);
+                
+                //25.10.31 - Zone 완료 시 CIM 로그 즉시 생성 (대기 없이 병렬 실행!)
+                try
+                {
+                    var (cellId, innerId) = GlobalDataManager.GetIPVSZoneInfo(zoneNumber);
+                    DateTime startTime = SeqExecutionManager.GetZoneSeqStartTime(zoneNumber);
+                    DateTime endTime = SeqExecutionManager.GetZoneSeqEndTime(zoneNumber);
+                    Output? storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneNumber);
+                    
+                    if (storedOutput.HasValue)
+                    {
+                        //25.10.31 - await 제거 (fire-and-forget) → Zone 완료 즉시 반환, 로그는 백그라운드에서!
+                        _ = Task.Run(() => ResultLogManager.CreateIPVSCIMForZone(
+                            startTime,
+                            endTime,
+                            cellId,
+                            innerId,
+                            zoneNumber,
+                            storedOutput.Value
+                        ));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Common.ErrorLogger.LogException(ex, "Zone CIM 로그 생성 중 오류", zoneNumber);
+                }
             }
         }
 
@@ -262,12 +308,8 @@ namespace OptiX.IPVS
                         viewModel.UpdateDataTableWithDllResult(output, zoneNumber, dataTableManager, graphManager);
                     }, System.Windows.Threading.DispatcherPriority.Background);
 
-                    // IPVS 결과 로그 생성
-                    DateTime startTime = context.SeqStartTime;
-                    DateTime endTime = context.SeqEndTime != default(DateTime) ? context.SeqEndTime : DateTime.Now;
-                    
-                    ResultLogManager.CreateIPVSResultLogsForZone(startTime, endTime, 
-                        context.SharedInput.CELL_ID, context.SharedInput.INNER_ID, zoneNumber, output);
+                    //25.10.30 - 로그 생성은 ExecuteSeqForZoneAsync의 finally 블록에서 처리
+                    // (Zone별 CIM 즉시 생성 → 전체 완료 후 EECP/Summary 생성)
 
                     MonitorLogService.Instance.Log(zoneNumber - 1, $"Execute IPVS_TEST => OK");
                 }
@@ -282,6 +324,68 @@ namespace OptiX.IPVS
             {
                 Common.ErrorLogger.LogException(ex, "IPVS_TEST 실행 중 오류", zoneNumber);
                 MonitorLogService.Instance.Log(zoneNumber - 1, $"IPVS_TEST failed");
+            }
+        }
+
+        //25.10.30 - 모든 Zone 완료 후 EECP/Summary 로그 생성 (데이터 통합)
+        /// <summary>
+        /// 모든 Zone 완료 후 EECP와 EECP_SUMMARY 로그 생성
+        /// </summary>
+        private async Task CreateAllResultLogsAsync(int zoneCount)
+        {
+            try
+            {
+                Common.ErrorLogger.Log($"IPVS 전체 결과 로그 생성 시작 - {zoneCount}개 Zone", Common.ErrorLogger.LogLevel.INFO);
+
+                //25.10.30 - 모든 Zone 데이터 수집
+                var zoneData = new System.Collections.Generic.Dictionary<int, (string cellId, string innerId, Output output)>();
+                
+                for (int zoneNumber = 1; zoneNumber <= zoneCount; zoneNumber++)
+                {
+                    try
+                    {
+                        var (cellId, innerId) = GlobalDataManager.GetIPVSZoneInfo(zoneNumber);
+                        Output? storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneNumber);
+                        
+                        if (storedOutput.HasValue)
+                        {
+                            zoneData[zoneNumber] = (cellId, innerId, storedOutput.Value);
+                        }
+                        else
+                        {
+                            Common.ErrorLogger.Log($"저장된 데이터 없음 - 로그 생성 스킵", Common.ErrorLogger.LogLevel.WARNING, zoneNumber);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Common.ErrorLogger.LogException(ex, "Zone 데이터 수집 중 오류", zoneNumber);
+                    }
+                }
+
+                //25.10.30 - EECP와 EECP_SUMMARY 로그 생성 (통합)
+                if (zoneData.Count > 0)
+                {
+                    DateTime startTime = SeqExecutionManager.GetSeqStartTime();
+                    DateTime endTime = SeqExecutionManager.GetSeqEndTime();
+                    
+                    bool logResult = await Task.Run(() => ResultLogManager.CreateIPVSAllResultLogs(
+                        startTime,
+                        endTime,
+                        zoneData
+                    ));
+
+                    Common.ErrorLogger.Log($"IPVS 전체 로그 생성 결과: {logResult}", Common.ErrorLogger.LogLevel.INFO);
+                }
+                else
+                {
+                    Common.ErrorLogger.Log("생성할 Zone 데이터 없음", Common.ErrorLogger.LogLevel.WARNING);
+                }
+
+                Common.ErrorLogger.Log("IPVS 전체 결과 로그 생성 완료", Common.ErrorLogger.LogLevel.INFO);
+            }
+            catch (Exception ex)
+            {
+                Common.ErrorLogger.LogException(ex, "IPVS 전체 결과 로그 생성 중 오류");
             }
         }
 

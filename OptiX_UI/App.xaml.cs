@@ -40,6 +40,27 @@ namespace OptiX
             
             base.OnStartup(e);
         }
+
+        //25.10.30 - App 종료 시 로거들 정리 (남은 로그 플러시)
+        protected override void OnExit(ExitEventArgs e)
+        {
+            try
+            {
+                // ErrorLogger 종료 (남은 로그를 파일에 플러시)
+                ErrorLogger.Dispose();
+                System.Diagnostics.Debug.WriteLine("ErrorLogger 종료 완료");
+                
+                //25.10.30 - MonitorLogService 종료 추가
+                MonitorLogService.Instance.Dispose();
+                System.Diagnostics.Debug.WriteLine("MonitorLogService 종료 완료");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Logger 종료 중 오류: {ex.Message}");
+            }
+            
+            base.OnExit(e);
+        }
     }
 }
 

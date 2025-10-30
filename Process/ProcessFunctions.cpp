@@ -10,10 +10,11 @@
 
 extern "C" {
 
-    // MTP 테스트 함수 - 7x17 패턴 데이터 생성
+    //25.10.30 - MTP 테스트 함수 - 7x17 패턴 데이터 생성
+    // AFX_MANAGE_STATE 제거 (전역 Lock으로 인한 Zone 간 경쟁 제거)
     __declspec(dllexport) int MTP_test(struct input* in, struct output* out) 
     {
-        AFX_MANAGE_STATE(AfxGetStaticModuleState());
+        // AFX_MANAGE_STATE(AfxGetStaticModuleState()); // 제거! (MFC 리소스 미사용)
 
         if (in == nullptr || out == nullptr) {
             return 0;
@@ -61,10 +62,11 @@ extern "C" {
         return 1;
     }
 
-    // IPVS 테스트 함수 - 7xN 포인트 데이터 생성
+    //25.10.30 - IPVS 테스트 함수 - 7xN 포인트 데이터 생성
+    // AFX_MANAGE_STATE 제거 (전역 Lock으로 인한 Zone 간 경쟁 제거)
     __declspec(dllexport) int IPVS_test(struct input* in, struct output* out) 
     {
-        AFX_MANAGE_STATE(AfxGetStaticModuleState());
+        // AFX_MANAGE_STATE(AfxGetStaticModuleState()); // 제거! (MFC 리소스 미사용)
 
         if (in == nullptr || out == nullptr) {
             return 0;
@@ -113,49 +115,50 @@ extern "C" {
     }
 
     // PG 포트 제어
+    //25.10.30 - AFX_MANAGE_STATE 제거 (전역 Lock 제거)
     __declspec(dllexport) bool PGTurn(int port) 
     {
-        AFX_MANAGE_STATE(AfxGetStaticModuleState());
+        // AFX_MANAGE_STATE(AfxGetStaticModuleState()); // 제거!
 
         if (port < 0)
             return false;
         return true;
     }
 
-    // PG 패턴 제어
+    //25.10.30 - PG 패턴 제어 (AFX_MANAGE_STATE 제거)
     __declspec(dllexport) bool PGPattern(int pattern) 
     {
-        AFX_MANAGE_STATE(AfxGetStaticModuleState());
+        // AFX_MANAGE_STATE(AfxGetStaticModuleState()); // 제거!
 
         if (pattern < 0)
             return false;
         return true;
     }
 
-    // PG 전압 전송
+    //25.10.30 - PG 전압 전송 (AFX_MANAGE_STATE 제거)
     __declspec(dllexport) bool PGVoltagesnd(int RV, int GV, int BV) 
     {
-        AFX_MANAGE_STATE(AfxGetStaticModuleState());
+        // AFX_MANAGE_STATE(AfxGetStaticModuleState()); // 제거!
 
         if (RV == 0 || GV == 0 || BV == 0)
             return false;
         return true;
     }
 
-    // 측정 포트 제어
+    //25.10.30 - 측정 포트 제어 (AFX_MANAGE_STATE 제거)
     __declspec(dllexport) bool Meas_Turn(int port) 
     {
-        AFX_MANAGE_STATE(AfxGetStaticModuleState());
+        // AFX_MANAGE_STATE(AfxGetStaticModuleState()); // 제거!
 
         if (port < 0)
             return false;
         return true;
     }
 
-    // 측정 데이터 획득
+    //25.10.30 - 측정 데이터 획득 (AFX_MANAGE_STATE 제거)
     __declspec(dllexport) bool Getdata(struct output* out) 
     {
-        AFX_MANAGE_STATE(AfxGetStaticModuleState());
+        // AFX_MANAGE_STATE(AfxGetStaticModuleState()); // 제거!
 
         if (out == nullptr) {
             return false;
@@ -183,11 +186,11 @@ extern "C" {
         return true;
     }
 
-    // LUT 데이터 계산
+    //25.10.30 - LUT 데이터 계산 (AFX_MANAGE_STATE 제거)
     __declspec(dllexport) bool getLUTdata(int rgb, float RV, float GV, float BV, 
                                           int interval, int cnt, struct output* out) 
     {
-        AFX_MANAGE_STATE(AfxGetStaticModuleState());
+        // AFX_MANAGE_STATE(AfxGetStaticModuleState()); // 제거!
 
         if (out == nullptr) {
             return false;

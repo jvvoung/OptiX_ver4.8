@@ -85,11 +85,19 @@ namespace OptiX.OPTIC
             }
         }
 
+        //25.10.30 - 중복 실행 방지 개선
         /// <summary>
         /// 테스트 시작 (UI 스레드에서 호출)
         /// </summary>
         public void StartTest()
         {
+            //25.10.30 - 이미 실행 중이면 무시 (중복 클릭 방지)
+            if (isTestStarted)
+            {
+                System.Diagnostics.Debug.WriteLine("[OpticSeqExecutor] 이미 테스트 실행 중 - 중복 실행 무시");
+                return;
+            }
+            
             isTestStarted = true;
             Task.Run(() => StartTestAsync());
         }
@@ -156,70 +164,135 @@ namespace OptiX.OPTIC
                 SeqExecutionManager.SetSeqEndTime(DateTime.Now);
                 ErrorLogger.Log("=== 모든 Zone OPTIC SEQ 완료 ===", ErrorLogger.LogLevel.INFO);
 
-                // 결과 로그 생성
                 int[] zones = Enumerable.Range(1, zoneCount).ToArray();
-                await CreateAllResultLogs(zones);
-
-                ErrorLogger.Log("=== OPTIC 테스트 완료 ===", ErrorLogger.LogLevel.INFO);
                 
-                //25.10.29 - 전체 SEQ 종료 - 모든 Zone 컨텍스트 초기화 (선택적)
-                // 참고: 각 Zone은 이미 EndZoneSeq()로 종료 시간이 기록되어 있음
-
-                // 모든 존 완료 후 테이블 렌더링 (비동기 처리)
+                //25.10.31 - UI 병목 해결 핵심: 로그 생성을 UI 업데이트보다 뒤로!
+                // 1. UI 업데이트 먼저 (즉시 반응)
+                // 2. 로그 생성은 백그라운드에서 (UI 블록 없이)
+                
+                // 단 한 번의 UI 업데이트로 모든 Zone 데이터를 동시에 표시
                 _ = Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     try
                     {
-                        // 각 Zone의 저장된 DLL 결과를 ViewModel에 전달하여 UI 업데이트
-                        if (viewModel != null && dataTableManager != null)
+                        if (viewModel != null && dataTableManager != null && graphManager != null)
                         {
+                            int lastZone = zones.LastOrDefault();
+                            
+                            //25.10.31 - 모든 Zone 데이터 업데이트 (동시에!)
                             foreach (int zoneNumber in zones)
                             {
                                 var storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneNumber);
                                 if (storedOutput.HasValue)
                                 {
-                                    viewModel.UpdateDataTableWithDllResult(storedOutput.Value, zoneNumber, dataTableManager);
-
-                                    // 그래프 데이터 포인트 추가
-                                    var judgment = viewModel.GetJudgmentForZone(zoneNumber);
-                                    if (!string.IsNullOrEmpty(judgment))
+                                    try
                                     {
-                                        viewModel.AddGraphDataPoint(zoneNumber, judgment, graphManager);
+                                        bool isLastZone = (zoneNumber == lastZone);
+                                        
+                                        // 데이터 테이블 업데이트 (마지막 Zone에서만 UI 갱신)
+                                        viewModel.UpdateDataTableWithDllResult(storedOutput.Value, zoneNumber, dataTableManager, suppressNotification: !isLastZone);
+                                        
+                                        // 그래프 데이터 포인트 추가 (원래 방식대로!)
+                                        var judgment = viewModel.GetJudgmentForZone(zoneNumber);
+                                        if (!string.IsNullOrEmpty(judgment))
+                                        {
+                                            viewModel.AddGraphDataPoint(zoneNumber, judgment, graphManager);
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        ErrorLogger.LogException(ex, $"Zone {zoneNumber} 데이터 업데이트 오류", zoneNumber);
                                     }
                                 }
                             }
-                        }
-
-                        // 모든 Zone 처리 완료 후 그래프 업데이트
-                        var graphDataPoints = graphManager?.GetDataPoints();
-                        if (graphDataPoints != null && graphDataPoints.Count > 0)
-                        {
-                            updateGraphDisplay?.Invoke(graphDataPoints);
-                        }
-
-                        // 테이블 재생성
-                        if (dataTableManager != null)
-                        {
-                            dataTableManager.CreateCustomTable();
+                            
+                            // 모든 Zone 처리 완료 후 그래프 업데이트 (원래 방식대로!)
+                            var graphDataPoints = graphManager?.GetDataPoints();
+                            if (graphDataPoints != null && graphDataPoints.Count > 0)
+                            {
+                                updateGraphDisplay?.Invoke(graphDataPoints);
+                            }
+                            
+                            // 테이블 재생성
+                            if (dataTableManager != null)
+                            {
+                                dataTableManager.CreateCustomTable();
+                            }
                         }
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"최종 UI 업데이트 중 오류: {ex.Message}");
+                        ErrorLogger.LogException(ex, "Zone 데이터 표시 중 오류");
                     }
-                }, System.Windows.Threading.DispatcherPriority.Normal); // Normal이 적절
+                }, System.Windows.Threading.DispatcherPriority.Normal); // Background → Normal (더 빠른 UI 반응)
+                
+                //25.10.31 - 로그 생성은 UI 업데이트 후 백그라운드에서 (UI 블록 제거!)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await CreateAllResultLogs(zones);
+                        ErrorLogger.Log("=== OPTIC 테스트 완료 ===", ErrorLogger.LogLevel.INFO);
+                    }
+                    catch (Exception ex)
+                    {
+                        ErrorLogger.LogException(ex, "결과 로그 생성 중 오류");
+                    }
+                });
             }
-            catch (Exception ex)
+            finally
             {
-                ErrorLogger.LogException(ex, "OPTIC 테스트 실행 중 오류");
+                //25.10.30 - 테스트 완료 시 플래그 초기화 (다음 테스트 실행 가능하도록)
+                isTestStarted = false;
+                System.Diagnostics.Debug.WriteLine("[OpticSeqExecutor] 테스트 종료 - 플래그 초기화");
             }
         }
 
+        //25.10.30 - 모든 Zone 완료 후 EECP/Summary 로그 생성 (데이터 통합)
+        private async Task CreateAllResultLogs(int[] zones)
+        {
+            try
+            {
+                ErrorLogger.Log($"전체 결과 로그 생성 시작 - {zones.Length}개 Zone", ErrorLogger.LogLevel.INFO);
+
+                // 모든 Zone의 데이터 수집
+                var zoneData = new System.Collections.Generic.Dictionary<int, (string cellId, string innerId, Output output)>();
+                foreach (int zoneNumber in zones)
+                {
+                    var storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneNumber);
+                    if (storedOutput.HasValue)
+                    {
+                        var (cellId, innerId) = GlobalDataManager.GetZoneInfo(zoneNumber);
+                        zoneData[zoneNumber] = (cellId, innerId, storedOutput.Value);
+                    }
+                }
+
+                if (zoneData.Count > 0)
+                {
+                    DateTime startTime = SeqExecutionManager.GetZoneSeqStartTime(zones.FirstOrDefault());
+                    DateTime endTime = SeqExecutionManager.GetZoneSeqEndTime(zones.LastOrDefault());
+
+                    ErrorLogger.Log($"전체 결과 로그 생성 시작 (Zone {zoneData.Count}개)", ErrorLogger.LogLevel.INFO);
+                    
+                    bool success = await Task.Run(() => ResultLogManager.CreateAllResultLogs(
+                        startTime,
+                        endTime,
+                        zoneData
+                    ));
+                    
+                    ErrorLogger.Log($"전체 로그 생성 결과: {success}", ErrorLogger.LogLevel.INFO);
+                }
+                
+                ErrorLogger.Log("전체 결과 로그 생성 완료", ErrorLogger.LogLevel.INFO);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogException(ex, "전체 결과 로그 생성 중 오류");
+            }
+        }
+        
         /// <summary>
         /// Zone별 SEQ 비동기 실행
-        /// </summary>
-        /// <summary>
-        /// Zone별 SEQ 실행 Wrapper (최신 버전 - View와 동일)
         /// </summary>
         private async Task ExecuteSeqForZoneAsync(int zoneId, List<string> orderedSeq)
         {
@@ -238,6 +311,32 @@ namespace OptiX.OPTIC
             {
                 //25.10.29 - Zone SEQ 종료 - 종료 시간 기록
                 SeqExecutionManager.EndZoneSeq(zoneId);
+                
+                //25.10.31 - Zone 완료 시 CIM 로그 즉시 생성 (대기 없이 병렬 실행!)
+                try
+                {
+                    var (cellId, innerId) = GlobalDataManager.GetZoneInfo(zoneId);
+                    DateTime startTime = SeqExecutionManager.GetZoneSeqStartTime(zoneId);
+                    DateTime endTime = SeqExecutionManager.GetZoneSeqEndTime(zoneId);
+                    Output? storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneId);
+                    
+                    if (storedOutput.HasValue)
+                    {
+                        //25.10.31 - await 제거 (fire-and-forget) → Zone 완료 즉시 반환, 로그는 백그라운드에서!
+                        _ = Task.Run(() => ResultLogManager.CreateCIMForZone(
+                            startTime,
+                            endTime,
+                            cellId,
+                            innerId,
+                            zoneId,
+                            storedOutput.Value
+                        ));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ErrorLogger.LogException(ex, "Zone CIM 로그 생성 중 오류", zoneId);
+                }
             }
         }
 
@@ -271,11 +370,8 @@ namespace OptiX.OPTIC
                 if (parts.Length > 1 && int.TryParse(parts[1].Trim(), out int parsed))
                     arg = parsed;
                 
-                // 함수 진입 즉시 로그 (별도 스레드에서 처리 - UI 지연 없음)
-                Task.Run(() =>
-                {
-                    MonitorLogService.Instance.Log(zoneId - 1, $"ENTER {fnName}{(arg.HasValue ? "(" + arg.Value + ")" : string.Empty)}");
-                });
+                //25.10.30 - 함수 진입 즉시 로그 (MonitorLogService는 이미 비동기 큐 방식이므로 빠름)
+                MonitorLogService.Instance.Log(zoneId - 1, $"ENTER {fnName}{(arg.HasValue ? "(" + arg.Value + ")" : string.Empty)}");
 
                 // DELAY 처리: 밀리초 지연 (비동기)
                 if (string.Equals(fnName, "DELAY", StringComparison.OrdinalIgnoreCase))
@@ -283,91 +379,30 @@ namespace OptiX.OPTIC
                     int delayMs = arg ?? 0;
                     if (delayMs > 0)
                     {
-                        Task.Run(() =>
-                        {
-                            MonitorLogService.Instance.Log(zoneId - 1, $"DELAY start {delayMs}ms");
-                        });
+                        //25.10.30 - Task.Run() 제거 (순서 보장)
+                        MonitorLogService.Instance.Log(zoneId - 1, $"DELAY start {delayMs}ms");
                         
                         await Task.Delay(delayMs);  // 비동기 지연으로 UI 스레드 블록 방지
                         
-                        Task.Run(() =>
-                        {
-                            MonitorLogService.Instance.Log(zoneId - 1, "DELAY end");
-                        });
+                        //25.10.30 - Task.Run() 제거 (순서 보장)
+                        MonitorLogService.Instance.Log(zoneId - 1, "DELAY end");
                     }
                     continue; // 다음 SEQ 항목으로
                 }
 
                 // 모든 함수를 ExecuteMapped로 통일 처리 (비동기로 UI 스레드 블록 방지)
                 bool ok = await SeqExecutionManager.ExecuteMappedAsync(fnName, arg, zoneId);
-                // 실행 결과 로그 (별도 스레드에서 처리 - UI 지연 없음)
-                Task.Run(() =>
-                {
-                    MonitorLogService.Instance.Log(zoneId - 1, $"Execute {fnName}({(arg.HasValue ? arg.Value.ToString() : "-")}) => {(ok ? "OK" : "FAIL")}");
-                });
+                
+                //25.10.30 - Task.Run() 제거 (순서 보장)
+                MonitorLogService.Instance.Log(zoneId - 1, $"Execute {fnName}({(arg.HasValue ? arg.Value.ToString() : "-")}) => {(ok ? "OK" : "FAIL")}");
                 
                 if (!ok)
                 {
                     ErrorLogger.Log($"{fnName} 실행 실패", ErrorLogger.LogLevel.WARNING, zoneId);
-                    Task.Run(() =>
-                    {
-                        MonitorLogService.Instance.Log(zoneId - 1, $"{fnName} failed");
-                    });
+                    //25.10.30 - Task.Run() 제거 (순서 보장)
+                    MonitorLogService.Instance.Log(zoneId - 1, $"{fnName} failed");
                     // 실패 정책: 일단 계속 진행
                 }
-            }
-        }
-
-        /// <summary>
-        /// 모든 Zone의 결과 로그 생성
-        /// </summary>
-        private async Task CreateAllResultLogs(int[] zones)
-        {
-            try
-            {
-                ErrorLogger.Log($"결과 로그 생성 시작 - {zones.Length}개 Zone", ErrorLogger.LogLevel.INFO);
-
-                foreach (int zoneNumber in zones)
-                {
-                    try
-                    {
-                        var (cellId, innerId) = GlobalDataManager.GetZoneInfo(zoneNumber);
-                        
-                        DateTime startTime = SeqExecutionManager.GetZoneSeqStartTime(zoneNumber);
-                        DateTime endTime = SeqExecutionManager.GetZoneSeqEndTime(zoneNumber);
-
-                        Output? storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneNumber);
-                        if (storedOutput.HasValue)
-                        {
-                            bool logResult = await Task.Run(() => ResultLogManager.CreateResultLogsForZone(
-                                startTime,
-                                endTime,
-                                cellId,
-                                innerId,
-                                zoneNumber,
-                                storedOutput.Value
-                            ));
-
-                            ErrorLogger.Log($"로그 생성 결과: {logResult}", ErrorLogger.LogLevel.INFO, zoneNumber);
-                        }
-                        else
-                        {
-                            ErrorLogger.Log($"저장된 데이터 없음 - 로그 생성 스킵", ErrorLogger.LogLevel.WARNING, zoneNumber);
-                        }
-
-                        await Task.Delay(DLL.DllConstants.LOG_GENERATION_DELAY_MS);
-                    }
-                    catch (Exception ex)
-                    {
-                        ErrorLogger.LogException(ex, "로그 생성 중 오류", zoneNumber);
-                    }
-                }
-
-                ErrorLogger.Log("결과 로그 생성 완료", ErrorLogger.LogLevel.INFO);
-            }
-            catch (Exception ex)
-            {
-                ErrorLogger.LogException(ex, "결과 로그 생성 전체 오류");
             }
         }
 
@@ -423,5 +458,6 @@ namespace OptiX.OPTIC
         }
     }
 }
+
 
 

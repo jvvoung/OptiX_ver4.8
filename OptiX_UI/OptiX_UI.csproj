@@ -101,7 +101,6 @@
     </Compile>
     <Compile Include="Common\GlobalDataManager.cs" />
     <Compile Include="Common\IniFileManager.cs" />
-    <Compile Include="DLL\MfcDllHelper.cs" />
     <Compile Include="Language\LanguageManager.cs" />
     <Compile Include="Language\LanguageHelper.cs" />
     <Compile Include="DLL\DllConstants.cs" />
@@ -193,11 +192,9 @@
     <Compile Include="Result_LOG\OPTIC\OpticCIMLogger.cs" />
     <Compile Include="Result_LOG\OPTIC\OpticEECPLogger.cs" />
     <Compile Include="Result_LOG\OPTIC\OpticEECPSummaryLogger.cs" />
-    <Compile Include="Result_LOG\OPTIC\OpticValidationLogger.cs" />
     <Compile Include="Result_LOG\IPVS\IPVSCIMLogger.cs" />
     <Compile Include="Result_LOG\IPVS\IPVSEECPLogger.cs" />
     <Compile Include="Result_LOG\IPVS\IPVSEECPSummaryLogger.cs" />
-    <Compile Include="Result_LOG\IPVS\IPVSValidationLogger.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -216,36 +213,36 @@
     <Resource Include="Images\CIE_1976.png" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TestDll\TestDll.vcxproj">
-      <Project>{224a026d-9fce-430d-8a78-f6b303186e49}</Project>
-      <Name>TestDll</Name>
+    <ProjectReference Include="..\Process\Process.vcxproj">
+      <Project>{ba93ae5b-8d4f-f42a-1ecb-3993153c5d91}</Project>
+      <Name>Process</Name>
     </ProjectReference>
   </ItemGroup>
   <Target Name="PostBuildRelease" AfterTargets="Build" Condition="'$(Configuration)' == 'Release' AND '$(Platform)' == 'AnyCPU'">
     <Exec Command="if not exist ..\publish mkdir ..\publish" />
     <Exec Command="xcopy /Y /E bin\Release\*.* ..\publish\" />
-    <Exec Command="copy ..\x64\Release\TestDll.dll bin\Release\TestDll.dll" />
+    <Exec Command="copy ..\x64\Release\Process.dll bin\Release\Process.dll" />
   </Target>
   <Target Name="PostBuildReleaseX64" AfterTargets="Build" Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <Exec Command="if not exist ..\publish mkdir ..\publish" />
     <Exec Command="xcopy /Y /E bin\x64\Release\*.* ..\publish\" />
-    <Exec Command="copy ..\x64\Release\TestDll.dll bin\x64\Release\TestDll.dll" />
+    <Exec Command="copy ..\x64\Release\Process.dll bin\x64\Release\Process.dll" />
   </Target>
   <Target Name="PostBuildDebug" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug' AND '$(Platform)' == 'AnyCPU'">
     <Exec Command="if not exist ..\publish_debug mkdir ..\publish_debug" />
     <Exec Command="xcopy /Y /E bin\Debug\*.* ..\publish_debug\" />
-    <Exec Command="if exist ..\TestDll\x64\Debug\TestDll.dll robocopy ..\TestDll\x64\Debug bin\Debug TestDll.dll /R:3 /W:1 /NP /NJH /NJS &amp; if %errorlevel% leq 1 exit 0" ContinueOnError="true" />
+    <Exec Command="if exist ..\Process\x64\Debug\Process.dll robocopy ..\Process\x64\Debug bin\Debug Process.dll /R:3 /W:1 /NP /NJH /NJS &amp; if %errorlevel% leq 1 exit 0" ContinueOnError="true" />
   </Target>
   <Target Name="PostBuildDebugX64" AfterTargets="Build" Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
-    <Exec Command="echo OptiX_UI PostBuild: 최신 TestDll 복사 시작..." />
+    <Exec Command="echo OptiX_UI PostBuild: 최신 Process MFC DLL 복사 시작..." />
     <Exec Command="if not exist ..\publish_debug mkdir ..\publish_debug" />
     <Exec Command="xcopy /Y /E bin\x64\Debug\*.* ..\publish_debug\" />
     <Exec Command="echo OptiX_UI PostBuild: bin\x64\Debug 복사 완료" />
-    <Exec Command="echo TestDll 프로젝트에서 직접 복사 중..." />
-    <Exec Command="if exist ..\TestDll\x64\Debug\TestDll.dll (copy /Y ..\TestDll\x64\Debug\TestDll.dll ..\publish_debug\TestDll.dll &amp; echo TestDll.dll 복사됨) else (echo TestDll\x64\Debug\TestDll.dll이 없습니다!)" />
-    <Exec Command="if exist ..\TestDll\x64\Debug\TestDll.lib (copy /Y ..\TestDll\x64\Debug\TestDll.lib ..\publish_debug\TestDll.lib &amp; echo TestDll.lib 복사됨) else (echo TestDll\x64\Debug\TestDll.lib이 없습니다!)" />
-    <Exec Command="if exist ..\TestDll\x64\Debug\TestDll.pdb (copy /Y ..\TestDll\x64\Debug\TestDll.pdb ..\publish_debug\TestDll.pdb &amp; echo TestDll.pdb 복사됨) else (echo TestDll\x64\Debug\TestDll.pdb가 없습니다!)" />
-    <Exec Command="echo OptiX_UI PostBuild: 최신 TestDll 복사 완료" />
+    <Exec Command="echo Process MFC DLL 프로젝트에서 직접 복사 중..." />
+    <Exec Command="if exist ..\Process\x64\Debug\Process.dll (copy /Y ..\Process\x64\Debug\Process.dll ..\publish_debug\Process.dll &amp; echo Process.dll 복사됨) else (echo Process\x64\Debug\Process.dll이 없습니다!)" />
+    <Exec Command="if exist ..\Process\x64\Debug\Process.lib (copy /Y ..\Process\x64\Debug\Process.lib ..\publish_debug\Process.lib &amp; echo Process.lib 복사됨) else (echo Process\x64\Debug\Process.lib이 없습니다!)" />
+    <Exec Command="if exist ..\Process\x64\Debug\Process.pdb (copy /Y ..\Process\x64\Debug\Process.pdb ..\publish_debug\Process.pdb &amp; echo Process.pdb 복사됨) else (echo Process\x64\Debug\Process.pdb가 없습니다!)" />
+    <Exec Command="echo OptiX_UI PostBuild: 최신 Process MFC DLL 복사 완료" />
   </Target>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

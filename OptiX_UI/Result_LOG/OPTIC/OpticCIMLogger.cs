@@ -5,75 +5,20 @@ using OptiX.Common;
 
 namespace OptiX.Result_LOG.OPTIC
 {
+    //25.10.30 - CIM 로거 Zone별 파일 분리 (Singleton → Static 메서드)
     /// <summary>
-    /// OPTIC CIM 로그 파일 생성 및 관리 클래스 (Singleton)
+    /// OPTIC CIM 로그 파일 생성 및 관리 클래스
     /// 경로: INI 파일에서 로드 (MTP_PATHS.CIM_FOLDER)
-    /// 파일명: CIM_YYYYMMDD.dat
+    /// 파일명: CIM_YYYYMMDD_ZoneN.dat (Zone별 분리)
     /// </summary>
-    public class OpticCIMLogger
+    public static class OpticCIMLogger
     {
         private static readonly object _fileLock = new object();
-        private static OpticCIMLogger _instance;
-        private readonly string _basePath;
-        private readonly string _fileName;
-        private readonly string _fullPath;
-
-        /// <summary>
-        /// Singleton Instance
-        /// </summary>
-        public static OpticCIMLogger Instance
-        {
-            get
-            {
-                if (_instance == null)
-                {
-                    lock (_fileLock)
-                    {
-                        if (_instance == null)
-                        {
-                            _instance = new OpticCIMLogger();
-                        }
-                    }
-                }
-                return _instance;
-            }
-        }
-
-        private OpticCIMLogger()
-        {
-            lock (_fileLock)
-            {
-                try
-                {
-                    // INI 파일에서 CIM 폴더 경로 읽기
-                    string rawPath = GlobalDataManager.GetValue("MTP_PATHS", "CIM_FOLDER", @"D:\Project\Log\Result\OPTIC\CIM");
-                    
-                    // 경로 정리 및 검증
-                    _basePath = CleanPath(rawPath);
-                    _fileName = $"CIM_{DateTime.Now:yyyyMMdd}.dat";
-                    _fullPath = Path.Combine(_basePath, _fileName);
-                    
-                    System.Diagnostics.Debug.WriteLine($"OPTIC CIM 로거 초기화: {_fullPath}");
-                    
-                    // 디렉토리가 없으면 생성
-                    if (!Directory.Exists(_basePath))
-                    {
-                        Directory.CreateDirectory(_basePath);
-                        System.Diagnostics.Debug.WriteLine($"OPTIC CIM 디렉토리 생성: {_basePath}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"OPTIC CIM 로거 초기화 오류: {ex.Message}");
-                    throw;
-                }
-            }
-        }
 
         /// <summary>
         /// 경로 정리 및 검증
         /// </summary>
-        private string CleanPath(string rawPath)
+        private static string CleanPath(string rawPath)
         {
             if (string.IsNullOrWhiteSpace(rawPath))
             {
@@ -99,54 +44,68 @@ namespace OptiX.Result_LOG.OPTIC
             return rawPath;
         }
 
+        //25.10.30 - Zone별 파일 경로 생성 메서드 추가
         /// <summary>
-        /// CIM 로그 데이터 기록
+        /// Zone별 CIM 파일 경로 생성
+        /// 파일명: CIM_YYYYMMDD_ZoneN.dat
         /// </summary>
-        public void LogCIMData(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneNumber, string cimData)
+        private static string GetZoneFilePath(int zoneNumber)
         {
-            var logEntry = new StringBuilder();
+            string rawPath = GlobalDataManager.GetValue("MTP_PATHS", "CIM_FOLDER", @"D:\Project\Log\Result\OPTIC\CIM");
+            string basePath = CleanPath(rawPath);
             
-            logEntry.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] CIM Log Entry");
-            logEntry.AppendLine($"START_TIME: {startTime:yyyy:MM:dd HH:mm:ss:fff}");
-            logEntry.AppendLine($"END_TIME: {endTime:yyyy:MM:dd HH:mm:ss:fff}");
-            logEntry.AppendLine($"CELL_ID: {cellId}");
-            logEntry.AppendLine($"INNER_ID: {innerId}");
-            logEntry.AppendLine($"ZONE: {zoneNumber}");
-            logEntry.AppendLine($"CIM_DATA: {cimData}");
-            logEntry.AppendLine("----------------------------------------");
-            
-            lock (_fileLock)
+            // 디렉토리가 없으면 생성
+            if (!Directory.Exists(basePath))
             {
-                File.AppendAllText(_fullPath, logEntry.ToString(), Encoding.UTF8);
+                Directory.CreateDirectory(basePath);
+            }
+            
+            string fileName = $"CIM_{DateTime.Now:yyyyMMdd}_Zone{zoneNumber}.dat";
+            return Path.Combine(basePath, fileName);
+        }
+
+        //25.10.30 - CIM 로그 데이터 기록 (Zone별 파일)
+        /// <summary>
+        /// CIM 로그 데이터 기록 (Zone별 파일 생성)
+        /// </summary>
+        public static void LogCIMData(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneNumber, string cimData)
+        {
+            try
+            {
+                string filePath = GetZoneFilePath(zoneNumber);
+                
+                var logEntry = new StringBuilder();
+                logEntry.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] CIM Log Entry");
+                logEntry.AppendLine($"START_TIME: {startTime:yyyy:MM:dd HH:mm:ss:fff}");
+                logEntry.AppendLine($"END_TIME: {endTime:yyyy:MM:dd HH:mm:ss:fff}");
+                logEntry.AppendLine($"CELL_ID: {cellId}");
+                logEntry.AppendLine($"INNER_ID: {innerId}");
+                logEntry.AppendLine($"ZONE: {zoneNumber}");
+                logEntry.AppendLine($"CIM_DATA: {cimData}");
+                logEntry.AppendLine("----------------------------------------");
+                
+                //25.10.30 - Zone별 파일이므로 Lock 경쟁 최소화
+                lock (_fileLock)
+                {
+                    File.AppendAllText(filePath, logEntry.ToString(), Encoding.UTF8);
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"OPTIC CIM 로그 생성: {filePath}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"OPTIC CIM 로그 생성 오류 (Zone {zoneNumber}): {ex.Message}");
+                throw;
             }
         }
 
         /// <summary>
         /// 간단한 로그 메서드
         /// </summary>
-        public void LogCIMData(string cellId, string innerId, int zoneNumber, string cimData)
+        public static void LogCIMData(string cellId, string innerId, int zoneNumber, string cimData)
         {
             var now = DateTime.Now;
             LogCIMData(now.AddSeconds(-10), now, cellId, innerId, zoneNumber, cimData);
-        }
-
-        /// <summary>
-        /// CIM 데이터를 바이너리 형식으로 기록
-        /// </summary>
-        public void LogCIMBinaryData(DateTime startTime, DateTime endTime, string cellId, string innerId, byte[] binaryData)
-        {
-            var logEntry = new StringBuilder();
-            
-            logEntry.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] CIM Binary Log Entry");
-            logEntry.AppendLine($"START_TIME: {startTime:yyyy:MM:dd HH:mm:ss:fff}");
-            logEntry.AppendLine($"END_TIME: {endTime:yyyy:MM:dd HH:mm:ss:fff}");
-            logEntry.AppendLine($"CELL_ID: {cellId}");
-            logEntry.AppendLine($"INNER_ID: {innerId}");
-            logEntry.AppendLine($"BINARY_DATA_SIZE: {binaryData.Length} bytes");
-            logEntry.AppendLine($"BINARY_DATA: {Convert.ToBase64String(binaryData)}");
-            logEntry.AppendLine("----------------------------------------");
-            
-            File.AppendAllText(_fullPath, logEntry.ToString(), Encoding.UTF8);
         }
     }
 }
