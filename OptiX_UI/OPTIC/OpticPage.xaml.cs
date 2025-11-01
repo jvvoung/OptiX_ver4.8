@@ -161,7 +161,7 @@ namespace OptiX
                 );
                 zoneButtonManager.SetDataTableManager(dataTableManager);
             }
-            seqExecutor = new OpticSeqExecutor(UpdateGraphDisplay, dataTableManager, viewModel, graphManager);
+            seqExecutor = new OpticSeqExecutor(UpdateGraphDisplay, dataTableManager, viewModel, graphManager, monitorManager);
                        
             // 현재 다크모드 상태 가져오기 (MainWindow에서)
             try
@@ -653,5 +653,6 @@ namespace OptiX
             return dataTableManager;
         }
         #endregion
+
     }
 }

@@ -5,7 +5,7 @@ OptiX UI 서버와 TCP/IP 통신하여 검사 명령을 전송하는 Windows 클
 ## 📋 요구사항
 
 - **Windows 10/11**
-- **.NET 6.0 Runtime** (자동 설치됨)
+- **.NET Framework 4.8** (OptiX UI와 동일)
 - **OptiX UI 서버 실행 중**
 
 ## 🚀 사용법
@@ -61,20 +61,21 @@ GET_STATUS
 
 ### 서버 설정
 - **IP**: 127.0.0.1 (고정)
-- **Port**: 8000 (고정)
+- **Port**: 7777 (OptiX UI와 동일)
 
 ### OptiX UI 서버 설정
-1. **MainSettingsWindow**에서 TCP/IP 설정
-2. **IP**: 127.0.0.1
-3. **Port**: 8000
-4. **Connect** 버튼으로 서버 시작
+1. **Project/Recipe/OptiX.ini** 파일에서 설정
+2. **TCP_IP**: 127.0.0.1
+3. **TCP_PORT**: 7777
+4. **AUTO_START_SERVER**: true (자동 시작)
 
 ## 🔧 디버깅
 
 ### 연결 실패 시
 1. **OptiX UI가 실행 중인지 확인**
-2. **서버 포트가 8000인지 확인**
+2. **서버 포트가 7777인지 확인**
 3. **방화벽 설정 확인**
+4. **netstat -ano | findstr :7777** 명령으로 서버 실행 확인
 
 ### 메시지 전송 실패 시
 1. **연결 상태 확인**

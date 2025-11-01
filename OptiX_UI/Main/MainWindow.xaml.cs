@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -60,6 +61,8 @@ public partial class MainWindow : Window
         communicationServer.LogMessage += OnCommunicationLogMessage;
         communicationServer.MessageReceived += OnCommunicationMessageReceived;
         communicationServer.ConnectionStatusChanged += OnCommunicationStatusChanged;
+        communicationServer.OpticTestStartRequested += OnOpticTestStartRequested;
+        communicationServer.IpvsTestStartRequested += OnIpvsTestStartRequested;
         
         // INI에서 서버 설정 로드
         string tcpIp = GlobalDataManager.GetValue("Settings", "TCP_IP", "127.0.0.1");
@@ -121,6 +124,13 @@ public partial class MainWindow : Window
 
     private void ProcessClientMessage(string message)
     {
+        // 구조체 메시지 타입은 CommunicationServer에서 이미 처리됨
+        if (message == "OPTIC_START" || message == "IPVS_START")
+        {
+            // 구조체 메시지는 이미 처리되었으므로 여기서는 무시
+            return;
+        }
+
         switch (message.ToUpper())
         {
             case "TEST_START":
@@ -143,6 +153,135 @@ public partial class MainWindow : Window
                 System.Diagnostics.Debug.WriteLine($"알 수 없는 명령: {message}");
                 break;
         }
+    }
+
+        //25.11.02 - OPTIC 자동 모드: 클라이언트에서 받은 Zone 데이터 수집 및 테스트 시작
+        // 클라이언트가 2개의 구조체(Zone 1, Zone 2)를 전송하면 200ms 대기 후 한 번에 테스트 시작
+        private Dictionary<int, (string cellID, string innerID)> pendingOpticZones = new Dictionary<int, (string, string)>();
+        private System.Threading.Timer opticTestTimer;
+
+        /// <summary>
+        /// OPTIC 테스트 시작 요청 처리
+        /// </summary>
+        private void OnOpticTestStartRequested(object sender, OpticStartEventArgs e)
+    {
+        System.Diagnostics.Debug.WriteLine($"[MainWindow] OPTIC 구조체 수신 - Zone: {e.ZoneSelect}, CellID: {e.CellID}, InnerID: {e.InnerID}");
+        CommunicationLogger.WriteLog($"📦 [OPTIC_DATA] Zone {e.ZoneSelect} 데이터 수신 - Cell: {e.CellID}, Inner: {e.InnerID}");
+
+        // Zone 데이터 저장
+        pendingOpticZones[e.ZoneSelect] = (e.CellID, e.InnerID);
+
+        // 기존 타이머 취소
+        opticTestTimer?.Dispose();
+
+        // 200ms 후에 테스트 시작 (모든 Zone 데이터 수신 대기)
+        opticTestTimer = new System.Threading.Timer(_ =>
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                StartOpticTestWithAllZones();
+            }));
+        }, null, 200, System.Threading.Timeout.Infinite);
+    }
+
+    /// <summary>
+    /// 모든 Zone 데이터를 설정하고 테스트 시작
+    /// </summary>
+    private void StartOpticTestWithAllZones()
+    {
+        try
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainWindow] ========== StartOpticTestWithAllZones 호출됨 ==========");
+            System.Diagnostics.Debug.WriteLine($"[MainWindow] pendingOpticZones.Count = {pendingOpticZones.Count}");
+            
+            if (pendingOpticZones.Count == 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainWindow] ❌ Zone 데이터가 없습니다");
+                return;
+            }
+
+            // 수집된 Zone 데이터 출력
+            foreach (var kvp in pendingOpticZones)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainWindow] Zone {kvp.Key}: CellID={kvp.Value.cellID}, InnerID={kvp.Value.innerID}");
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[MainWindow] OPTIC 테스트 시작 - 총 {pendingOpticZones.Count}개 Zone");
+            CommunicationLogger.WriteLog($"🚀 [AUTO_TEST_START] OPTIC 테스트 시작 - {pendingOpticZones.Count}개 Zone");
+
+            // 1. OPTIC 페이지로 이동
+            System.Diagnostics.Debug.WriteLine($"[MainWindow] OPTIC 페이지로 이동 중...");
+            pageNavigationManager?.NavigateToOpticPage();
+
+            // 2. 페이지 로드 완료 후 테스트 시작
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainWindow] Dispatcher.BeginInvoke 실행됨");
+                
+                var opticPage = pageNavigationManager?.GetCurrentPage() as OpticPage;
+                System.Diagnostics.Debug.WriteLine($"[MainWindow] opticPage = {(opticPage != null ? "찾음" : "null")}");
+                
+                if (opticPage != null)
+                {
+                    // 모든 Zone 데이터를 ViewModel에 설정
+                    var viewModel = opticPage.DataContext as OptiX.OPTIC.OpticPageViewModel;
+                    System.Diagnostics.Debug.WriteLine($"[MainWindow] viewModel = {(viewModel != null ? "찾음" : "null")}");
+                    
+                    if (viewModel != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[MainWindow] Zone 데이터 설정 시작...");
+                        
+                        foreach (var kvp in pendingOpticZones)
+                        {
+                            int zoneNumber = kvp.Key;
+                            string cellID = kvp.Value.cellID;
+                            string innerID = kvp.Value.innerID;
+
+                            System.Diagnostics.Debug.WriteLine($"[MainWindow] SetExternalInputData 호출: Zone={zoneNumber}, Cell={cellID}, Inner={innerID}");
+                            viewModel.SetExternalInputData(zoneNumber, cellID, innerID);
+                            System.Diagnostics.Debug.WriteLine($"[MainWindow] Zone {zoneNumber} 데이터 설정 완료");
+                        }
+
+                        // 테스트 시작 (한 번만!)
+                        System.Diagnostics.Debug.WriteLine($"[MainWindow] TestStartCommand.Execute 호출...");
+                        viewModel.TestStartCommand.Execute(null);
+                        System.Diagnostics.Debug.WriteLine($"[MainWindow] 테스트 시작 명령 실행 완료");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[MainWindow] ❌ ViewModel을 찾을 수 없습니다");
+                        CommunicationLogger.WriteLog($"❌ [AUTO_TEST_ERROR] ViewModel을 찾을 수 없습니다");
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MainWindow] ❌ OPTIC 페이지를 찾을 수 없습니다");
+                    CommunicationLogger.WriteLog($"❌ [AUTO_TEST_ERROR] OPTIC 페이지를 찾을 수 없습니다");
+                }
+
+                // 데이터 초기화
+                pendingOpticZones.Clear();
+                System.Diagnostics.Debug.WriteLine($"[MainWindow] pendingOpticZones 초기화 완료");
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainWindow] ❌ 테스트 시작 실패: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[MainWindow] StackTrace: {ex.StackTrace}");
+            CommunicationLogger.WriteLog($"❌ [AUTO_TEST_ERROR] 테스트 시작 실패: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// IPVS 테스트 시작 요청 처리
+    /// </summary>
+    private void OnIpvsTestStartRequested(object sender, IpvsStartEventArgs e)
+    {
+        System.Diagnostics.Debug.WriteLine($"[MainWindow] IPVS 테스트 시작 요청 - Select: {e.Select}, InnerID: {e.InnerID}");
+        CommunicationLogger.WriteLog($"🚀 [AUTO_TEST_START] IPVS 자동 테스트 시작 - Select: {e.Select}, Inner: {e.InnerID}");
+
+        // TODO: IPVS 페이지로 이동 및 테스트 시작
+        // pageNavigationManager?.NavigateToIpvsPage();
     }
 
     public async Task<bool> StartCommunicationServer(string tcpIp, int port)

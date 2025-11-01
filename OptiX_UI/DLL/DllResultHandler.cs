@@ -40,8 +40,12 @@ namespace OptiX.DLL
                 // actualZone: Zone 번호를 int로 변환 (1~4)
                 int actualZone = int.TryParse(targetZone, out int z) ? z : 1;
 
-                // Cell ID와 Inner ID 읽기 (캐시된 Zone 정보 사용)
-                var (cellId, innerId) = Common.GlobalDataManager.GetZoneInfo(actualZone);
+                //25.11.02 - Cell ID와 Inner ID를 ZoneContext에서 가져오도록 수정 (자동/수동 모드 모두 지원)
+                // 기존: GlobalDataManager.GetZoneInfo() → INI 파일 값만 사용
+                // 변경: SeqExecutionManager.GetZoneContext() → 자동 모드(통신 데이터) 또는 수동 모드(INI 데이터) 모두 지원
+                var context = SeqExecutionManager.GetZoneContext(actualZone);
+                string cellId = context?.SharedInput.CELL_ID ?? "";
+                string innerId = context?.SharedInput.INNER_ID ?? "";
 
                 Common.ErrorLogger.Log($"Cell ID: '{cellId}', Inner ID: '{innerId}'", Common.ErrorLogger.LogLevel.INFO, actualZone);
 
@@ -162,8 +166,12 @@ namespace OptiX.DLL
                 int actualZone = int.TryParse(targetZone, out int z) ? z : 1;
                 Common.ErrorLogger.Log($"=== IPVS 결과 처리 시작 ===", Common.ErrorLogger.LogLevel.INFO, actualZone);
 
-                // Cell ID와 Inner ID 읽기 (캐시된 IPVS Zone 정보 사용)
-                var (cellId, innerId) = Common.GlobalDataManager.GetIPVSZoneInfo(actualZone);
+                //25.11.02 - Cell ID와 Inner ID를 ZoneContext에서 가져오도록 수정 (자동/수동 모드 모두 지원)
+                // 기존: GlobalDataManager.GetIPVSZoneInfo() → INI 파일 값만 사용
+                // 변경: SeqExecutionManager.GetZoneContext() → 자동 모드(통신 데이터) 또는 수동 모드(INI 데이터) 모두 지원
+                var context = SeqExecutionManager.GetZoneContext(actualZone);
+                string cellId = context?.SharedInput.CELL_ID ?? "";
+                string innerId = context?.SharedInput.INNER_ID ?? "";
 
                 Common.ErrorLogger.Log($"Cell ID: '{cellId}', Inner ID: '{innerId}'", Common.ErrorLogger.LogLevel.INFO, actualZone);
 

@@ -343,6 +343,34 @@ namespace OptiX.Common
         }
 
         /// <summary>
+        /// Zone 개수 반환
+        /// </summary>
+        public int GetZoneCount()
+        {
+            return zoneTestCompleted?.Length ?? 0;
+        }
+
+        /// <summary>
+        /// Zone 선택 (외부에서 호출 가능)
+        /// </summary>
+        public void SelectZone(int zoneIndex)
+        {
+            if (zoneIndex < 0 || zoneIndex >= GetZoneCount())
+            {
+                System.Diagnostics.Debug.WriteLine($"[ZoneButtonManager] ❌ 잘못된 Zone 인덱스: {zoneIndex}");
+                return;
+            }
+
+            // Zone 변경 콜백 호출
+            onZoneChanged?.Invoke(zoneIndex);
+
+            // 버튼 UI 업데이트 (버튼 스타일 갱신)
+            UpdateButtons();
+
+            System.Diagnostics.Debug.WriteLine($"[ZoneButtonManager] Zone {zoneIndex + 1} 선택됨");
+        }
+
+        /// <summary>
         /// RESET 버튼 클릭 이벤트 핸들러 (OpticPage.xaml.cs에서 복사)
         /// </summary>
         public void OnResetButtonClick(object sender, RoutedEventArgs e)

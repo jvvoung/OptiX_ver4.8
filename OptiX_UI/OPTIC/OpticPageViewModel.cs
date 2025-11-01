@@ -144,14 +144,17 @@ namespace OptiX.OPTIC
                 // Zone과 Category에 따라 데이터 생성 (각 카테고리를 개별 행으로)
                 for (int zone = 1; zone <= zoneCount; zone++)
                 {
+                    // INI 파일에서 Zone 정보 가져오기 (수동 모드용)
+                    var (iniCellId, iniInnerId) = GlobalDataManager.GetZoneInfo(zone);
+                    
                     for (int i = 0; i < categories.Length; i++)
                     {
                         string category = categories[i].Trim();
                         DataItems.Add(new DataTableItem
                         {
                             Zone = zone.ToString(),
-                            InnerId = "", // 초기에는 빈 값
-                            CellId = "", // 초기에는 빈 값
+                            InnerId = iniInnerId, // INI 파일 값 (수동 모드)
+                            CellId = iniCellId,   // INI 파일 값 (수동 모드)
                             Category = category,
                             X = "", 
                             Y = "", 
@@ -375,10 +378,18 @@ namespace OptiX.OPTIC
         #region 판정 현황 관리 (JudgmentStatusManager로 위임)
 
         /// <summary>
+        /// DataTable UI 갱신 (외부에서 호출 가능)
+        /// </summary>
+        public void RefreshDataTable()
+        {
+            OnPropertyChanged(nameof(DataItems));
+        }
+        
+        /// <summary>
         /// 판정 현황 표 업데이트 (이제 JudgmentStatusManager가 카운터 관리)
         /// </summary>
         /// <param name="judgment">새로운 판정 결과 (OK/NG/PTN/R/J)</param>
-        private void UpdateJudgmentStatusTable(string judgment)
+        public void UpdateJudgmentStatusTable(string judgment)
         {
             try
             {
@@ -474,6 +485,101 @@ namespace OptiX.OPTIC
             field = value;
             OnPropertyChanged(propertyName);
             return true;
+        }
+        #endregion
+
+        #region External Input Data Setting
+        //25.11.02 - 외부(통신)에서 받은 INPUT 데이터를 Zone별로 저장 (자동 모드 지원)
+        // 자동 모드: 클라이언트에서 받은 데이터 사용
+        // 수동 모드: INI 파일 데이터 사용 (GlobalDataManager)
+        private Dictionary<int, (string cellID, string innerID)> externalZoneData = new Dictionary<int, (string, string)>();
+
+        /// <summary>
+        /// 외부(통신)에서 Zone별 INPUT 데이터 설정
+        /// </summary>
+        /// <param name="zoneNumber">Zone 번호 (1 또는 2)</param>
+        /// <param name="cellID">Cell ID (LotID와 동일)</param>
+        /// <param name="innerID">Inner ID</param>
+        public void SetExternalInputData(int zoneNumber, string cellID, string innerID)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"[OpticPageViewModel] Zone {zoneNumber} 외부 INPUT 데이터 설정 - CellID: {cellID}, InnerID: {innerID}");
+
+                // Zone별 데이터 저장 (자동 모드용)
+                externalZoneData[zoneNumber] = (cellID ?? "", innerID ?? "");
+
+                // 데이터 테이블만 업데이트 (GlobalDataManager는 수동 모드용이므로 건드리지 않음)
+                UpdateDataTableZoneInfo(zoneNumber, cellID, innerID);
+
+                System.Diagnostics.Debug.WriteLine($"[OpticPageViewModel] Zone {zoneNumber} INPUT 데이터 설정 완료 (자동 모드)");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[OpticPageViewModel] ❌ Zone {zoneNumber} INPUT 데이터 설정 실패: {ex.Message}");
+                ErrorLogger.LogException(ex, $"Zone {zoneNumber} 외부 INPUT 데이터 설정 실패");
+            }
+        }
+
+        /// <summary>
+        /// 데이터 테이블의 Zone별 Cell ID, Inner ID 업데이트
+        /// </summary>
+        private void UpdateDataTableZoneInfo(int zoneNumber, string cellID, string innerID)
+        {
+            try
+            {
+                // UI 스레드에서 실행
+                System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    // 해당 Zone의 모든 행 업데이트
+                    var zoneItems = DataItems.Where(item => item.Zone == zoneNumber.ToString()).ToList();
+                    
+                    System.Diagnostics.Debug.WriteLine($"[OpticPageViewModel] Zone {zoneNumber} 업데이트 시작 - {zoneItems.Count}개 행 발견");
+                    
+                    foreach (var item in zoneItems)
+                    {
+                        item.CellId = cellID;
+                        item.InnerId = innerID;
+                        System.Diagnostics.Debug.WriteLine($"[OpticPageViewModel] 행 업데이트: Zone={item.Zone}, Category={item.Category}, CellId={item.CellId}, InnerId={item.InnerId}");
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"[OpticPageViewModel] Zone {zoneNumber} 데이터 테이블 업데이트 완료");
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[OpticPageViewModel] ❌ Zone {zoneNumber} 데이터 테이블 업데이트 실패: {ex.Message}");
+                ErrorLogger.LogException(ex, $"Zone {zoneNumber} 데이터 테이블 업데이트 실패");
+            }
+        }
+
+        /// <summary>
+        /// Zone별 외부 INPUT 데이터 가져오기
+        /// </summary>
+        public (string cellID, string innerID, bool hasData) GetExternalInputData(int zoneNumber)
+        {
+            if (externalZoneData.ContainsKey(zoneNumber))
+            {
+                var data = externalZoneData[zoneNumber];
+                return (data.cellID, data.innerID, true);
+            }
+            return ("", "", false);
+        }
+
+        /// <summary>
+        /// 외부 INPUT 데이터가 있는지 확인
+        /// </summary>
+        public bool HasExternalData()
+        {
+            return externalZoneData.Count > 0;
+        }
+
+        /// <summary>
+        /// 외부 INPUT 데이터 초기화
+        /// </summary>
+        public void ClearExternalInputData()
+        {
+            externalZoneData.Clear();
         }
         #endregion
     }

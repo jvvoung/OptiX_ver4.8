@@ -347,6 +347,15 @@ namespace OptiX.Common
                 return ("", "");
             }
         }
+
+        /// <summary>
+        /// Zone별 Cell ID와 Inner ID 설정 (외부 통신용)
+        /// </summary>
+        public static void SetZoneInfo(int zoneNumber, string cellId, string innerId)
+        {
+            _mtpZoneInfo[zoneNumber] = (cellId, innerId);
+            ErrorLogger.Log($"Zone {zoneNumber} 정보 업데이트: Cell ID='{cellId}', Inner ID='{innerId}'", ErrorLogger.LogLevel.INFO, zoneNumber);
+        }
         
         /// <summary>
         /// Zone별 Cell ID와 Inner ID를 가져오기 (IPVS 전용)

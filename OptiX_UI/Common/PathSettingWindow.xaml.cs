@@ -12,7 +12,6 @@ namespace OptiX.Common
         public string EECPPath { get; private set; } = "";
         public string SUMMARYPath { get; private set; } = "";
         public string CIMPath { get; private set; } = "";
-        public string VALIDPath { get; private set; } = "";
         public string SequencePath { get; private set; } = "";
 
         private bool isDarkMode = false;
@@ -42,14 +41,12 @@ namespace OptiX.Common
                 EECPPath = GlobalDataManager.GetValue(iniSection, "EECP_FOLDER", "");
                 SUMMARYPath = GlobalDataManager.GetValue(iniSection, "EECP_SUMMARY_FOLDER", "");
                 CIMPath = GlobalDataManager.GetValue(iniSection, "CIM_FOLDER", "");
-                VALIDPath = GlobalDataManager.GetValue(iniSection, "VALID_FOLDER", "");
                 SequencePath = GlobalDataManager.GetValue(iniSection, "SEQUENCE_FOLDER", "");
 
                 // 텍스트박스에 표시
                 EECPTextBox.Text = string.IsNullOrEmpty(EECPPath) ? "EECP 폴더를 선택하세요" : EECPPath;
                 SUMMARYTextBox.Text = string.IsNullOrEmpty(SUMMARYPath) ? "SUMMARY 폴더를 선택하세요" : SUMMARYPath;
                 CIMTextBox.Text = string.IsNullOrEmpty(CIMPath) ? "CIM 폴더를 선택하세요" : CIMPath;
-                VALIDTextBox.Text = string.IsNullOrEmpty(VALIDPath) ? "VALID 폴더를 선택하세요" : VALIDPath;
                 SequenceTextBox.Text = string.IsNullOrEmpty(SequencePath) ? "Sequence 파일을 선택하세요" : SequencePath;
             }
             catch (Exception ex)
@@ -141,23 +138,7 @@ namespace OptiX.Common
             }
         }
 
-        private void VALIDButton_Click(object sender, RoutedEventArgs e)
-        {
-            var dialog = new OpenFileDialog
-            {
-                Title = "VALID 폴더를 선택하세요",
-                Filter = "폴더 선택|*.",
-                CheckFileExists = false,
-                CheckPathExists = true,
-                FileName = "폴더를 선택하세요"
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                VALIDPath = Path.GetDirectoryName(dialog.FileName) ?? "";
-                VALIDTextBox.Text = VALIDPath;
-            }
-        }
+        // VALIDButton_Click 메서드 제거
 
         private void SequenceButton_Click(object sender, RoutedEventArgs e)
         {
@@ -209,7 +190,7 @@ namespace OptiX.Common
                 GlobalDataManager.SetValue(iniSection, "EECP_FOLDER", EECPPath);
                 GlobalDataManager.SetValue(iniSection, "EECP_SUMMARY_FOLDER", SUMMARYPath);
                 GlobalDataManager.SetValue(iniSection, "CIM_FOLDER", CIMPath);
-                GlobalDataManager.SetValue(iniSection, "VALID_FOLDER", VALIDPath);
+                //GlobalDataManager.SetValue(iniSection, "VALID_FOLDER", VALIDPath);
                 GlobalDataManager.SetValue(iniSection, "SEQUENCE_FOLDER", SequencePath);
             }
             catch (Exception ex)
@@ -229,15 +210,13 @@ namespace OptiX.Common
                 bool isEecpEnabled = GlobalDataManager.GetValue(targetSection, "CREATE_EECP", "F").ToUpper() == "T";
                 bool isCimEnabled = GlobalDataManager.GetValue(targetSection, "CREATE_CIM", "F").ToUpper() == "T";
                 bool isEecpSummaryEnabled = GlobalDataManager.GetValue(targetSection, "CREATE_EECP_SUMMARY", "F").ToUpper() == "T";
-                bool isValidationEnabled = GlobalDataManager.GetValue(targetSection, "CREATE_VALIDATION", "F").ToUpper() == "T";
 
                 // 체크박스 상태 설정
                 if (CreateEecpCheckBox != null) CreateEecpCheckBox.IsChecked = isEecpEnabled;
                 if (CreateCimCheckBox != null) CreateCimCheckBox.IsChecked = isCimEnabled;
                 if (CreateEecpSummaryCheckBox != null) CreateEecpSummaryCheckBox.IsChecked = isEecpSummaryEnabled;
-                if (CreateValidationCheckBox != null) CreateValidationCheckBox.IsChecked = isValidationEnabled;
 
-                System.Diagnostics.Debug.WriteLine($"파일 생성 설정 로드 완료 ({targetSection}) - EECP: {isEecpEnabled}, CIM: {isCimEnabled}, EECP_SUMMARY: {isEecpSummaryEnabled}, VALIDATION: {isValidationEnabled}");
+                System.Diagnostics.Debug.WriteLine($"파일 생성 설정 로드 완료 ({targetSection}) - EECP: {isEecpEnabled}, CIM: {isCimEnabled}, EECP_SUMMARY: {isEecpSummaryEnabled}");
             }
             catch (Exception ex)
             {
@@ -256,20 +235,17 @@ namespace OptiX.Common
                 bool isEecpEnabled = CreateEecpCheckBox?.IsChecked ?? false;
                 bool isCimEnabled = CreateCimCheckBox?.IsChecked ?? false;
                 bool isEecpSummaryEnabled = CreateEecpSummaryCheckBox?.IsChecked ?? false;
-                bool isValidationEnabled = CreateValidationCheckBox?.IsChecked ?? false;
 
                 // T/F 형태로 INI 파일에 저장 (MTP/IPVS 섹션에 저장)
                 string eecpValue = isEecpEnabled ? "T" : "F";
                 string cimValue = isCimEnabled ? "T" : "F";
                 string eecpSummaryValue = isEecpSummaryEnabled ? "T" : "F";
-                string validationValue = isValidationEnabled ? "T" : "F";
                 
                 GlobalDataManager.SetValue(targetSection, "CREATE_EECP", eecpValue);
                 GlobalDataManager.SetValue(targetSection, "CREATE_CIM", cimValue);
                 GlobalDataManager.SetValue(targetSection, "CREATE_EECP_SUMMARY", eecpSummaryValue);
-                GlobalDataManager.SetValue(targetSection, "CREATE_VALIDATION", validationValue);
                 
-                System.Diagnostics.Debug.WriteLine($"파일 생성 설정 저장 완료 ({targetSection}) - EECP: {eecpValue}, CIM: {cimValue}, EECP_SUMMARY: {eecpSummaryValue}, VALIDATION: {validationValue}");
+                System.Diagnostics.Debug.WriteLine($"파일 생성 설정 저장 완료 ({targetSection}) - EECP: {eecpValue}, CIM: {cimValue}, EECP_SUMMARY: {eecpSummaryValue}");
             }
             catch (Exception ex)
             {
@@ -304,9 +280,6 @@ namespace OptiX.Common
                 
                 if (CIMTextBox != null && string.IsNullOrEmpty(CIMPath))
                     CIMTextBox.Text = $"CIM {LanguageManager.GetText("PathSettings.SelectFolder")}";
-                
-                if (VALIDTextBox != null && string.IsNullOrEmpty(VALIDPath))
-                    VALIDTextBox.Text = $"VALID {LanguageManager.GetText("PathSettings.SelectFolder")}";
                 
                 if (SequenceTextBox != null && string.IsNullOrEmpty(SequencePath))
                     SequenceTextBox.Text = $"Seq. {LanguageManager.GetText("PathSettings.SelectFolder")}";

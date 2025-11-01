@@ -65,24 +65,69 @@ namespace OptiX.Result_LOG.OPTIC
         }
 
         //25.10.30 - CIM 로그 데이터 기록 (Zone별 파일)
+        //25.11.02 - CIM 로그 형식 변경: data[WAD][PATTERN] 값을 "데이터명 = 값" 형식으로 출력
+        // 기존: 단순 문자열 전달
+        // 변경: Output 구조체를 직접 전달하여 data[7][17] 배열을 순회하며 포맷팅
         /// <summary>
         /// CIM 로그 데이터 기록 (Zone별 파일 생성)
+        /// 형식: 데이터명 = 값 (struct pattern data[7][17] 구조)
         /// </summary>
-        public static void LogCIMData(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneNumber, string cimData)
+        public static void LogCIMData(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneNumber, OptiX.DLL.Output outputData)
         {
             try
             {
                 string filePath = GetZoneFilePath(zoneNumber);
                 
                 var logEntry = new StringBuilder();
+                
+                // 기본 정보
                 logEntry.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] CIM Log Entry");
-                logEntry.AppendLine($"START_TIME: {startTime:yyyy:MM:dd HH:mm:ss:fff}");
-                logEntry.AppendLine($"END_TIME: {endTime:yyyy:MM:dd HH:mm:ss:fff}");
-                logEntry.AppendLine($"CELL_ID: {cellId}");
-                logEntry.AppendLine($"INNER_ID: {innerId}");
-                logEntry.AppendLine($"ZONE: {zoneNumber}");
-                logEntry.AppendLine($"CIM_DATA: {cimData}");
-                logEntry.AppendLine("----------------------------------------");
+                logEntry.AppendLine($"START_TIME = {startTime:yyyy:MM:dd HH:mm:ss:fff}");
+                logEntry.AppendLine($"END_TIME = {endTime:yyyy:MM:dd HH:mm:ss:fff}");
+                
+                // TACT 계산
+                double tact = (endTime - startTime).TotalSeconds;
+                logEntry.AppendLine($"TACT = {tact:F3}");
+                
+                logEntry.AppendLine($"CELL_ID = {cellId}");
+                logEntry.AppendLine($"INNER_ID = {innerId}");
+                logEntry.AppendLine($"ZONE = {zoneNumber}");
+                logEntry.AppendLine();
+                
+                // struct pattern data[7][17] 형식으로 작성
+                // data[WAD][PATTERN] 구조
+                string[] wadNames = { "WAD_0", "WAD_30", "WAD_45", "WAD_60", "WAD_15", "WAD_A", "WAD_B" };
+                string[] patternNames = { "W", "R", "G", "B", "WG", "WG2", "WG3", "WG4", "WG5", "WG6", "WG7", "WG8", "WG9", "WG10", "WG11", "WG12", "WG13" };
+                
+                for (int wad = 0; wad < 7; wad++)
+                {
+                    logEntry.AppendLine($"// {wadNames[wad]} 데이터");
+                    
+                    for (int pattern = 0; pattern < 17; pattern++)
+                    {
+                        // data[wad][pattern] 인덱스 계산
+                        int index = wad * 17 + pattern;
+                        
+                        if (index < outputData.data.Length)
+                        {
+                            var data = outputData.data[index];
+                            string prefix = $"{wadNames[wad]}_{patternNames[pattern]}";
+                            
+                            logEntry.AppendLine($"{prefix}_X = {data.x:F3}");
+                            logEntry.AppendLine($"{prefix}_Y = {data.y:F3}");
+                            logEntry.AppendLine($"{prefix}_u = {data.u:F3}");
+                            logEntry.AppendLine($"{prefix}_v = {data.v:F3}");
+                            logEntry.AppendLine($"{prefix}_L = {data.L:F3}");
+                            logEntry.AppendLine($"{prefix}_전류 = {data.cur:F3}");
+                            logEntry.AppendLine($"{prefix}_효율 = {data.eff:F3}");
+                            logEntry.AppendLine($"{prefix}_판정 = {(data.result == 0 ? "OK" : data.result == 1 ? "NG" : "PTN")}");
+                            logEntry.AppendLine();
+                        }
+                    }
+                }
+                
+                logEntry.AppendLine("========================================");
+                logEntry.AppendLine();
                 
                 //25.10.30 - Zone별 파일이므로 Lock 경쟁 최소화
                 lock (_fileLock)
@@ -97,15 +142,6 @@ namespace OptiX.Result_LOG.OPTIC
                 System.Diagnostics.Debug.WriteLine($"OPTIC CIM 로그 생성 오류 (Zone {zoneNumber}): {ex.Message}");
                 throw;
             }
-        }
-
-        /// <summary>
-        /// 간단한 로그 메서드
-        /// </summary>
-        public static void LogCIMData(string cellId, string innerId, int zoneNumber, string cimData)
-        {
-            var now = DateTime.Now;
-            LogCIMData(now.AddSeconds(-10), now, cellId, innerId, zoneNumber, cimData);
         }
     }
 }

@@ -114,6 +114,7 @@
     <Compile Include="DLL\DllResultHandler.cs" />
     <Compile Include="Communication\CommunicationServer.cs" />
     <Compile Include="Communication\CommunicationLogger.cs" />
+    <Compile Include="Communication\CommunicationProtocol.cs" />
     <Compile Include="IPVS\IPVSPage.xaml.cs">
       <DependentUpon>IPVS\IPVSPage.xaml</DependentUpon>
     </Compile>

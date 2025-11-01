@@ -26,6 +26,10 @@ namespace OptiX.Communication
         public event EventHandler<string> MessageReceived;
         public event EventHandler<bool> ConnectionStatusChanged;
         public event EventHandler<string> LogMessage;
+        
+        // OPTIC/IPVS 테스트 시작 이벤트
+        public event EventHandler<OpticStartEventArgs> OpticTestStartRequested;
+        public event EventHandler<IpvsStartEventArgs> IpvsTestStartRequested;
         #endregion
 
         #region Properties
@@ -90,7 +94,8 @@ namespace OptiX.Communication
                 // 통신 로그 기록
                 CommunicationLogger.WriteLog($"🚀 [SERVER_START] 서버 시작 - IP: {address}, Port: {port}");
                 
-                ConnectionStatusChanged?.Invoke(this, true);
+                // 서버 시작 시에는 ConnectionStatusChanged 이벤트 발생하지 않음
+                // 클라이언트가 실제로 연결될 때만 발생
 
                 // 클라이언트 연결 대기 시작
                 _ = Task.Run(() => AcceptClientsAsync(cancellationTokenSource.Token));
@@ -280,29 +285,55 @@ namespace OptiX.Communication
                         break;
                     }
 
-                    // 메시지 파싱
-                    string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    LogMessage?.Invoke(this, $"📥 클라이언트로부터 메시지 수신: {message}");
+                    // 수신 데이터 복사 (buffer 재사용 방지)
+                    byte[] receivedData = new byte[bytesRead];
+                    Array.Copy(buffer, receivedData, bytesRead);
 
-                    // 통신 로그 기록 - 메시지 수신 (모든 메시지 기록)
-                    CommunicationLogger.WriteLog($"📥 [MESSAGE_RECEIVED] 수신메시지: \"{message}\" | 길이: {bytesRead}");
+                    // 메시지 ID 확인 (구조체 vs 텍스트)
+                    int msgID = CommunicationProtocol.GetMessageID(receivedData);
+                    string msgType = CommunicationProtocol.GetMessageType(msgID);
 
-                    // 명령 처리
-                    string response = ProcessCommand(message);
-                    
-                    // 응답 전송
-                    if (!string.IsNullOrEmpty(response))
+                    if (msgType != "UNKNOWN")
                     {
-                        byte[] responseBytes = Encoding.UTF8.GetBytes(response);
-                        await stream.WriteAsync(responseBytes, 0, responseBytes.Length, cancellationToken);
-                        LogMessage?.Invoke(this, $"📤 클라이언트에게 응답 전송: {response}");
-                        
-                    // 통신 로그 기록 - 메시지 전송
-                    CommunicationLogger.WriteLog($"📤 [MESSAGE_SENT] 전송메시지: \"{response}\"");
-                    }
+                        // 구조체 메시지 처리
+                        LogMessage?.Invoke(this, $"📥 구조체 메시지 수신: {msgType} (ID: {msgID}, {bytesRead} bytes)");
+                        CommunicationLogger.WriteLog($"📥 [STRUCT_RECEIVED] 메시지 타입: {msgType} | ID: {msgID} | 크기: {bytesRead} bytes");
 
-                    // 메시지 수신 이벤트 발생
-                    MessageReceived?.Invoke(this, message);
+                        string response = ProcessStructMessage(msgID, receivedData);
+                        
+                        // 응답 전송
+                        if (!string.IsNullOrEmpty(response))
+                        {
+                            byte[] responseBytes = Encoding.UTF8.GetBytes(response);
+                            await stream.WriteAsync(responseBytes, 0, responseBytes.Length, cancellationToken);
+                            LogMessage?.Invoke(this, $"📤 클라이언트에게 응답 전송: {response}");
+                            CommunicationLogger.WriteLog($"📤 [MESSAGE_SENT] 전송메시지: \"{response}\"");
+                        }
+
+                        // 메시지 수신 이벤트 발생
+                        MessageReceived?.Invoke(this, msgType);
+                    }
+                    else
+                    {
+                        // 텍스트 메시지 처리 (기존 방식)
+                        string message = Encoding.UTF8.GetString(receivedData, 0, bytesRead);
+                        LogMessage?.Invoke(this, $"📥 텍스트 메시지 수신: {message}");
+                        CommunicationLogger.WriteLog($"📥 [MESSAGE_RECEIVED] 수신메시지: \"{message}\" | 길이: {bytesRead}");
+
+                        string response = ProcessCommand(message);
+                        
+                        // 응답 전송
+                        if (!string.IsNullOrEmpty(response))
+                        {
+                            byte[] responseBytes = Encoding.UTF8.GetBytes(response);
+                            await stream.WriteAsync(responseBytes, 0, responseBytes.Length, cancellationToken);
+                            LogMessage?.Invoke(this, $"📤 클라이언트에게 응답 전송: {response}");
+                            CommunicationLogger.WriteLog($"📤 [MESSAGE_SENT] 전송메시지: \"{response}\"");
+                        }
+
+                        // 메시지 수신 이벤트 발생
+                        MessageReceived?.Invoke(this, message);
+                    }
                 }
             }
             catch (Exception ex)
@@ -397,6 +428,115 @@ namespace OptiX.Communication
             }
         }
 
+        /// <summary>
+        /// 구조체 메시지 처리
+        /// </summary>
+        private string ProcessStructMessage(int msgID, byte[] data)
+        {
+            try
+            {
+                switch (msgID)
+                {
+                    case CommunicationProtocol.SMID_IPVS_START:
+                        return ProcessIPVSStart(data);
+
+                    case CommunicationProtocol.SMID_OT_START:
+                        return ProcessOPTICStart(data);
+
+                    default:
+                        LogMessage?.Invoke(this, $"⚠️ 알 수 없는 구조체 메시지 ID: {msgID}");
+                        CommunicationLogger.WriteLog($"⚠️ [UNKNOWN_STRUCT] 메시지 ID: {msgID}");
+                        return "UNKNOWN_STRUCT";
+                }
+            }
+            catch (Exception ex)
+            {
+                LogMessage?.Invoke(this, $"❌ 구조체 처리 중 오류: {ex.Message}");
+                CommunicationLogger.WriteLog($"❌ [STRUCT_ERROR] 구조체 처리 중 오류 - ID: {msgID} - 오류: {ex.Message}");
+                return "ERROR";
+            }
+        }
+
+        /// <summary>
+        /// IPVS_START 구조체 처리
+        /// </summary>
+        private string ProcessIPVSStart(byte[] data)
+        {
+            try
+            {
+                var msg = CommunicationProtocol.ByteArrayToStructure<CommunicationProtocol.SMPACK_IPVS_START>(data);
+                
+                string innerID = CommunicationProtocol.ByteArrayToString(msg.InnerID);
+                string mcrID = CommunicationProtocol.ByteArrayToString(msg.McrID);
+
+                LogMessage?.Invoke(this, $"🟢 IPVS_START 수신:");
+                LogMessage?.Invoke(this, $"   - select: {msg.select}");
+                LogMessage?.Invoke(this, $"   - currentPoint: {msg.currentPoint}");
+                LogMessage?.Invoke(this, $"   - totalPoint: {msg.TotalPoint}");
+                LogMessage?.Invoke(this, $"   - innerID: {innerID}");
+                LogMessage?.Invoke(this, $"   - mcrID: {mcrID}");
+
+                CommunicationLogger.WriteLog($"🟢 [IPVS_START] select={msg.select}, point={msg.currentPoint}/{msg.TotalPoint}, inner={innerID}, mcr={mcrID}");
+
+                // TODO: IPVS 테스트 시작 로직 구현
+                // IPVSPage에서 테스트 시작
+
+                return "IPVS_START_OK";
+            }
+            catch (Exception ex)
+            {
+                LogMessage?.Invoke(this, $"❌ IPVS_START 처리 실패: {ex.Message}");
+                CommunicationLogger.WriteLog($"❌ [IPVS_START_ERROR] 오류: {ex.Message}");
+                return "IPVS_START_ERROR";
+            }
+        }
+
+        /// <summary>
+        /// OPTIC_START 구조체 처리
+        /// </summary>
+        private string ProcessOPTICStart(byte[] data)
+        {
+            try
+            {
+                var msg = CommunicationProtocol.ByteArrayToStructure<CommunicationProtocol.SMPACK_OT_START>(data);
+                
+                string lotID = msg.GetLotID(0);
+                string innerID = msg.GetInnerID(0);
+                string mcrID = msg.GetMcrID(0);
+
+                LogMessage?.Invoke(this, $"🔵 OPTIC_START 수신 (Zone {msg.select}):");
+                LogMessage?.Invoke(this, $"   - lotID: {lotID}");
+                LogMessage?.Invoke(this, $"   - innerID: {innerID}");
+                LogMessage?.Invoke(this, $"   - mcrID: {mcrID}");
+
+                CommunicationLogger.WriteLog($"🔵 [OPTIC_START] Zone={msg.select}, lot={lotID}, inner={innerID}, mcr={mcrID}");
+
+                // OPTIC 테스트 시작 이벤트 발생
+                var eventArgs = new OpticStartEventArgs
+                {
+                    ZoneSelect = msg.select,
+                    CellID = lotID,      // CellID = LotID
+                    InnerID = innerID,
+                    LotID = lotID,
+                    McrID = mcrID
+                };
+
+                // UI 스레드에서 이벤트 발생
+                Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    OpticTestStartRequested?.Invoke(this, eventArgs);
+                }));
+
+                return "OPTIC_START_OK";
+            }
+            catch (Exception ex)
+            {
+                LogMessage?.Invoke(this, $"❌ OPTIC_START 처리 실패: {ex.Message}");
+                CommunicationLogger.WriteLog($"❌ [OPTIC_START_ERROR] 오류: {ex.Message}");
+                return "OPTIC_START_ERROR";
+            }
+        }
+
         #endregion
 
         #region IDisposable Implementation
@@ -414,5 +554,29 @@ namespace OptiX.Communication
         }
         
         #endregion
+    }
+
+    /// <summary>
+    /// OPTIC 테스트 시작 이벤트 인자
+    /// </summary>
+    public class OpticStartEventArgs : EventArgs
+    {
+        public byte ZoneSelect { get; set; }      // 1 또는 2
+        public string CellID { get; set; }        // LotID와 동일
+        public string InnerID { get; set; }       // InnerID
+        public string LotID { get; set; }         // LotID
+        public string McrID { get; set; }         // McrID (현재 미사용)
+    }
+
+    /// <summary>
+    /// IPVS 테스트 시작 이벤트 인자
+    /// </summary>
+    public class IpvsStartEventArgs : EventArgs
+    {
+        public byte Select { get; set; }
+        public byte CurrentPoint { get; set; }
+        public byte TotalPoint { get; set; }
+        public string InnerID { get; set; }
+        public string McrID { get; set; }
     }
 }

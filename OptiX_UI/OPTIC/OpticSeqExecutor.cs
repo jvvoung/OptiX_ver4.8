@@ -44,6 +44,7 @@ namespace OptiX.OPTIC
         private readonly OpticDataTableManager dataTableManager;
         private readonly OpticPageViewModel viewModel;
         private readonly GraphManager graphManager;
+        private readonly MonitorManager monitorManager;
         private bool isTestStarted = false;
         private bool[] zoneTestCompleted;
         private bool[] zoneMeasured;
@@ -52,12 +53,14 @@ namespace OptiX.OPTIC
             Action<List<GraphManager.GraphDataPoint>> updateGraphDisplay,
             OpticDataTableManager dataTableManager,
             OpticPageViewModel viewModel,
-            GraphManager graphManager)
+            GraphManager graphManager,
+            MonitorManager monitorManager)
         {
             this.updateGraphDisplay = updateGraphDisplay ?? throw new ArgumentNullException(nameof(updateGraphDisplay));
             this.dataTableManager = dataTableManager ?? throw new ArgumentNullException(nameof(dataTableManager));
             this.viewModel = viewModel;
             this.graphManager = graphManager ?? throw new ArgumentNullException(nameof(graphManager));
+            this.monitorManager = monitorManager ?? throw new ArgumentNullException(nameof(monitorManager));
         }
 
         /// <summary>
@@ -166,65 +169,24 @@ namespace OptiX.OPTIC
 
                 int[] zones = Enumerable.Range(1, zoneCount).ToArray();
                 
-                //25.10.31 - UI 병목 해결 핵심: 로그 생성을 UI 업데이트보다 뒤로!
-                // 1. UI 업데이트 먼저 (즉시 반응)
-                // 2. 로그 생성은 백그라운드에서 (UI 블록 없이)
-                
-                // 단 한 번의 UI 업데이트로 모든 Zone 데이터를 동시에 표시
+                //25.11.01 - 판정은 각 Zone 완료 시 즉시 수행됨 (finally 블록에서)
+                // 여기서는 그래프 최종 업데이트만 수행
                 _ = Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     try
                     {
-                        if (viewModel != null && dataTableManager != null && graphManager != null)
+                        // 모든 Zone 처리 완료 후 그래프 최종 업데이트
+                        var graphDataPoints = graphManager?.GetDataPoints();
+                        if (graphDataPoints != null && graphDataPoints.Count > 0)
                         {
-                            int lastZone = zones.LastOrDefault();
-                            
-                            //25.10.31 - 모든 Zone 데이터 업데이트 (동시에!)
-                            foreach (int zoneNumber in zones)
-                            {
-                                var storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneNumber);
-                                if (storedOutput.HasValue)
-                                {
-                                    try
-                                    {
-                                        bool isLastZone = (zoneNumber == lastZone);
-                                        
-                                        // 데이터 테이블 업데이트 (마지막 Zone에서만 UI 갱신)
-                                        viewModel.UpdateDataTableWithDllResult(storedOutput.Value, zoneNumber, dataTableManager, suppressNotification: !isLastZone);
-                                        
-                                        // 그래프 데이터 포인트 추가 (원래 방식대로!)
-                                        var judgment = viewModel.GetJudgmentForZone(zoneNumber);
-                                        if (!string.IsNullOrEmpty(judgment))
-                                        {
-                                            viewModel.AddGraphDataPoint(zoneNumber, judgment, graphManager);
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        ErrorLogger.LogException(ex, $"Zone {zoneNumber} 데이터 업데이트 오류", zoneNumber);
-                                    }
-                                }
-                            }
-                            
-                            // 모든 Zone 처리 완료 후 그래프 업데이트 (원래 방식대로!)
-                            var graphDataPoints = graphManager?.GetDataPoints();
-                            if (graphDataPoints != null && graphDataPoints.Count > 0)
-                            {
-                                updateGraphDisplay?.Invoke(graphDataPoints);
-                            }
-                            
-                            // 테이블 재생성
-                            if (dataTableManager != null)
-                            {
-                                dataTableManager.CreateCustomTable();
-                            }
+                            updateGraphDisplay?.Invoke(graphDataPoints);
                         }
                     }
                     catch (Exception ex)
                     {
-                        ErrorLogger.LogException(ex, "Zone 데이터 표시 중 오류");
+                        ErrorLogger.LogException(ex, "그래프 최종 업데이트 중 오류");
                     }
-                }, System.Windows.Threading.DispatcherPriority.Normal); // Background → Normal (더 빠른 UI 반응)
+                }, System.Windows.Threading.DispatcherPriority.Normal);
                 
                 //25.10.31 - 로그 생성은 UI 업데이트 후 백그라운드에서 (UI 블록 제거!)
                 _ = Task.Run(async () =>
@@ -245,6 +207,9 @@ namespace OptiX.OPTIC
                 //25.10.30 - 테스트 완료 시 플래그 초기화 (다음 테스트 실행 가능하도록)
                 isTestStarted = false;
                 System.Diagnostics.Debug.WriteLine("[OpticSeqExecutor] 테스트 종료 - 플래그 초기화");
+                
+                // 외부 INPUT 데이터 초기화
+                viewModel?.ClearExternalInputData();
             }
         }
 
@@ -312,7 +277,10 @@ namespace OptiX.OPTIC
                 //25.10.29 - Zone SEQ 종료 - 종료 시간 기록
                 SeqExecutionManager.EndZoneSeq(zoneId);
                 
-                //25.10.31 - Zone 완료 시 CIM 로그 즉시 생성 (대기 없이 병렬 실행!)
+                //25.11.01 - Zone 완료 시 판정 수행 → CIM 생성 (순서 중요!)
+                //25.11.02 - 판정 시퀀스 변경: 판정 로직을 백그라운드에서 수행, UI 업데이트만 UI 스레드에서 실행
+                // 기존: 판정 전체를 UI 스레드에서 수행 (InvokeAsync) → UI 프리즈 발생
+                // 변경: 판정 로직(백그라운드) → UI 업데이트(UI 스레드, Invoke) → CIM 생성(백그라운드)
                 try
                 {
                     var (cellId, innerId) = GlobalDataManager.GetZoneInfo(zoneId);
@@ -322,20 +290,76 @@ namespace OptiX.OPTIC
                     
                     if (storedOutput.HasValue)
                     {
-                        //25.10.31 - await 제거 (fire-and-forget) → Zone 완료 즉시 반환, 로그는 백그라운드에서!
-                        _ = Task.Run(() => ResultLogManager.CreateCIMForZone(
-                            startTime,
-                            endTime,
-                            cellId,
-                            innerId,
-                            zoneId,
-                            storedOutput.Value
-                        ));
+                        // 1️⃣ 판정 로직 (백그라운드에서 수행)
+                        MonitorLogService.Instance.Log(zoneId - 1, "ENTER JUDGMENT");
+                        
+                        // 백그라운드에서 판정 수행
+                        var handler = new DllResultHandler();
+                        string categoriesStr = GlobalDataManager.GetValue("MTP", "Category", "W,WG,R,G,B");
+                        string[] categoryNames = categoriesStr.Split(',').Select(c => c.Trim()).ToArray();
+                        int selectedWadIndex = viewModel?.SelectedWadIndex ?? 0;
+                        
+                        // 판정 로직 실행 (백그라운드)
+                        string zoneJudgment = handler.ProcessOpticResult(
+                            storedOutput.Value,
+                            zoneId.ToString(),
+                            dataTableManager,
+                            selectedWadIndex,
+                            categoryNames,
+                            null // 판정 현황 콜백은 나중에 UI에서
+                        );
+                        
+                        MonitorLogService.Instance.Log(zoneId - 1, $"JUDGMENT => {zoneJudgment}");
+                        
+                        // 2️⃣ UI 업데이트 (UI 스레드에서 실행)
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            try
+                            {
+                                // DataTable UI 갱신 (중요!)
+                                viewModel?.RefreshDataTable();
+                                
+                                // 그래프 데이터 포인트 추가
+                                if (!string.IsNullOrEmpty(zoneJudgment))
+                                {
+                                    viewModel?.AddGraphDataPoint(zoneId, zoneJudgment, graphManager);
+                                }
+                                
+                                // 판정 현황 표 업데이트
+                                if (!string.IsNullOrEmpty(zoneJudgment))
+                                {
+                                    viewModel?.UpdateJudgmentStatusTable(zoneJudgment);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                ErrorLogger.LogException(ex, $"Zone {zoneId} UI 업데이트 중 오류", zoneId);
+                            }
+                        }, System.Windows.Threading.DispatcherPriority.Send);
+                        
+                        //25.11.02 - CIM 로그 생성 (백그라운드에서 실행)
+                        // 3️⃣ CIM 로그 생성 (백그라운드에서 실행)
+                        MonitorLogService.Instance.Log(zoneId - 1, "ENTER CIM");
+                        
+                        _ = Task.Run(() =>
+                        {
+                            bool success = ResultLogManager.CreateCIMForZone(
+                                startTime,
+                                endTime,
+                                cellId,
+                                innerId,
+                                zoneId,
+                                storedOutput.Value
+                            );
+                            
+                            MonitorLogService.Instance.Log(zoneId - 1, $"CIM {(success ? "OK" : "FAIL")}");
+                        });
                     }
                 }
                 catch (Exception ex)
                 {
-                    ErrorLogger.LogException(ex, "Zone CIM 로그 생성 중 오류", zoneId);
+                    ErrorLogger.LogException(ex, "Zone 판정/CIM 로그 생성 중 오류", zoneId);
+                    MonitorLogService.Instance.Log(zoneId - 1, "PROCESS ERROR");
                 }
             }
         }
@@ -349,7 +373,25 @@ namespace OptiX.OPTIC
             ErrorLogger.Log($"Zone SEQ 실행 시작", ErrorLogger.LogLevel.INFO, zoneId);
             
             //25.10.29 - Zone SEQ 시작 - 컨텍스트 생성 및 Input 설정
-            var (cellId, innerId) = GlobalDataManager.GetZoneInfo(zoneId);
+            // 외부 INPUT 데이터 확인 (통신으로부터 - Zone별)
+            var (externalCellID, externalInnerID, hasExternalData) = viewModel?.GetExternalInputData(zoneId) ?? ("", "", false);
+            
+            string cellId, innerId;
+            if (hasExternalData)
+            {
+                // 외부 데이터 사용 (CellID = LotID)
+                cellId = externalCellID;
+                innerId = externalInnerID;
+                System.Diagnostics.Debug.WriteLine($"[OpticSeqExecutor] Zone {zoneId} - 외부 INPUT 사용: CELL_ID={cellId}, INNER_ID={innerId}");
+                ErrorLogger.Log($"Zone {zoneId} - 외부 INPUT 사용: CELL_ID={cellId}, INNER_ID={innerId}", ErrorLogger.LogLevel.INFO, zoneId);
+            }
+            else
+            {
+                // 기존 방식: GlobalDataManager에서 가져오기
+                (cellId, innerId) = GlobalDataManager.GetZoneInfo(zoneId);
+                System.Diagnostics.Debug.WriteLine($"[OpticSeqExecutor] Zone {zoneId} - 기본 INPUT 사용: CELL_ID={cellId}, INNER_ID={innerId}");
+            }
+            
             int totalPoint = DllConstants.DEFAULT_CURRENT_POINT; // MTP는 119 포인트 (기본값)
             
             SeqExecutionManager.StartZoneSeq(zoneId, cellId, innerId, totalPoint, isIPVS: false);

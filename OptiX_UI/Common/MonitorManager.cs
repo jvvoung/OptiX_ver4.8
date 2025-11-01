@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -25,17 +27,39 @@ namespace OptiX.Common
     /// 의존성:
     /// - GlobalDataManager (Zone 개수 읽기)
     /// - MonitorLogService (로그 수신 이벤트)
+    /// 
+    /// 성능 최적화:
+    /// - 로그를 StringBuilder에 버퍼링
+    /// - 16ms(60fps) 주기로 일괄 업데이트
+    /// - UI 블록 최소화
     /// </summary>
     public class MonitorManager
     {
         private readonly Grid monitorGrid;
         private readonly UserControl page; // 동적 Ellipse 찾기 위해 필요 (OpticPage 또는 IPVSPage)
         private bool isDarkMode = false;
+        
+        // 로그 버퍼링 (Zone별)
+        private readonly Dictionary<int, StringBuilder> _logBuffers = new Dictionary<int, StringBuilder>();
+        private readonly Dictionary<int, string> _lastStatusTexts = new Dictionary<int, string>();
+        private DispatcherTimer _flushTimer;
+        private const int FLUSH_INTERVAL_MS = 16; // 60fps (16.67ms)
 
         public MonitorManager(Grid monitorGrid, UserControl page)
         {
             this.monitorGrid = monitorGrid ?? throw new ArgumentNullException(nameof(monitorGrid));
             this.page = page; // 동적 Ellipse 접근용
+            
+            // 타이머 초기화 (UI 스레드에서 실행)
+            if (page?.Dispatcher != null)
+            {
+                _flushTimer = new DispatcherTimer(
+                    TimeSpan.FromMilliseconds(FLUSH_INTERVAL_MS),
+                    DispatcherPriority.Render, // Render 우선순위 (입력보다 낮음)
+                    OnFlushTimer,
+                    page.Dispatcher
+                );
+            }
         }
 
         /// <summary>
@@ -170,15 +194,73 @@ namespace OptiX.Common
 
         /// <summary>
         /// Zone별 로그 수신 이벤트 핸들러 (OpticPage.xaml.cs 494~502줄에서 복사)
+        /// 
+        /// 성능 최적화:
+        /// - 로그를 즉시 표시하지 않고 버퍼에 저장
+        /// - 16ms(60fps) 주기로 일괄 업데이트
+        /// - UI 블록 최소화하면서도 실시간성 유지
         /// </summary>
         public void OnMonitorLogReceived(int zoneIndex, string text)
         {
-            // DispatcherPriority.Send로 즉시 UI 업데이트 (실시간 로그 표시)
-            page.Dispatcher?.Invoke(new Action(() => 
+            // 버퍼에 로그 추가
+            lock (_logBuffers)
             {
-                AppendMonitor(zoneIndex, text);
-                UpdateStatusIndicator(zoneIndex, text);
-            }));
+                if (!_logBuffers.ContainsKey(zoneIndex))
+                {
+                    _logBuffers[zoneIndex] = new StringBuilder();
+                }
+                _logBuffers[zoneIndex].AppendLine(text);
+                
+                // 상태 텍스트 저장 (마지막 것만)
+                _lastStatusTexts[zoneIndex] = text;
+            }
+            
+            // 타이머 시작 (아직 실행 중이 아니면)
+            if (_flushTimer != null && !_flushTimer.IsEnabled)
+            {
+                _flushTimer.Start();
+            }
+        }
+        
+        /// <summary>
+        /// 타이머 콜백: 버퍼의 로그를 UI에 일괄 업데이트
+        /// </summary>
+        private void OnFlushTimer(object sender, EventArgs e)
+        {
+            lock (_logBuffers)
+            {
+                bool hasData = false;
+                
+                // 각 Zone의 버퍼를 UI에 반영
+                foreach (var kvp in _logBuffers)
+                {
+                    int zoneIndex = kvp.Key;
+                    StringBuilder buffer = kvp.Value;
+                    
+                    if (buffer.Length > 0)
+                    {
+                        hasData = true;
+                        
+                        // TextBox에 일괄 추가
+                        AppendMonitor(zoneIndex, buffer.ToString().TrimEnd('\r', '\n'));
+                        
+                        // 상태 인디케이터 업데이트
+                        if (_lastStatusTexts.ContainsKey(zoneIndex))
+                        {
+                            UpdateStatusIndicator(zoneIndex, _lastStatusTexts[zoneIndex]);
+                        }
+                        
+                        // 버퍼 클리어
+                        buffer.Clear();
+                    }
+                }
+                
+                // 모든 버퍼가 비었으면 타이머 중지
+                if (!hasData)
+                {
+                    _flushTimer?.Stop();
+                }
+            }
         }
 
         /// <summary>

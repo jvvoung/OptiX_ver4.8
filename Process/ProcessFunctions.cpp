@@ -8,6 +8,12 @@
 #include <cmath>
 #include <ctime>
 
+// 전역 초기화 플래그 (함수 외부)
+namespace {
+    bool g_mtp_initialized = false;
+    bool g_ipvs_initialized = false;
+}
+
 extern "C" {
 
     //25.10.30 - MTP 테스트 함수 - 7x17 패턴 데이터 생성
@@ -20,11 +26,10 @@ extern "C" {
             return 0;
         }
 
-        // 랜덤 시드 초기화
-        static bool first_call = true;
-        if (first_call) {
+        // 랜덤 시드 초기화 (첫 호출 시에만)
+        if (!g_mtp_initialized) {
             srand((unsigned int)(time(NULL) * 1000 + (uintptr_t)in));
-            first_call = false;
+            g_mtp_initialized = true;
         }
 
         int cnt = 0;
@@ -74,11 +79,10 @@ extern "C" {
 
         int point = in->cur_point;
 
-        // 랜덤 시드 초기화
-        static bool first_call = true;
-        if (first_call) {
+        // 랜덤 시드 초기화 (첫 호출 시에만)
+        if (!g_ipvs_initialized) {
             srand((unsigned int)(time(NULL) * 1000 + (uintptr_t)in));
-            first_call = false;
+            g_ipvs_initialized = true;
         }
 
         int cnt = 0;

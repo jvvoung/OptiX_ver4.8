@@ -46,7 +46,7 @@ namespace OptiX
                 ["MainWindow.ManualTooltip.Description"] = "Pattern 점등 후 Manual 계측",
                 ["MainWindow.LUTTooltip.Description"] = "패널의 Gamma LUT Parameter 추출",
                 ["MainWindow.SettingsTooltip.Title"] = "설정",
-                ["MainWindow.SettingsTooltip.Description"] = "애플리케이션 설정 및 환경 구성",
+                ["MainWindow.SettingsTooltip.Description"] = "프로그램 설정 및 환경 구성",
                 
                 // Optic 페이지
                 ["OpticPage.Back"] = "←",
@@ -154,7 +154,7 @@ namespace OptiX
                 ["MainWindow.ManualTooltip.Description"] = "Manual measurement after Pattern lighting",
                 ["MainWindow.LUTTooltip.Description"] = "Panel Gamma LUT Parameter Extraction",
                 ["MainWindow.SettingsTooltip.Title"] = "Settings",
-                ["MainWindow.SettingsTooltip.Description"] = "Application Settings and Environment Configuration",
+                ["MainWindow.SettingsTooltip.Description"] = "Program Settings and Environment Configuration",
                 
                 // Optic 페이지
                 ["OpticPage.Back"] = "←",

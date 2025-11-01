@@ -11,7 +11,7 @@ import json
 import sys
 
 class OptiXClient:
-    def __init__(self, server_ip="127.0.0.1", server_port=9999):
+    def __init__(self, server_ip="127.0.0.1", server_port=7777):
         """
         OptiX 클라이언트 초기화
         
@@ -128,7 +128,7 @@ def main():
     
     # 서버 설정 (OptiX UI 설정에 맞게 수정)
     SERVER_IP = "127.0.0.1"  # OptiX UI 서버 IP
-    SERVER_PORT = 9999       # OptiX UI 서버 포트
+    SERVER_PORT = 7777       # OptiX UI 서버 포트
     
     # 클라이언트 생성
     client = OptiXClient(SERVER_IP, SERVER_PORT)

@@ -88,6 +88,14 @@ namespace OptiX.Main
         }
 
         /// <summary>
+        /// OpticPage로 이동 (ShowOpticPage의 별칭)
+        /// </summary>
+        public void NavigateToOpticPage()
+        {
+            ShowOpticPage();
+        }
+
+        /// <summary>
         /// IPVSPage 표시
         /// </summary>
         public void ShowIPVSPage()

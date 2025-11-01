@@ -271,14 +271,7 @@
                                   Foreground="{DynamicResource DynamicTextPrimaryColor}"
                                   Margin="0,8,12,0"
                                   VerticalAlignment="Center"/>
-                        <CheckBox x:Name="CreateValidationCheckBox" 
-                                  Grid.Row="1" Grid.Column="1"
-                                  Content="VALIDATION" 
-                                  FontSize="12" 
-                                  FontWeight="SemiBold"
-                                  Foreground="{DynamicResource DynamicTextPrimaryColor}"
-                                  Margin="12,8,0,0"
-                                  VerticalAlignment="Center"/>
+                        <!-- VALIDATION 체크박스 제거 -->
                     </Grid>
                     
                     <!-- 폴더 경로 설정 섹션 -->
@@ -357,26 +350,7 @@
                                  Text="CIM 폴더를 선택하세요"/>
                     </Grid>
                     
-                    <!-- VALID 행 -->
-                    <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="96"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        
-                        <Button Grid.Column="0" 
-                                x:Name="VALIDButton"
-                                Content="📂 VALID" 
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                FontSize="8"
-                                Click="VALIDButton_Click"/>
-                        
-                        <TextBox Grid.Column="1" 
-                                 x:Name="VALIDTextBox"
-                                 Style="{StaticResource ModernTextBoxStyle}"
-                                 Margin="8,0,0,0"
-                                 Text="VALID 폴더를 선택하세요"/>
-                    </Grid>
+                    <!-- VALID 행 제거 -->
                     
                     <!-- Load 섹션 -->
                     <TextBlock x:Name="FilePathSettingsTitle"
