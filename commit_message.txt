@@ -1,0 +1,10 @@
+[2025-11-02] Auto mode protocol and UI optimization
+
+- Add communication protocol (SMPACK_OT_START, SMPACK_IPVS_START)
+- Separate auto/manual mode data handling (ZoneContext)
+- Optimize judgment sequence (background + UI thread)
+- Convert OptiX Client to .NET Framework 4.8
+- Add class diagram (OptiX_UI_ClassDiagram.drawio)
+- Improve CIM log format
+- Add monitor log buffering
+
