@@ -1,17 +1,17 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.2.8 Chrome/140.0.7339.240 Electron/38.4.0 Safari/537.36" version="28.2.8">
   <diagram id="OptiX_Architecture" name="OptiX 전체 아키텍처">
-    <mxGraphModel dx="5704" dy="3396" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="5000" pageHeight="3500" math="0" shadow="0">
+    <mxGraphModel dx="5640" dy="3332" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="5000" pageHeight="3500" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
         <mxCell id="title" value="OptiX 전체 시스템 아키텍처" style="text;strokeColor=none;fillColor=none;align=center;fontSize=32;fontStyle=1" parent="1" vertex="1">
-          <mxGeometry x="1500" y="40" width="800" height="60" as="geometry" />
+          <mxGeometry x="2000" y="30" width="800" height="60" as="geometry" />
         </mxCell>
         <mxCell id="subtitle" value="C# UI ↔ P/Invoke ↔ C++ DLL" style="text;strokeColor=none;fillColor=none;align=center;fontSize=20;fontColor=#666666;" parent="1" vertex="1">
-          <mxGeometry x="1500" y="110" width="800" height="40" as="geometry" />
+          <mxGeometry x="2000" y="100" width="800" height="40" as="geometry" />
         </mxCell>
         <mxCell id="ui_box" value="" style="rounded=1;whiteSpace=wrap;fillColor=#E3F2FD;strokeColor=#1565C0;strokeWidth=4;opacity=30;" parent="1" vertex="1">
-          <mxGeometry x="100" y="200" width="2200" height="2030" as="geometry" />
+          <mxGeometry x="100" y="160" width="2200" height="2000" as="geometry" />
         </mxCell>
         <mxCell id="ui_title" value="OptiX UI (C# WPF)" style="text;strokeColor=none;fillColor=none;align=left;fontSize=28;fontStyle=1;fontColor=#1565C0;" parent="1" vertex="1">
           <mxGeometry x="1070" y="230" width="260" height="50" as="geometry" />
@@ -164,16 +164,16 @@
           <mxGeometry y="40" width="280" height="26" as="geometry" />
         </mxCell>
         <mxCell id="opticcimlogger" value="OpticCIMLogger" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#90CAF9;strokeColor=#1976D2;" parent="1" vertex="1">
-          <mxGeometry x="200" y="1480" width="250" height="80" as="geometry" />
+          <mxGeometry x="600" y="1480" width="250" height="80" as="geometry" />
         </mxCell>
         <mxCell id="ocim_m1" value="+ LogCIMData()" style="text;align=left;spacingLeft=4;" parent="opticcimlogger" vertex="1">
-          <mxGeometry y="26" width="250" height="26" as="geometry" />
+          <mxGeometry y="26" width="250" height="54" as="geometry" />
         </mxCell>
         <mxCell id="opticeecplogger" value="OpticEECPLogger" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#90CAF9;strokeColor=#1976D2;" parent="1" vertex="1">
-          <mxGeometry x="500" y="1480" width="250" height="80" as="geometry" />
+          <mxGeometry x="880" y="1480" width="250" height="80" as="geometry" />
         </mxCell>
         <mxCell id="oeecp_m1" value="+ LogEECPData()" style="text;align=left;spacingLeft=4;" parent="opticeecplogger" vertex="1">
-          <mxGeometry y="26" width="250" height="26" as="geometry" />
+          <mxGeometry y="26" width="250" height="54" as="geometry" />
         </mxCell>
         <mxCell id="ipvs_bg" value="" style="rounded=1;whiteSpace=wrap;fillColor=#C8E6C9;strokeColor=#388E3C;opacity=20;" parent="1" vertex="1">
           <mxGeometry x="1200" y="1050" width="1000" height="600" as="geometry" />
@@ -230,16 +230,16 @@
           <mxGeometry y="40" width="280" height="26" as="geometry" />
         </mxCell>
         <mxCell id="ipvscimlogger" value="IPVSCIMLogger" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#A5D6A7;strokeColor=#388E3C;" parent="1" vertex="1">
-          <mxGeometry x="1250" y="1480" width="250" height="80" as="geometry" />
+          <mxGeometry x="1640" y="1480" width="250" height="80" as="geometry" />
         </mxCell>
         <mxCell id="icim_m1" value="+ LogCIMData()" style="text;align=left;spacingLeft=4;" parent="ipvscimlogger" vertex="1">
-          <mxGeometry y="26" width="250" height="26" as="geometry" />
+          <mxGeometry y="26" width="250" height="54" as="geometry" />
         </mxCell>
         <mxCell id="ipvseecplogger" value="IPVSEECPLogger" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#A5D6A7;strokeColor=#388E3C;" parent="1" vertex="1">
-          <mxGeometry x="1550" y="1480" width="250" height="80" as="geometry" />
+          <mxGeometry x="1920" y="1480" width="250" height="80" as="geometry" />
         </mxCell>
         <mxCell id="ieecp_m1" value="+ LogEECPData()" style="text;align=left;spacingLeft=4;" parent="ipvseecplogger" vertex="1">
-          <mxGeometry y="26" width="250" height="26" as="geometry" />
+          <mxGeometry y="26" width="250" height="54" as="geometry" />
         </mxCell>
         <mxCell id="common_bg" value="" style="rounded=1;whiteSpace=wrap;fillColor=#F0F4C3;strokeColor=#9E9D24;opacity=20;" parent="1" vertex="1">
           <mxGeometry x="150" y="1700" width="2100" height="300" as="geometry" />
@@ -290,67 +290,142 @@
           <mxGeometry y="40" width="260" height="26" as="geometry" />
         </mxCell>
         <mxCell id="dll_box" value="" style="rounded=1;whiteSpace=wrap;fillColor=#FFF3E0;strokeColor=#E65100;strokeWidth=4;opacity=30;" parent="1" vertex="1">
-          <mxGeometry x="2500" y="200" width="2230" height="2000" as="geometry" />
+          <mxGeometry x="2500" y="160" width="1970" height="2000" as="geometry" />
         </mxCell>
         <mxCell id="dll_project_title" value="DLL (C++ MFC)" style="text;strokeColor=none;fillColor=none;align=left;fontSize=28;fontStyle=1;fontColor=#E65100;" parent="1" vertex="1">
-          <mxGeometry x="3520" y="220" width="261" height="50" as="geometry" />
+          <mxGeometry x="3350" y="230" width="261" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="dll_func_bg" value="" style="rounded=1;whiteSpace=wrap;fillColor=#FFCCBC;strokeColor=#D84315;opacity=20;" parent="1" vertex="1">
-          <mxGeometry x="2550" y="300" width="2100" height="500" as="geometry" />
+        <mxCell id="dll_internal_bg" value="" style="rounded=1;whiteSpace=wrap;fillColor=#E1F5FE;strokeColor=#01579B;opacity=20;" parent="1" vertex="1">
+          <mxGeometry x="2550" y="300" width="1850" height="870" as="geometry" />
         </mxCell>
-        <mxCell id="dll_func_title" value="🔌 Exported Functions" style="text;strokeColor=none;fillColor=none;align=left;fontSize=18;fontStyle=1;fontColor=#D84315;" parent="1" vertex="1">
-          <mxGeometry x="2580" y="310" width="300" height="30" as="geometry" />
+        <mxCell id="dll_internal_title" value="🔧 DLL Internal Architecture (C++)" style="text;strokeColor=none;fillColor=none;align=left;fontSize=18;fontStyle=1;fontColor=#01579B;" parent="1" vertex="1">
+          <mxGeometry x="2580" y="310" width="450" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="mtp_test" value="MTP_test\n(struct input*, struct output*)" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=50;fillColor=#FFAB91;strokeColor=#D84315;" parent="1" vertex="1">
-          <mxGeometry x="2600" y="360" width="420" height="180" as="geometry" />
+        <mxCell id="process_class" value="Process\n«C++ DLL Main»" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=40;fillColor=#81D4FA;strokeColor=#01579B;" parent="1" vertex="1">
+          <mxGeometry x="3200" y="370" width="350" height="180" as="geometry" />
         </mxCell>
-        <mxCell id="mtp_d1" value="📊 OPTIC 테스트 함수" style="text;align=left;spacingLeft=4;fontColor=#BF360C;fontStyle=1" parent="mtp_test" vertex="1">
-          <mxGeometry y="50" width="420" height="26" as="geometry" />
+        <mxCell id="proc_m1" value="+ MTP_test()" style="text;align=left;spacingLeft=4;fontColor=#01579B;fontStyle=1" parent="process_class" vertex="1">
+          <mxGeometry y="40" width="350" height="26" as="geometry" />
         </mxCell>
-        <mxCell id="mtp_d2" value="• 7 WAD × 17 패턴 데이터 생성" style="text;align=left;spacingLeft=4;" parent="mtp_test" vertex="1">
-          <mxGeometry y="76" width="420" height="26" as="geometry" />
+        <mxCell id="proc_m2" value="+ IPVS_test()" style="text;align=left;spacingLeft=4;fontColor=#01579B;fontStyle=1" parent="process_class" vertex="1">
+          <mxGeometry y="66" width="350" height="26" as="geometry" />
         </mxCell>
-        <mxCell id="mtp_d3" value="• x,y,L,cur,eff 계산" style="text;align=left;spacingLeft=4;" parent="mtp_test" vertex="1">
-          <mxGeometry y="102" width="420" height="26" as="geometry" />
+        <mxCell id="proc_m3" value="+ PG_turn()" style="text;align=left;spacingLeft=4;" parent="process_class" vertex="1">
+          <mxGeometry y="92" width="350" height="26" as="geometry" />
         </mxCell>
-        <mxCell id="mtp_d4" value="→ return 1 (성공)" style="text;align=left;spacingLeft=4;fontColor=#1B5E20;fontStyle=1" parent="mtp_test" vertex="1">
-          <mxGeometry y="128" width="420" height="26" as="geometry" />
+        <mxCell id="proc_m4" value="+ Meas_turn()" style="text;align=left;spacingLeft=4;" parent="process_class" vertex="1">
+          <mxGeometry y="118" width="350" height="26" as="geometry" />
         </mxCell>
-        <mxCell id="ipvs_test" value="IPVS_test\n(struct input*, struct output*)" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=50;fillColor=#FFAB91;strokeColor=#D84315;" parent="1" vertex="1">
-          <mxGeometry x="3100" y="360" width="420" height="180" as="geometry" />
+        <mxCell id="proc_m5" value="+ Graycrushing()" style="text;align=left;spacingLeft=4;" parent="process_class" vertex="1">
+          <mxGeometry y="144" width="350" height="26" as="geometry" />
         </mxCell>
-        <mxCell id="ipvs_d1" value="📈 IPVS 테스트 함수" style="text;align=left;spacingLeft=4;fontColor=#1B5E20;fontStyle=1" parent="ipvs_test" vertex="1">
-          <mxGeometry y="50" width="420" height="26" as="geometry" />
+        <mxCell id="ai_class" value="AI" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#B3E5FC;strokeColor=#0277BD;" parent="1" vertex="1">
+          <mxGeometry x="2600" y="370" width="250" height="100" as="geometry" />
         </mxCell>
-        <mxCell id="ipvs_d2" value="• 7 WAD × N 포인트 데이터 생성" style="text;align=left;spacingLeft=4;" parent="ipvs_test" vertex="1">
-          <mxGeometry y="76" width="420" height="26" as="geometry" />
+        <mxCell id="ai_m1" value="+ RunAIModel()" style="text;align=left;spacingLeft=4;" parent="ai_class" vertex="1">
+          <mxGeometry y="26" width="250" height="26" as="geometry" />
         </mxCell>
-        <mxCell id="ipvs_d3" value="• cur_point 기반 순차 측정" style="text;align=left;spacingLeft=4;" parent="ipvs_test" vertex="1">
-          <mxGeometry y="102" width="420" height="26" as="geometry" />
+        <mxCell id="ai_m2" value="+ Predict()" style="text;align=left;spacingLeft=4;" parent="ai_class" vertex="1">
+          <mxGeometry y="52" width="250" height="26" as="geometry" />
         </mxCell>
-        <mxCell id="ipvs_d4" value="→ return 1 (성공)" style="text;align=left;spacingLeft=4;fontColor=#1B5E20;fontStyle=1" parent="ipvs_test" vertex="1">
-          <mxGeometry y="128" width="420" height="26" as="geometry" />
+        <mxCell id="recipe_class" value="Recipe" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#B3E5FC;strokeColor=#0277BD;" parent="1" vertex="1">
+          <mxGeometry x="2900" y="370" width="250" height="100" as="geometry" />
         </mxCell>
-        <mxCell id="pg_turn" value="PG_turn\n(struct input*, struct output*)" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=50;fillColor=#FFAB91;strokeColor=#D84315;" parent="1" vertex="1">
-          <mxGeometry x="2600" y="600" width="420" height="120" as="geometry" />
+        <mxCell id="recipe_m1" value="+ LoadRecipe()" style="text;align=left;spacingLeft=4;" parent="recipe_class" vertex="1">
+          <mxGeometry y="26" width="250" height="26" as="geometry" />
         </mxCell>
-        <mxCell id="pg_d1" value="🔄 패턴 생성기 제어" style="text;align=left;spacingLeft=4;fontColor=#4A148C;fontStyle=1" parent="pg_turn" vertex="1">
-          <mxGeometry y="50" width="420" height="26" as="geometry" />
+        <mxCell id="recipe_m2" value="+ GetParameter()" style="text;align=left;spacingLeft=4;" parent="recipe_class" vertex="1">
+          <mxGeometry y="52" width="250" height="26" as="geometry" />
         </mxCell>
-        <mxCell id="meas_turn" value="Meas_turn\n(struct input*, struct output*)" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=50;fillColor=#FFAB91;strokeColor=#D84315;" parent="1" vertex="1">
-          <mxGeometry x="3100" y="600" width="420" height="120" as="geometry" />
+        <mxCell id="judgement_class" value="Judgement" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#B3E5FC;strokeColor=#0277BD;" parent="1" vertex="1">
+          <mxGeometry x="3650" y="370" width="250" height="100" as="geometry" />
         </mxCell>
-        <mxCell id="meas_d1" value="📏 측정 장비 제어" style="text;align=left;spacingLeft=4;fontColor=#4A148C;fontStyle=1" parent="meas_turn" vertex="1">
-          <mxGeometry y="50" width="420" height="26" as="geometry" />
+        <mxCell id="judge_m1" value="+ JudgeResult()" style="text;align=left;spacingLeft=4;" parent="judgement_class" vertex="1">
+          <mxGeometry y="26" width="250" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="judge_m2" value="+ GetThreshold()" style="text;align=left;spacingLeft=4;" parent="judgement_class" vertex="1">
+          <mxGeometry y="52" width="250" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="pg_class" value="PatternGenerator\n«Abstract»" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=40;fillColor=#B3E5FC;strokeColor=#0277BD;" parent="1" vertex="1">
+          <mxGeometry x="2600" y="600" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="pg_m1" value="+ GeneratePattern()" style="text;align=left;spacingLeft=4;fontStyle=2" parent="pg_class" vertex="1">
+          <mxGeometry y="40" width="280" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="pg_normal" value="PatternGenerator_Normal" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#E1F5FE;strokeColor=#0277BD;" parent="1" vertex="1">
+          <mxGeometry x="2600" y="740" width="280" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="pgn_m1" value="+ GeneratePattern()" style="text;align=left;spacingLeft=4;" parent="pg_normal" vertex="1">
+          <mxGeometry y="26" width="280" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="pg_register" value="PatternGenerator_Register" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#E1F5FE;strokeColor=#0277BD;" parent="1" vertex="1">
+          <mxGeometry x="2930" y="740" width="280" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="pgr_m1" value="+ LoadFromRegister()" style="text;align=left;spacingLeft=4;" parent="pg_register" vertex="1">
+          <mxGeometry y="26" width="280" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="ca_class" value="ColorAnalysis\n«Abstract»" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=40;fillColor=#B3E5FC;strokeColor=#0277BD;" parent="1" vertex="1">
+          <mxGeometry x="3300" y="740" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ca_m1" value="+ AnalyzeColor()" style="text;align=left;spacingLeft=4;fontStyle=2" parent="ca_class" vertex="1">
+          <mxGeometry y="40" width="280" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="cah_class" value="ColorAnalysisHandler\n«Abstract»" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=40;fillColor=#E1F5FE;strokeColor=#0277BD;" parent="1" vertex="1">
+          <mxGeometry x="3050" y="900" width="300" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="cah_m1" value="+ HandleSingleMeasurement()" style="text;align=left;spacingLeft=4;fontStyle=2" parent="cah_class" vertex="1">
+          <mxGeometry y="40" width="300" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="cah_spec" value="ColorAnalysisHandler_Spectrometer" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#F1F8E9;strokeColor=#558B2F;" parent="1" vertex="1">
+          <mxGeometry x="2690" y="1060" width="320" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cahs_m1" value="+ MeasureSpectrum()" style="text;align=left;spacingLeft=4;" parent="cah_spec" vertex="1">
+          <mxGeometry y="26" width="320" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="cah_color" value="ColorAnalysisHandler_Colorimeter" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#F1F8E9;strokeColor=#558B2F;" parent="1" vertex="1">
+          <mxGeometry x="3030" y="1060" width="320" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cahc_m1" value="+ MeasureTristimulus()" style="text;align=left;spacingLeft=4;" parent="cah_color" vertex="1">
+          <mxGeometry y="26" width="320" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="cahm_class" value="ColorAnalysisHandler_Multi\n«Abstract»" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=40;fillColor=#E1F5FE;strokeColor=#0277BD;" parent="1" vertex="1">
+          <mxGeometry x="3550" y="900" width="300" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="cahm_m1" value="+ HandleMultiMeasurement()" style="text;align=left;spacingLeft=4;fontStyle=2" parent="cahm_class" vertex="1">
+          <mxGeometry y="40" width="300" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="cahm_spec" value="ColorAnalysisHandler_Multi_Spectrometer" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#F1F8E9;strokeColor=#558B2F;" parent="1" vertex="1">
+          <mxGeometry x="3550" y="1060" width="350" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cahms_m1" value="+ MeasureMultiSpectrum()" style="text;align=left;spacingLeft=4;" parent="cahm_spec" vertex="1">
+          <mxGeometry y="26" width="350" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="cahm_color" value="ColorAnalysisHandler_Multi_Colorimeter" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#F1F8E9;strokeColor=#558B2F;" parent="1" vertex="1">
+          <mxGeometry x="3940" y="1060" width="350" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cahmc_m1" value="+ MeasureMultiTristimulus()" style="text;align=left;spacingLeft=4;" parent="cahm_color" vertex="1">
+          <mxGeometry y="26" width="350" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="mtp_algo" value="MtpAlgorithm" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=40;fillColor=#FFE0B2;strokeColor=#E65100;" parent="1" vertex="1">
+          <mxGeometry x="3950" y="370" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="mtp_m1" value="+ ExecuteMTPAlgorithm()" style="text;align=left;spacingLeft=4;" parent="mtp_algo" vertex="1">
+          <mxGeometry y="40" width="280" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="autojudge" value="AutoJudge" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=40;fillColor=#FFE0B2;strokeColor=#E65100;" parent="1" vertex="1">
+          <mxGeometry x="3950" y="540" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="aj_m1" value="+ AutoJudgeResult()" style="text;align=left;spacingLeft=4;" parent="autojudge" vertex="1">
+          <mxGeometry y="40" width="280" height="60" as="geometry" />
         </mxCell>
         <mxCell id="dll_struct_bg" value="" style="rounded=1;whiteSpace=wrap;fillColor=#FFF9C4;strokeColor=#F57F17;opacity=20;" parent="1" vertex="1">
-          <mxGeometry x="2550" y="850" width="2100" height="550" as="geometry" />
+          <mxGeometry x="2550" y="1200" width="1840" height="400" as="geometry" />
         </mxCell>
-        <mxCell id="dll_struct_title" value="📦 Data Structures" style="text;strokeColor=none;fillColor=none;align=left;fontSize=18;fontStyle=1;fontColor=#F57F17;" parent="1" vertex="1">
-          <mxGeometry x="2580" y="860" width="300" height="30" as="geometry" />
+        <mxCell id="dll_struct_title" value="📦 Data Structures (C++)" style="text;strokeColor=none;fillColor=none;align=left;fontSize=18;fontStyle=1;fontColor=#F57F17;" parent="1" vertex="1">
+          <mxGeometry x="2600" y="1220" width="350" height="30" as="geometry" />
         </mxCell>
         <mxCell id="struct_input" value="struct input" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#FFF59D;strokeColor=#F57F17;" parent="1" vertex="1">
-          <mxGeometry x="2600" y="910" width="400" height="150" as="geometry" />
+          <mxGeometry x="2600" y="1270" width="400" height="150" as="geometry" />
         </mxCell>
         <mxCell id="si_f1" value="char CELL_ID[256]" style="text;align=left;spacingLeft=4;" parent="struct_input" vertex="1">
           <mxGeometry y="26" width="400" height="26" as="geometry" />
@@ -365,7 +440,7 @@
           <mxGeometry y="104" width="400" height="26" as="geometry" />
         </mxCell>
         <mxCell id="struct_pattern" value="struct pattern" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#FFF59D;strokeColor=#F57F17;" parent="1" vertex="1">
-          <mxGeometry x="3070" y="910" width="400" height="200" as="geometry" />
+          <mxGeometry x="3070" y="1270" width="400" height="200" as="geometry" />
         </mxCell>
         <mxCell id="sp_f1" value="float x, y (CIE 1931)" style="text;align=left;spacingLeft=4;" parent="struct_pattern" vertex="1">
           <mxGeometry y="26" width="400" height="26" as="geometry" />
@@ -386,7 +461,7 @@
           <mxGeometry y="156" width="400" height="26" as="geometry" />
         </mxCell>
         <mxCell id="struct_output" value="struct output" style="swimlane;fontStyle=1;childLayout=stackLayout;startSize=26;fillColor=#FFF59D;strokeColor=#F57F17;" parent="1" vertex="1">
-          <mxGeometry x="2600" y="1150" width="500" height="200" as="geometry" />
+          <mxGeometry x="3540" y="1270" width="500" height="200" as="geometry" />
         </mxCell>
         <mxCell id="so_f1" value="struct pattern data[7][17]" style="text;align=left;spacingLeft=4;fontColor=#BF360C;fontStyle=1" parent="struct_output" vertex="1">
           <mxGeometry y="26" width="500" height="26" as="geometry" />
@@ -407,19 +482,53 @@
           <mxGeometry y="156" width="500" height="26" as="geometry" />
         </mxCell>
         <mxCell id="pinvoke" value="" style="rounded=1;whiteSpace=wrap;fillColor=#FFEBEE;strokeColor=#C62828;strokeWidth=3;dashed=1;dashPattern=8 8;" parent="1" vertex="1">
-          <mxGeometry x="2350" y="650" width="100" height="400" as="geometry" />
+          <mxGeometry x="2350" y="400" width="100" height="300" as="geometry" />
         </mxCell>
-        <mxCell id="pinvoke_label" value="P/Invoke\nInterface\n\nMarshalling" style="text;strokeColor=none;fillColor=none;align=center;fontSize=16;fontStyle=1;fontColor=#C62828;" parent="1" vertex="1">
-          <mxGeometry x="2320" y="820" width="160" height="60" as="geometry" />
+        <mxCell id="pinvoke_label" value="P/Invoke&#xa;Interface" style="text;strokeColor=none;fillColor=none;align=center;fontSize=16;fontStyle=1;fontColor=#C62828;" parent="1" vertex="1">
+          <mxGeometry x="2320" y="520" width="160" height="60" as="geometry" />
         </mxCell>
         <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#666;endArrow=diamondThin;endFill=1;endSize=16;" parent="1" source="mainwindow" target="pagenav" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#666;endArrow=diamondThin;endFill=1;endSize=16;" parent="1" source="mainwindow" target="commserver" edge="1">
-          <mxGeometry relative="1" as="geometry" />
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="320" y="540" />
+              <mxPoint x="895" y="540" />
+            </Array>
+          </mxGeometry>
         </mxCell>
         <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=1.5;strokeColor=#666;endArrow=open;endFill=0;dashed=1;" parent="1" source="commserver" target="commlogger" edge="1">
           <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_comm_optic" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#C2185B;endArrow=block;endFill=1;dashed=1;dashPattern=4 4;" parent="1" source="commserver" target="opticpage" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="895" y="570" />
+              <mxPoint x="130" y="570" />
+              <mxPoint x="130" y="1150" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_comm_optic_label" value="OPTIC_START" style="edgeLabel;fontSize=12;fontColor=#C2185B;fontStyle=1;labelBackgroundColor=#FFFFFF;" parent="e_comm_optic" vertex="1" connectable="0">
+          <mxGeometry x="-0.2" y="2" relative="1" as="geometry">
+            <mxPoint x="-30" y="-8" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_comm_ipvs" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#C2185B;endArrow=block;endFill=1;dashed=1;dashPattern=4 4;" parent="1" source="commserver" target="ipvspage" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="895" y="570" />
+              <mxPoint x="1930" y="570" />
+              <mxPoint x="1930" y="1090" />
+              <mxPoint x="1350" y="1090" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_comm_ipvs_label" value="IPVS_START" style="edgeLabel;fontSize=12;fontColor=#C2185B;fontStyle=1;labelBackgroundColor=#FFFFFF;" parent="e_comm_ipvs" vertex="1" connectable="0">
+          <mxGeometry x="-0.2" y="2" relative="1" as="geometry">
+            <mxPoint x="30" y="-8" as="offset" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#666;endArrow=diamondThin;endFill=1;endSize=16;" parent="1" source="opticpage" target="opticvm" edge="1">
           <mxGeometry relative="1" as="geometry" />
@@ -430,8 +539,8 @@
         <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=1.5;strokeColor=#666;endArrow=open;endFill=0;dashed=1;" parent="1" source="opticvm" target="graphmgr" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="565" y="1700" />
-              <mxPoint x="670" y="1700" />
+              <mxPoint x="510" y="1670" />
+              <mxPoint x="670" y="1670" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -447,7 +556,7 @@
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="915" y="1430" />
-              <mxPoint x="325" y="1430" />
+              <mxPoint x="720" y="1430" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -455,7 +564,7 @@
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="915" y="1430" />
-              <mxPoint x="625" y="1430" />
+              <mxPoint x="1010" y="1430" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -479,8 +588,8 @@
         <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=1.5;strokeColor=#666;endArrow=open;endFill=0;dashed=1;" parent="1" source="ipvsvm" target="graphmgr" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="1615" y="1700" />
-              <mxPoint x="670" y="1700" />
+              <mxPoint x="1560" y="1670" />
+              <mxPoint x="670" y="1670" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -496,7 +605,7 @@
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1965" y="1440" />
-              <mxPoint x="1375" y="1440" />
+              <mxPoint x="1765" y="1440" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -504,7 +613,7 @@
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1965" y="1440" />
-              <mxPoint x="1675" y="1440" />
+              <mxPoint x="2045" y="1440" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -514,8 +623,8 @@
         <mxCell id="e19" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=1.5;strokeColor=#666;endArrow=open;endFill=0;dashed=1;" parent="1" source="ipvsdatatable" target="globaldatamgr" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="1390" y="1720" />
-              <mxPoint x="340" y="1720" />
+              <mxPoint x="1390" y="1710" />
+              <mxPoint x="340" y="1710" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -523,48 +632,124 @@
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1390" y="850" />
-              <mxPoint x="690" y="850" />
+              <mxPoint x="870" y="850" />
+              <mxPoint x="870" y="735" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="ep1" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=3;strokeColor=#D84315;endArrow=block;endFill=1;dashed=1;dashPattern=8 8;" parent="1" source="dllfunc" target="pinvoke" edge="1">
+        <mxCell id="ep1" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=3;strokeColor=#D84315;endArrow=block;endFill=1;dashed=1;" parent="1" source="dllfunc" target="pinvoke" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="690" y="850" />
-              <mxPoint x="2000" y="850" />
-              <mxPoint x="2000" y="750" />
+              <mxPoint x="690" y="890" />
+              <mxPoint x="2140" y="890" />
+              <mxPoint x="2140" y="550" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="ep1_label" value="DllImport\nMarshalling" style="edgeLabel;fontSize=14;fontColor=#D84315;fontStyle=1;labelBackgroundColor=#FFFFFF;" parent="ep1" vertex="1" connectable="0">
           <mxGeometry x="0.3" y="2" relative="1" as="geometry">
-            <mxPoint x="-50" y="-10" as="offset" />
+            <mxPoint x="9" y="2" as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="ep2" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=3;strokeColor=#BF360C;endArrow=block;endFill=1;" parent="1" source="pinvoke" target="mtp_test" edge="1">
+        <mxCell id="ep2" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=3;strokeColor=#01579B;endArrow=block;endFill=1;" parent="1" source="pinvoke" target="process_class" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="2500" y="750" />
-              <mxPoint x="2500" y="450" />
+              <mxPoint x="2550" y="550" />
+              <mxPoint x="2550" y="500" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="ep2_label" value="MTP_test()" style="edgeLabel;fontSize=14;fontColor=#BF360C;fontStyle=1;labelBackgroundColor=#FFFFFF;" parent="ep2" vertex="1" connectable="0">
+        <mxCell id="ep2_label" value="C++ DLL 호출" style="edgeLabel;fontSize=14;fontColor=#01579B;fontStyle=1;labelBackgroundColor=#FFFFFF;" parent="ep2" vertex="1" connectable="0">
           <mxGeometry x="0.1" y="1" relative="1" as="geometry">
             <mxPoint x="10" y="-10" as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="ep3" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=3;strokeColor=#1B5E20;endArrow=block;endFill=1;" parent="1" source="pinvoke" target="ipvs_test" edge="1">
+        <mxCell id="dll_e1" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#01579B;endArrow=open;endFill=0;dashed=1;" parent="1" source="process_class" target="ai_class" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="2500" y="950" />
-              <mxPoint x="2500" y="450" />
+              <mxPoint x="3375" y="350" />
+              <mxPoint x="2725" y="350" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="ep3_label" value="IPVS_test()" style="edgeLabel;fontSize=14;fontColor=#1B5E20;fontStyle=1;labelBackgroundColor=#FFFFFF;" parent="ep3" vertex="1" connectable="0">
-          <mxGeometry x="0.1" y="1" relative="1" as="geometry">
-            <mxPoint x="10" y="10" as="offset" />
+        <mxCell id="dll_e2" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#01579B;endArrow=open;endFill=0;dashed=1;" parent="1" source="process_class" target="recipe_class" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dll_e3" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#01579B;endArrow=open;endFill=0;dashed=1;" parent="1" source="process_class" target="judgement_class" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dll_e4" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#01579B;endArrow=open;endFill=0;dashed=1;" parent="1" source="process_class" target="pg_class" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="3375" y="580" />
+              <mxPoint x="2740" y="580" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dll_e5" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#01579B;endArrow=open;endFill=0;dashed=1;" parent="1" source="process_class" target="ca_class" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="3375" y="580" />
+              <mxPoint x="3440" y="580" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dll_e6" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#01579B;endArrow=open;endFill=0;dashed=1;" parent="1" source="process_class" target="mtp_algo" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="4090" y="490" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dll_e7" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#01579B;endArrow=open;endFill=0;dashed=1;" parent="1" source="process_class" target="autojudge" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="4090" y="510" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dll_inherit1" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#0277BD;endArrow=block;endFill=0;" parent="1" source="pg_normal" target="pg_class" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dll_inherit2" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#0277BD;endArrow=block;endFill=0;" parent="1" source="pg_register" target="pg_class" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="3070" y="720" />
+              <mxPoint x="2740" y="720" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dll_inherit3" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#0277BD;endArrow=block;endFill=0;" parent="1" source="cah_class" target="ca_class" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dll_inherit4" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#0277BD;endArrow=block;endFill=0;" parent="1" source="cahm_class" target="ca_class" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dll_inherit5" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#558B2F;endArrow=block;endFill=0;" parent="1" source="cah_spec" target="cah_class" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2840" y="1020" />
+              <mxPoint x="3200" y="1020" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dll_inherit6" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#558B2F;endArrow=block;endFill=0;" parent="1" source="cah_color" target="cah_class" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dll_inherit7" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#558B2F;endArrow=block;endFill=0;" parent="1" source="cahm_spec" target="cahm_class" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="3725" y="1030" />
+              <mxPoint x="3700" y="1030" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dll_inherit8" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#558B2F;endArrow=block;endFill=0;" parent="1" source="cahm_color" target="cahm_class" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="4110" y="1030" />
+              <mxPoint x="3700" y="1030" />
+            </Array>
           </mxGeometry>
         </mxCell>
       </root>

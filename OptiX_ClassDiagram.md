@@ -182,6 +182,109 @@ classDiagram
         <<static>>
     }
 
+    %% ========================================
+    %% C++ DLL Internal Structure (실제 회사 DLL 구조)
+    %% ========================================
+    class Process {
+        +MTP_test()
+        +IPVS_test()
+        +PGTurn()
+        +Meas_Turn()
+        +Graycrushing()
+        <<C++ DLL>>
+    }
+
+    class AI {
+        +RunAIModel()
+        +Predict()
+        <<C++ DLL>>
+    }
+
+    class Recipe {
+        +LoadRecipe()
+        +SaveRecipe()
+        +GetParameter()
+        <<C++ DLL>>
+    }
+
+    class Judgement {
+        +JudgeResult()
+        +GetThreshold()
+        <<C++ DLL>>
+    }
+
+    class PatternGenerator {
+        +GeneratePattern()
+        +SetPatternType()
+        <<C++ DLL Abstract>>
+    }
+
+    class PatternGenerator_Normal {
+        +GeneratePattern()
+        <<C++ DLL>>
+    }
+
+    class PatternGenerator_Register {
+        +GeneratePattern()
+        +LoadFromRegister()
+        <<C++ DLL>>
+    }
+
+    class ColorAnalysis {
+        +AnalyzeColor()
+        +CalculateCIE()
+        <<C++ DLL Abstract>>
+    }
+
+    class ColorAnalysisHandler {
+        +HandleSingleMeasurement()
+        <<C++ DLL Abstract>>
+    }
+
+    class ColorAnalysisHandler_Spectrometer {
+        +MeasureSpectrum()
+        +CalculateXYZ()
+        <<C++ DLL>>
+    }
+
+    class ColorAnalysisHandler_Colorimeter {
+        +MeasureTristimulus()
+        +GetXYZ()
+        <<C++ DLL>>
+    }
+
+    class ColorAnalysisHandler_Multi {
+        +HandleMultiMeasurement()
+        <<C++ DLL Abstract>>
+    }
+
+    class ColorAnalysisHandler_Multi_Spectrometer {
+        +MeasureMultiSpectrum()
+        +AverageResults()
+        <<C++ DLL>>
+    }
+
+    class ColorAnalysisHandler_Multi_Colorimeter {
+        +MeasureMultiTristimulus()
+        +AverageResults()
+        <<C++ DLL>>
+    }
+
+    class MtpAlgorithm {
+        +ExecuteMTPAlgorithm()
+        +CalculateMTP()
+        <<C++ DLL - 별도 프로젝트>>
+    }
+
+    class AutoJudge {
+        +AutoJudgeResult()
+        +ApplyAIJudgment()
+        <<C++ DLL - 별도 프로젝트>>
+    }
+
+    %% ========================================
+    %% SEQ Execution Management
+    %% ========================================
     class SeqExecutionManager {
         -zoneContexts: ConcurrentDictionary~int,ZoneContext~
         -globalSeqStartTime: DateTime
