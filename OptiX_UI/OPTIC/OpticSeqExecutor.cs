@@ -311,11 +311,19 @@ namespace OptiX.OPTIC
                         
                         MonitorLogService.Instance.Log(zoneId - 1, $"JUDGMENT => {zoneJudgment}");
                         
+                        // Zone 전체 FullTest 결과 계산 (ErrorName, Tact)
+                        double tactSeconds = (endTime - startTime).TotalSeconds;
+                        string tactStr = tactSeconds.ToString("F3");
+                        string errorName = DetermineErrorName(storedOutput.Value, zoneJudgment);
+                        
                         // 2️⃣ UI 업데이트 (UI 스레드에서 실행)
                         Application.Current.Dispatcher.Invoke(() =>
                         {
                             try
                             {
+                                // Zone 전체 FullTest 결과 업데이트 (ErrorName, Tact, Judgment)
+                                dataTableManager?.UpdateZoneFullTestResult(zoneId.ToString(), errorName, tactStr, zoneJudgment);
+                                
                                 // DataTable UI 갱신 (중요!)
                                 viewModel?.RefreshDataTable();
                                 
@@ -497,6 +505,64 @@ namespace OptiX.OPTIC
         public bool IsTestStarted()
         {
             return isTestStarted;
+        }
+
+        /// <summary>
+        /// Zone 테스트 결과에서 에러명 판정
+        /// </summary>
+        private string DetermineErrorName(Output output, string zoneJudgment)
+        {
+            try
+            {
+                // OK일 경우 에러 없음
+                if (zoneJudgment == "OK")
+                {
+                    return "";
+                }
+
+                // NG/PTN일 경우 상세 에러 분석
+                if (output.data == null || output.data.Length == 0)
+                {
+                    return "NO_DATA";
+                }
+
+                // 패턴별 에러 카운트
+                int specOutCount = 0;  // result == 1 (NG)
+                int patternFailCount = 0;  // result == 2 (PTN)
+                
+                foreach (var pattern in output.data)
+                {
+                    if (pattern.result == 1)
+                    {
+                        specOutCount++;
+                    }
+                    else if (pattern.result == 2)
+                    {
+                        patternFailCount++;
+                    }
+                }
+
+                // 에러 우선순위 판정
+                if (patternFailCount > 0)
+                {
+                    return "PATTERN_FAIL"; // 패턴 불량이 있으면 최우선
+                }
+                else if (specOutCount > 0)
+                {
+                    return "SPEC_OUT"; // 스펙 아웃
+                }
+                else if (zoneJudgment == "NG" || zoneJudgment == "R/J" || zoneJudgment.Contains("R"))
+                {
+                    return "JUDGMENT_NG"; // 판정 NG/Reject (원인 불명)
+                }
+
+                return ""; // 기타
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogException(ex, "에러명 판정 중 오류");
+                return "ERROR_UNKNOWN";
+            }
         }
     }
 }

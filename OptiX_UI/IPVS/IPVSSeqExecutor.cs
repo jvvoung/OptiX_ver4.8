@@ -302,10 +302,30 @@ namespace OptiX.IPVS
                     //25.10.29 - 공유 Output에 저장 (자동으로 컨텍스트에 저장됨)
                     context.SharedOutput = output;
 
+                    // Zone 완료 시각 가져오기
+                    DateTime startTime = SeqExecutionManager.GetZoneSeqStartTime(zoneNumber);
+                    DateTime endTime = DateTime.Now;
+                    double tactSeconds = (endTime - startTime).TotalSeconds;
+                    string tactStr = tactSeconds.ToString("F3");
+
                     // ViewModel 업데이트 (UI 스레드에서 실행)
                     _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
+                        // 판정 수행 및 데이터 테이블 업데이트
                         viewModel.UpdateDataTableWithDllResult(output, zoneNumber, dataTableManager, graphManager);
+                        
+                        // Zone 전체 FullTest 결과 업데이트 (ErrorName, Tact)
+                        string zoneJudgment = "";
+                        var zoneItems = viewModel.DataItems.Where(item => item.Zone == zoneNumber.ToString()).ToList();
+                        if (zoneItems.Any())
+                        {
+                            zoneJudgment = zoneItems.First().Judgment ?? "";
+                        }
+                        
+                        // ErrorName 판정
+                        string errorName = DetermineErrorName(output, zoneJudgment);
+                        
+                        dataTableManager?.UpdateZoneFullTestResult(zoneNumber.ToString(), errorName, tactStr, zoneJudgment);
                     }, System.Windows.Threading.DispatcherPriority.Background);
 
                     //25.10.30 - 로그 생성은 ExecuteSeqForZoneAsync의 finally 블록에서 처리
@@ -386,6 +406,64 @@ namespace OptiX.IPVS
             catch (Exception ex)
             {
                 Common.ErrorLogger.LogException(ex, "IPVS 전체 결과 로그 생성 중 오류");
+            }
+        }
+
+        /// <summary>
+        /// Zone 테스트 결과에서 에러명 판정
+        /// </summary>
+        private string DetermineErrorName(DLL.Output output, string zoneJudgment)
+        {
+            try
+            {
+                // OK일 경우 에러 없음
+                if (zoneJudgment == "OK")
+                {
+                    return "";
+                }
+
+                // NG/PTN일 경우 상세 에러 분석
+                if (output.IPVS_data == null || output.IPVS_data.Length == 0)
+                {
+                    return "NO_DATA";
+                }
+
+                // 패턴별 에러 카운트
+                int specOutCount = 0;  // result == 1 (NG)
+                int patternFailCount = 0;  // result == 2 (PTN)
+                
+                foreach (var pattern in output.IPVS_data)
+                {
+                    if (pattern.result == 1)
+                    {
+                        specOutCount++;
+                    }
+                    else if (pattern.result == 2)
+                    {
+                        patternFailCount++;
+                    }
+                }
+
+                // 에러 우선순위 판정
+                if (patternFailCount > 0)
+                {
+                    return "PATTERN_FAIL"; // 패턴 불량이 있으면 최우선
+                }
+                else if (specOutCount > 0)
+                {
+                    return "SPEC_OUT"; // 스펙 아웃
+                }
+                else if (zoneJudgment == "NG" || zoneJudgment == "R/J" || zoneJudgment.Contains("R"))
+                {
+                    return "JUDGMENT_NG"; // 판정 NG/Reject (원인 불명)
+                }
+
+                return ""; // 기타
+            }
+            catch (Exception ex)
+            {
+                Common.ErrorLogger.LogException(ex, "에러명 판정 중 오류");
+                return "ERROR_UNKNOWN";
             }
         }
 

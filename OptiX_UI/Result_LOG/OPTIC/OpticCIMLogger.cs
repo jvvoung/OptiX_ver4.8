@@ -47,7 +47,7 @@ namespace OptiX.Result_LOG.OPTIC
         //25.10.30 - Zone별 파일 경로 생성 메서드 추가
         /// <summary>
         /// Zone별 CIM 파일 경로 생성
-        /// 파일명: CIM_YYYYMMDD_ZoneN.dat
+        /// 파일명: ZONE1.dat, ZONE2.dat (덮어쓰기)
         /// </summary>
         private static string GetZoneFilePath(int zoneNumber)
         {
@@ -60,7 +60,7 @@ namespace OptiX.Result_LOG.OPTIC
                 Directory.CreateDirectory(basePath);
             }
             
-            string fileName = $"CIM_{DateTime.Now:yyyyMMdd}_Zone{zoneNumber}.dat";
+            string fileName = $"ZONE{zoneNumber}.dat";
             return Path.Combine(basePath, fileName);
         }
 
@@ -93,6 +93,9 @@ namespace OptiX.Result_LOG.OPTIC
                 logEntry.AppendLine($"INNER_ID = {innerId}");
                 logEntry.AppendLine($"ZONE = {zoneNumber}");
                 logEntry.AppendLine();
+                
+                // [DATA] 섹션 시작
+                logEntry.AppendLine("[DATA]");
                 
                 // struct pattern data[7][17] 형식으로 작성
                 // data[WAD][PATTERN] 구조
@@ -129,10 +132,10 @@ namespace OptiX.Result_LOG.OPTIC
                 logEntry.AppendLine("========================================");
                 logEntry.AppendLine();
                 
-                //25.10.30 - Zone별 파일이므로 Lock 경쟁 최소화
+                //25.10.30 - Zone별 파일 덮어쓰기 (기존 파일 삭제 후 새로 작성)
                 lock (_fileLock)
                 {
-                    File.AppendAllText(filePath, logEntry.ToString(), Encoding.UTF8);
+                    File.WriteAllText(filePath, logEntry.ToString(), Encoding.UTF8);
                 }
                 
                 System.Diagnostics.Debug.WriteLine($"OPTIC CIM 로그 생성: {filePath}");

@@ -144,8 +144,7 @@ namespace OptiX.DLL
                 string createCim = GlobalDataManager.GetValue("IPVS", "CREATE_CIM", "F");
                 if (createCim == "T")
                 {
-                    string cimData = $"Zone_{zoneNumber}_CIM_Data";
-                    OptiX.Result_LOG.IPVS.IPVSCIMLogger.LogCIMData(startTime, endTime, cellId, innerId, zoneNumber, cimData);
+                    OptiX.Result_LOG.IPVS.IPVSCIMLogger.LogCIMData(startTime, endTime, cellId, innerId, zoneNumber, output);
                     ErrorLogger.Log($"IPVS CIM 로그 생성 완료", ErrorLogger.LogLevel.INFO, zoneNumber);
                 }
                 

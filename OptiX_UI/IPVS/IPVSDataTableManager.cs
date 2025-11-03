@@ -853,9 +853,9 @@ namespace OptiX.IPVS
                         L = pattern.L.ToString("F2"),
                         Current = pattern.cur.ToString("F3"),
                         Efficiency = pattern.eff.ToString("F2"),
-                        ErrorName = "", // Pattern 구조체에는 error_name이 없음
-                        Tact = tactSeconds.ToString("F3"),
-                        Judgment = IPVSJudgment.Instance.GetPatternJudgment(pattern.result) // 올바른 판정 로직 사용
+                        ErrorName = "", // Zone 전체 테스트 완료 시 업데이트됨
+                        Tact = "", // Zone 전체 테스트 완료 시 업데이트됨
+                        Judgment = "" // Zone 전체 테스트 완료 시 업데이트됨
                     };
                 }
                 else
@@ -1043,6 +1043,20 @@ namespace OptiX.IPVS
             var zoneItems = viewModel.DataItems.Where(item => item.Zone == zone).ToList();
             foreach (var item in zoneItems)
             {
+                item.Judgment = judgment;
+            }
+        }
+        
+        /// <summary>
+        /// Zone 전체 FullTest 결과 업데이트 (ErrorName, Tact, Judgment)
+        /// </summary>
+        public void UpdateZoneFullTestResult(string zone, string errorName, string tact, string judgment)
+        {
+            var zoneItems = viewModel.DataItems.Where(item => item.Zone == zone).ToList();
+            foreach (var item in zoneItems)
+            {
+                item.ErrorName = errorName;
+                item.Tact = tact;
                 item.Judgment = judgment;
             }
         }
