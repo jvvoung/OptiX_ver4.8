@@ -20,6 +20,9 @@ namespace OptiX.DLL
         public DateTime SeqStartTime { get; set; }
         public DateTime SeqEndTime { get; set; }
         
+        //25.11.08 - ZoneTestResult 저장 필드 추가
+        public ZoneTestResult? TestResult { get; set; }
+        
         /// <summary>
         /// 컨텍스트 초기화
         /// </summary>
@@ -43,6 +46,7 @@ namespace OptiX.DLL
             
             SeqStartTime = default(DateTime);
             SeqEndTime = default(DateTime);
+            TestResult = null; //25.11.08 - TestResult 초기화
         }
         
         //25.10.29 - Input 설정 메서드 추가
@@ -171,6 +175,31 @@ namespace OptiX.DLL
             if (_zoneContexts.TryGetValue(zoneNumber, out var context))
             {
                 return context.SharedOutput;
+            }
+            return null;
+        }
+        
+        //25.11.08 - ZoneTestResult 저장 및 가져오기 메서드 추가
+        /// <summary>
+        /// Zone 테스트 결과 저장 (ErrorName, Tact, Judgment 등)
+        /// </summary>
+        public static void StoreZoneTestResult(int zoneNumber, ZoneTestResult testResult)
+        {
+            if (_zoneContexts.TryGetValue(zoneNumber, out var context))
+            {
+                context.TestResult = testResult;
+                Debug.WriteLine($"[Zone {zoneNumber}] TestResult 저장: ErrorName={testResult.ErrorName}, Tact={testResult.Tact}, Judgment={testResult.Judgment}");
+            }
+        }
+        
+        /// <summary>
+        /// Zone 테스트 결과 가져오기
+        /// </summary>
+        public static ZoneTestResult? GetStoredZoneTestResult(int zoneNumber)
+        {
+            if (_zoneContexts.TryGetValue(zoneNumber, out var context))
+            {
+                return context.TestResult;
             }
             return null;
         }

@@ -311,18 +311,24 @@ namespace OptiX.OPTIC
                         
                         MonitorLogService.Instance.Log(zoneId - 1, $"JUDGMENT => {zoneJudgment}");
                         
-                        // Zone 전체 FullTest 결과 계산 (ErrorName, Tact)
+                        //25.11.08 - Zone 전체 FullTest 결과 계산 및 ZoneTestResult 구조체 생성
                         double tactSeconds = (endTime - startTime).TotalSeconds;
                         string tactStr = tactSeconds.ToString("F3");
                         string errorName = DetermineErrorName(storedOutput.Value, zoneJudgment);
+                        
+                        // ZoneTestResult 구조체 생성
+                        var testResult = ZoneTestResult.Create(errorName, tactStr, zoneJudgment);
+                        
+                        //25.11.08 - ZoneTestResult를 SeqExecutionManager에 저장 (CIM 로그 생성 시 사용)
+                        SeqExecutionManager.StoreZoneTestResult(zoneId, testResult);
                         
                         // 2️⃣ UI 업데이트 (UI 스레드에서 실행)
                         Application.Current.Dispatcher.Invoke(() =>
                         {
                             try
                             {
-                                // Zone 전체 FullTest 결과 업데이트 (ErrorName, Tact, Judgment)
-                                dataTableManager?.UpdateZoneFullTestResult(zoneId.ToString(), errorName, tactStr, zoneJudgment);
+                                //25.11.08 - ZoneTestResult 구조체 사용
+                                dataTableManager?.UpdateZoneFullTestResult(zoneId.ToString(), testResult);
                                 
                                 // DataTable UI 갱신 (중요!)
                                 viewModel?.RefreshDataTable();
@@ -346,6 +352,7 @@ namespace OptiX.OPTIC
                         }, System.Windows.Threading.DispatcherPriority.Send);
                         
                         //25.11.02 - CIM 로그 생성 (백그라운드에서 실행)
+                        //25.11.08 - ZoneTestResult 구조체 전달
                         // 3️⃣ CIM 로그 생성 (백그라운드에서 실행)
                         MonitorLogService.Instance.Log(zoneId - 1, "ENTER CIM");
                         
@@ -357,7 +364,8 @@ namespace OptiX.OPTIC
                                 cellId,
                                 innerId,
                                 zoneId,
-                                storedOutput.Value
+                                storedOutput.Value,
+                                testResult // ZoneTestResult 구조체 전달
                             );
                             
                             MonitorLogService.Instance.Log(zoneId - 1, $"CIM {(success ? "OK" : "FAIL")}");

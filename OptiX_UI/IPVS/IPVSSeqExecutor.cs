@@ -186,23 +186,27 @@ namespace OptiX.IPVS
                 SeqExecutionManager.EndZoneSeq(zoneNumber);
                 
                 //25.10.31 - Zone 완료 시 CIM 로그 즉시 생성 (대기 없이 병렬 실행!)
+                //25.11.08 - ZoneTestResult 구조체 전달
                 try
                 {
                     var (cellId, innerId) = GlobalDataManager.GetIPVSZoneInfo(zoneNumber);
                     DateTime startTime = SeqExecutionManager.GetZoneSeqStartTime(zoneNumber);
                     DateTime endTime = SeqExecutionManager.GetZoneSeqEndTime(zoneNumber);
                     Output? storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneNumber);
+                    ZoneTestResult? testResult = SeqExecutionManager.GetStoredZoneTestResult(zoneNumber);
                     
-                    if (storedOutput.HasValue)
+                    if (storedOutput.HasValue && testResult.HasValue)
                     {
                         //25.10.31 - await 제거 (fire-and-forget) → Zone 완료 즉시 반환, 로그는 백그라운드에서!
+                        //25.11.08 - ZoneTestResult 구조체 전달
                         _ = Task.Run(() => ResultLogManager.CreateIPVSCIMForZone(
                             startTime,
                             endTime,
                             cellId,
                             innerId,
                             zoneNumber,
-                            storedOutput.Value
+                            storedOutput.Value,
+                            testResult.Value // ZoneTestResult 구조체 전달
                         ));
                     }
                 }
@@ -302,7 +306,7 @@ namespace OptiX.IPVS
                     //25.10.29 - 공유 Output에 저장 (자동으로 컨텍스트에 저장됨)
                     context.SharedOutput = output;
 
-                    // Zone 완료 시각 가져오기
+                    //25.11.08 - Zone 전체 FullTest 결과 계산 및 ZoneTestResult 구조체 생성
                     DateTime startTime = SeqExecutionManager.GetZoneSeqStartTime(zoneNumber);
                     DateTime endTime = DateTime.Now;
                     double tactSeconds = (endTime - startTime).TotalSeconds;
@@ -325,7 +329,12 @@ namespace OptiX.IPVS
                         // ErrorName 판정
                         string errorName = DetermineErrorName(output, zoneJudgment);
                         
-                        dataTableManager?.UpdateZoneFullTestResult(zoneNumber.ToString(), errorName, tactStr, zoneJudgment);
+                        //25.11.08 - ZoneTestResult 구조체 생성 및 사용
+                        var testResult = ZoneTestResult.Create(errorName, tactStr, zoneJudgment);
+                        dataTableManager?.UpdateZoneFullTestResult(zoneNumber.ToString(), testResult);
+                        
+                        //25.11.08 - ZoneTestResult를 SeqExecutionManager에 저장 (CIM 로그 생성 시 사용)
+                        SeqExecutionManager.StoreZoneTestResult(zoneNumber, testResult);
                     }, System.Windows.Threading.DispatcherPriority.Background);
 
                     //25.10.30 - 로그 생성은 ExecuteSeqForZoneAsync의 finally 블록에서 처리

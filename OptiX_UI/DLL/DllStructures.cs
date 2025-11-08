@@ -169,6 +169,91 @@ namespace OptiX.DLL
         /// </summary>
         public float black;
     }
+
+    //25.11.08 - SEQ 완료 후 생성되는 Zone 전체 테스트 결과 데이터를 담는 구조체 추가
+    /// <summary>
+    /// Zone 전체 테스트 완료 후 생성되는 결과 데이터 구조체
+    /// ErrorName, Tact, Judgment 등 전체 테스트 완료 시점에 확정되는 데이터를 관리
+    /// </summary>
+    public struct ZoneTestResult
+    {
+        /// <summary>
+        /// 에러명 (PATTERN_FAIL, SPEC_OUT, JUDGMENT_NG, NO_DATA 등)
+        /// </summary>
+        public string ErrorName;
+
+        /// <summary>
+        /// 측정 시간 (초 단위, 소수점 3자리)
+        /// </summary>
+        public string Tact;
+
+        /// <summary>
+        /// 기본 판정 결과 (OK, NG, R/J, PTN 등)
+        /// </summary>
+        public string Judgment;
+
+        //25.11.08 - 향후 세부 판정 추가를 위한 필드 (현재는 미사용, 추후 확장 예정)
+        /// <summary>
+        /// 색좌표 판정 (OK, NG) - 향후 사용
+        /// </summary>
+        public string ColorJudgment;
+
+        /// <summary>
+        /// 휘도 판정 (OK, NG) - 향후 사용
+        /// </summary>
+        public string LuminanceJudgment;
+
+        /// <summary>
+        /// 효율 판정 (OK, NG) - 향후 사용
+        /// </summary>
+        public string EfficiencyJudgment;
+
+        /// <summary>
+        /// 전류 판정 (OK, NG) - 향후 사용
+        /// </summary>
+        public string CurrentJudgment;
+
+        /// <summary>
+        /// 패턴 판정 (OK, NG) - 향후 사용
+        /// </summary>
+        public string PatternJudgment;
+
+        /// <summary>
+        /// 기본값으로 초기화된 ZoneTestResult 생성
+        /// </summary>
+        public static ZoneTestResult CreateEmpty()
+        {
+            return new ZoneTestResult
+            {
+                ErrorName = "",
+                Tact = "",
+                Judgment = "",
+                ColorJudgment = "",
+                LuminanceJudgment = "",
+                EfficiencyJudgment = "",
+                CurrentJudgment = "",
+                PatternJudgment = ""
+            };
+        }
+
+        /// <summary>
+        /// 기본 데이터로 ZoneTestResult 생성 (현재 사용 중인 필드만)
+        /// </summary>
+        public static ZoneTestResult Create(string errorName, string tact, string judgment)
+        {
+            return new ZoneTestResult
+            {
+                ErrorName = errorName ?? "",
+                Tact = tact ?? "",
+                Judgment = judgment ?? "",
+                ColorJudgment = "",
+                LuminanceJudgment = "",
+                EfficiencyJudgment = "",
+                CurrentJudgment = "",
+                PatternJudgment = ""
+            };
+        }
+    }
 }
 
 

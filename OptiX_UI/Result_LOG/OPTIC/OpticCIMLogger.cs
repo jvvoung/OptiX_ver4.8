@@ -68,11 +68,12 @@ namespace OptiX.Result_LOG.OPTIC
         //25.11.02 - CIM 로그 형식 변경: data[WAD][PATTERN] 값을 "데이터명 = 값" 형식으로 출력
         // 기존: 단순 문자열 전달
         // 변경: Output 구조체를 직접 전달하여 data[7][17] 배열을 순회하며 포맷팅
+        //25.11.08 - ZoneTestResult 구조체 추가하여 ErrorName, Tact, Judgment 등을 구조화
         /// <summary>
         /// CIM 로그 데이터 기록 (Zone별 파일 생성)
         /// 형식: 데이터명 = 값 (struct pattern data[7][17] 구조)
         /// </summary>
-        public static void LogCIMData(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneNumber, OptiX.DLL.Output outputData)
+        public static void LogCIMData(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneNumber, OptiX.DLL.Output outputData, OptiX.DLL.ZoneTestResult testResult)
         {
             try
             {
@@ -85,13 +86,29 @@ namespace OptiX.Result_LOG.OPTIC
                 logEntry.AppendLine($"START_TIME = {startTime:yyyy:MM:dd HH:mm:ss:fff}");
                 logEntry.AppendLine($"END_TIME = {endTime:yyyy:MM:dd HH:mm:ss:fff}");
                 
-                // TACT 계산
-                double tact = (endTime - startTime).TotalSeconds;
-                logEntry.AppendLine($"TACT = {tact:F3}");
+                //25.11.08 - ZoneTestResult 구조체에서 TACT 가져오기
+                logEntry.AppendLine($"TACT = {testResult.Tact}");
                 
                 logEntry.AppendLine($"CELL_ID = {cellId}");
                 logEntry.AppendLine($"INNER_ID = {innerId}");
                 logEntry.AppendLine($"ZONE = {zoneNumber}");
+                
+                //25.11.08 - ZoneTestResult 구조체에서 판정 정보 추가
+                logEntry.AppendLine($"ERROR_NAME = {testResult.ErrorName}");
+                logEntry.AppendLine($"JUDGMENT = {testResult.Judgment}");
+                
+                //25.11.08 - 향후 세부 판정 필드 추가 시 사용 (현재는 빈 값)
+                if (!string.IsNullOrEmpty(testResult.ColorJudgment))
+                    logEntry.AppendLine($"COLOR_JUDGMENT = {testResult.ColorJudgment}");
+                if (!string.IsNullOrEmpty(testResult.LuminanceJudgment))
+                    logEntry.AppendLine($"LUMINANCE_JUDGMENT = {testResult.LuminanceJudgment}");
+                if (!string.IsNullOrEmpty(testResult.EfficiencyJudgment))
+                    logEntry.AppendLine($"EFFICIENCY_JUDGMENT = {testResult.EfficiencyJudgment}");
+                if (!string.IsNullOrEmpty(testResult.CurrentJudgment))
+                    logEntry.AppendLine($"CURRENT_JUDGMENT = {testResult.CurrentJudgment}");
+                if (!string.IsNullOrEmpty(testResult.PatternJudgment))
+                    logEntry.AppendLine($"PATTERN_JUDGMENT = {testResult.PatternJudgment}");
+                
                 logEntry.AppendLine();
                 
                 // [DATA] 섹션 시작

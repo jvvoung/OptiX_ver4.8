@@ -736,8 +736,21 @@ namespace OptiX.IPVS
 
                 System.Diagnostics.Debug.WriteLine($"Zone {targetZone} - Cell ID: {cellId}, Inner ID: {innerId}");
 
-                // 해당 Zone의 기존 데이터만 제거하고 올바른 위치에 새 데이터 삽입
+                //25.11.08 - WAD 변경 시 기존 ErrorName, Tact, Judgment 값 보존
+                // 해당 Zone의 기존 데이터에서 ErrorName, Tact, Judgment 값 저장
                 var itemsToRemove = viewModel.DataItems.Where(item => item.Zone == targetZone.ToString()).ToList();
+                string existingErrorName = "";
+                string existingTact = "";
+                string existingJudgment = "";
+
+                if (itemsToRemove.Count > 0)
+                {
+                    // 기존 Zone 데이터의 ErrorName, Tact, Judgment 값 저장
+                    existingErrorName = itemsToRemove[0].ErrorName ?? "";
+                    existingTact = itemsToRemove[0].Tact ?? "";
+                    existingJudgment = itemsToRemove[0].Judgment ?? "";
+                }
+
                 int insertIndex = 0;
 
                 if (itemsToRemove.Count > 0)
@@ -773,45 +786,18 @@ namespace OptiX.IPVS
                         L = structData.L,
                         Current = structData.Current,
                         Efficiency = structData.Efficiency,
-                        ErrorName = structData.ErrorName,
-                        Tact = structData.Tact,
-                        Judgment = structData.Judgment
+                        ErrorName = existingErrorName, // 기존 값 유지
+                        Tact = existingTact, // 기존 값 유지
+                        Judgment = existingJudgment // 기존 값 유지
                     };
 
                     // 올바른 위치에 삽입 (Zone 순서 유지)
                     viewModel.DataItems.Insert(insertIndex + i, item);
                 }
 
-                // Zone 전체 판정을 모든 아이템에 적용 (일관성 유지)
-                var zoneItems = viewModel.DataItems.Where(item => item.Zone == targetZone.ToString()).ToList();
-                if (zoneItems.Count > 0)
-                {
-                    // Zone 전체 판정 계산
-                    var storedOutput = SeqExecutionManager.GetStoredZoneResult(targetZone);
-                    if (storedOutput.HasValue)
-                    {
-                        int[,] resultArray = new int[7, 10];
-                        for (int wad = 0; wad < 7; wad++)
-                        {
-                            for (int pattern = 0; pattern < 10; pattern++)
-                            {
-                                int index = wad * 10 + pattern;
-                                if (index < storedOutput.Value.data.Length)
-                                {
-                                    resultArray[wad, pattern] = storedOutput.Value.data[index].result;
-                                }
-                            }
-                        }
-                        string zoneJudgment = IPVSJudgment.Instance.JudgeZoneFromResults(resultArray);
-
-                        // 모든 아이템에 Zone 전체 판정 적용
-                        foreach (var item in zoneItems)
-                        {
-                            item.Judgment = zoneJudgment;
-                        }
-                        System.Diagnostics.Debug.WriteLine($"Zone {targetZone} WAD 변경 시 전체 판정 적용: {zoneJudgment}");
-                    }
-                }
+                //25.11.08 - 중복 판정 로직 제거 (DllResultHandler에서 이미 판정 완료)
+                // WAD 변경 시에도 판정값은 동일하므로 기존 판정값 유지 (재계산 불필요)
+                // Zone 전체 판정은 DllResultHandler.ProcessIPVSResult()에서 한 번만 수행됨
             }
             catch (Exception ex)
             {
@@ -1003,20 +989,18 @@ namespace OptiX.IPVS
 
         #region DLL 결과 업데이트 메서드
 
+        //25.11.08 - IPVS도 OPTIC과 동일하게 패턴별 측정값만 업데이트하는 메서드 추가
         /// <summary>
-        /// 개별 데이터 아이템 업데이트 (DllResultHandler에서 호출)
+        /// 포인트별 측정값만 업데이트 (X, Y, L, Current, Efficiency)
         /// </summary>
-        public void UpdateDataItem(
+        public void UpdatePatternData(
             string zone,
             string point,
             string x,
             string y,
             string l,
             string current,
-            string efficiency,
-            string cellId,
-            string innerId,
-            string tact)
+            string efficiency)
         {
             var existingItem = viewModel.DataItems.FirstOrDefault(item =>
                 item.Zone == zone && item.Point == point);
@@ -1028,10 +1012,20 @@ namespace OptiX.IPVS
                 existingItem.L = l;
                 existingItem.Current = current;
                 existingItem.Efficiency = efficiency;
-                existingItem.CellId = cellId;
-                existingItem.InnerId = innerId;
-                existingItem.ErrorName = "";
-                existingItem.Tact = tact;
+            }
+        }
+
+        //25.11.08 - Zone 전체 Cell 정보 업데이트 메서드 추가 (cellId, innerId는 모든 포인트에 동일)
+        /// <summary>
+        /// Zone 전체 Cell 정보 업데이트 (CellId, InnerId)
+        /// </summary>
+        public void UpdateZoneCellInfo(string zone, string cellId, string innerId)
+        {
+            var zoneItems = viewModel.DataItems.Where(item => item.Zone == zone).ToList();
+            foreach (var item in zoneItems)
+            {
+                item.CellId = cellId;
+                item.InnerId = innerId;
             }
         }
 
@@ -1047,18 +1041,34 @@ namespace OptiX.IPVS
             }
         }
         
+        //25.11.08 - ZoneTestResult 구조체를 사용하도록 오버로드 메서드 추가
         /// <summary>
-        /// Zone 전체 FullTest 결과 업데이트 (ErrorName, Tact, Judgment)
+        /// Zone 전체 FullTest 결과 업데이트 (ZoneTestResult 구조체 사용)
         /// </summary>
-        public void UpdateZoneFullTestResult(string zone, string errorName, string tact, string judgment)
+        public void UpdateZoneFullTestResult(string zone, ZoneTestResult result)
         {
             var zoneItems = viewModel.DataItems.Where(item => item.Zone == zone).ToList();
             foreach (var item in zoneItems)
             {
-                item.ErrorName = errorName;
-                item.Tact = tact;
-                item.Judgment = judgment;
+                item.ErrorName = result.ErrorName;
+                item.Tact = result.Tact;
+                item.Judgment = result.Judgment;
+                
+                //25.11.08 - 향후 세부 판정 필드 추가 시 여기에 업데이트 로직 추가
+                // item.ColorJudgment = result.ColorJudgment;
+                // item.LuminanceJudgment = result.LuminanceJudgment;
+                // 등등...
             }
+        }
+
+        /// <summary>
+        /// Zone 전체 FullTest 결과 업데이트 (개별 파라미터 - 하위 호환성 유지)
+        /// </summary>
+        public void UpdateZoneFullTestResult(string zone, string errorName, string tact, string judgment)
+        {
+            // ZoneTestResult 구조체로 변환하여 호출
+            var result = ZoneTestResult.Create(errorName, tact, judgment);
+            UpdateZoneFullTestResult(zone, result);
         }
 
         #endregion

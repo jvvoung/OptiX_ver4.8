@@ -17,6 +17,7 @@ namespace OptiX.DLL
         public const int PATTERN_COUNT = 17;
         
         //25.10.30 - Zone별 CIM 로그 생성 (각 Zone SEQ 완료 시 즉시 호출)
+        //25.11.08 - ZoneTestResult 구조체 추가하여 ErrorName, Tact, Judgment 전달
         /// <summary>
         /// Zone별 CIM 로그 생성 (Zone SEQ 완료 시 즉시 호출, 병렬 실행 가능)
         /// </summary>
@@ -26,7 +27,8 @@ namespace OptiX.DLL
             string cellId, 
             string innerId, 
             int zoneNumber, 
-            Output output)
+            Output output,
+            ZoneTestResult testResult)
         {
             try
             {
@@ -36,8 +38,8 @@ namespace OptiX.DLL
                 string createCim = GlobalDataManager.GetValue("MTP", "CREATE_CIM", "F");
                 if (createCim == "T")
                 {
-                    // Output 구조체를 직접 전달 (data[7][17] 형식으로 작성)
-                    OptiX.Result_LOG.OPTIC.OpticCIMLogger.LogCIMData(startTime, endTime, cellId, innerId, zoneNumber, output);
+                    //25.11.08 - ZoneTestResult 구조체 전달
+                    OptiX.Result_LOG.OPTIC.OpticCIMLogger.LogCIMData(startTime, endTime, cellId, innerId, zoneNumber, output, testResult);
                     ErrorLogger.Log($"OPTIC CIM 로그 생성 완료", ErrorLogger.LogLevel.INFO, zoneNumber);
                 }
                 
@@ -125,6 +127,7 @@ namespace OptiX.DLL
         
         
         //25.10.30 - IPVS Zone별 CIM 로그 생성 (각 Zone SEQ 완료 시 즉시 호출)
+        //25.11.08 - ZoneTestResult 구조체 추가하여 ErrorName, Tact, Judgment 전달
         /// <summary>
         /// IPVS Zone별 CIM 로그 생성 (Zone SEQ 완료 시 즉시 호출, 병렬 실행 가능)
         /// </summary>
@@ -134,7 +137,8 @@ namespace OptiX.DLL
             string cellId, 
             string innerId, 
             int zoneNumber, 
-            Output output)
+            Output output,
+            ZoneTestResult testResult)
         {
             try
             {
@@ -144,7 +148,8 @@ namespace OptiX.DLL
                 string createCim = GlobalDataManager.GetValue("IPVS", "CREATE_CIM", "F");
                 if (createCim == "T")
                 {
-                    OptiX.Result_LOG.IPVS.IPVSCIMLogger.LogCIMData(startTime, endTime, cellId, innerId, zoneNumber, output);
+                    //25.11.08 - ZoneTestResult 구조체 전달
+                    OptiX.Result_LOG.IPVS.IPVSCIMLogger.LogCIMData(startTime, endTime, cellId, innerId, zoneNumber, output, testResult);
                     ErrorLogger.Log($"IPVS CIM 로그 생성 완료", ErrorLogger.LogLevel.INFO, zoneNumber);
                 }
                 

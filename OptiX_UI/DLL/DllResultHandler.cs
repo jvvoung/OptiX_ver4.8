@@ -83,7 +83,8 @@ namespace OptiX.DLL
                 string zoneJudgment = OpticJudgment.Instance.JudgeZoneFromResults(resultArray);
                 Common.ErrorLogger.Log($"Zone 전체 판정: {zoneJudgment}", Common.ErrorLogger.LogLevel.INFO, actualZone);
 
-                // DataTableManager를 통해 데이터 업데이트
+                //25.11.08 - 패턴별 측정값만 업데이트하도록 수정 (cellId, innerId, tactValue는 Zone 전체 데이터이므로 루프 밖에서 처리)
+                // DataTableManager를 통해 패턴별 측정값 업데이트
                 int availableCategories = Math.Min(categoryNames.Length, DllConstants.MAX_PATTERN_COUNT);
                 for (int categoryIndex = 0; categoryIndex < availableCategories; categoryIndex++)
                 {
@@ -94,33 +95,24 @@ namespace OptiX.DLL
                     if (dataIndex >= output.data.Length) continue;
 
                     var pattern = output.data[dataIndex];
-                    int result = pattern.result;
 
-                    //Common.ErrorLogger.Log($"Category {categoryNames[categoryIndex]}, result={result}", Common.ErrorLogger.LogLevel.DEBUG, actualZone);
-
-                    // 개별 패턴 판정
-                    string patternJudgment = OpticJudgment.Instance.GetPatternJudgment(result);
-
-                    // DataTableManager를 통해 아이템 업데이트
-                    dataTableManager.UpdateDataItem(
+                    //25.11.08 - 패턴별 측정값만 업데이트 (X, Y, L, Current, Efficiency)
+                    // 개별 패턴 판정은 존재하지 않으므로 제거 (Zone 전체 판정만 있음)
+                    dataTableManager.UpdatePatternData(
                         targetZone,
                         categoryNames[categoryIndex],
                         pattern.x.ToString("F2"),
                         pattern.y.ToString("F2"),
                         pattern.L.ToString("F2"),
                         pattern.cur.ToString("F3"),
-                        pattern.eff.ToString("F2"),
-                        cellId,
-                        innerId,
-                        tactValue,
-                        patternJudgment
+                        pattern.eff.ToString("F2")
                     );
-
-                    //25.10.31 - DEBUG 로그 제거 (UI 병목 해결)
-                    //Common.ErrorLogger.Log($"개별 판정 결과: {categoryNames[categoryIndex]} - Judgment: {patternJudgment}", Common.ErrorLogger.LogLevel.DEBUG, actualZone);
                 }
 
-                // Zone 전체 판정을 모든 아이템에 적용
+                //25.11.08 - Zone 전체 데이터 업데이트 (cellId, innerId는 모든 패턴에 동일)
+                dataTableManager.UpdateZoneCellInfo(targetZone, cellId, innerId);
+
+                //25.11.08 - Zone 전체 판정을 모든 아이템에 적용
                 dataTableManager.UpdateZoneJudgment(targetZone, zoneJudgment);
                 //25.10.31 - DEBUG 로그 제거 (UI 병목 해결)
                 //Common.ErrorLogger.Log($"전체 판정 적용: {zoneJudgment}", Common.ErrorLogger.LogLevel.DEBUG, actualZone);
@@ -189,25 +181,26 @@ namespace OptiX.DLL
                 
                 Common.ErrorLogger.Log($"TACT: {tactValue}초 (시작: {zoneSeqStartTime:HH:mm:ss.fff}, 종료: {zoneSeqEndTime:HH:mm:ss.fff})", Common.ErrorLogger.LogLevel.INFO, actualZone);
 
+                //25.11.08 - IPVS도 OPTIC과 동일하게 패턴별 측정값만 업데이트하도록 수정
                 // POINT==1 행만 업데이트 (현재 선택된 WAD의 첫 번째 포인트)
                 // IPVS_data는 1차원 배열 [IPVS_DATA_SIZE] (MAX_WAD_COUNT × MAX_POINT_COUNT)
                 // 접근: [wadIndex * MAX_POINT_COUNT + pointIndex]
                 int dataIndex = selectedWadIndex * DllConstants.MAX_POINT_COUNT + 0; // POINT==1이므로 pointIndex=0
                 var pattern = output.IPVS_data[dataIndex];
                 
-                // DataTableManager를 통해 POINT==1 행 업데이트
-                dataTableManager.UpdateDataItem(
+                // DataTableManager를 통해 POINT==1 행의 측정값만 업데이트
+                dataTableManager.UpdatePatternData(
                     targetZone,
                     "1", // Point
                     pattern.x.ToString("F2"),
                     pattern.y.ToString("F2"),
                     pattern.L.ToString("F2"),
                     pattern.cur.ToString("F3"),
-                    pattern.eff.ToString("F2"),
-                    cellId,
-                    innerId,
-                    tactValue
+                    pattern.eff.ToString("F2")
                 );
+
+                //25.11.08 - Zone 전체 Cell 정보 업데이트 (cellId, innerId는 모든 포인트에 동일)
+                dataTableManager.UpdateZoneCellInfo(targetZone, cellId, innerId);
 
                 //Common.ErrorLogger.Log($"POINT==1 업데이트 완료", Common.ErrorLogger.LogLevel.DEBUG, actualZone);
 
