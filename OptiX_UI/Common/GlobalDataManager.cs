@@ -111,7 +111,7 @@ namespace OptiX.Common
                 "Category", "WAD", "TCP_IP", "CREATE_EECP", "CREATE_CIM", 
                 "CREATE_EECP_SUMMARY", "CREATE_VALIDATION", "MAX_POINT",
                 "EECP_FOLDER", "CIM_FOLDER", "VALID_FOLDER", "DLL_FOLDER", "SEQUENCE_FOLDER", "EECP_SUMMARY_FOLDER",
-                "IsDarkMode", "LANGUAGE", "MTP_ZONE", "IPVS_ZONE"
+                "IsDarkMode", "LANGUAGE", "MTP_ZONE", "IPVS_ZONE", "HVI_MODE"
             };
 
                 foreach (var key in commonKeys)
@@ -204,6 +204,15 @@ namespace OptiX.Common
             
             
             return result;
+        }
+        
+        /// <summary>
+        /// HVI 모드 활성 여부 반환 (Settings.HVI_MODE)
+        /// </summary>
+        public static bool IsHviModeEnabled()
+        {
+            string value = GetValue("Settings", "HVI_MODE", "F");
+            return string.Equals(value?.Trim(), "T", StringComparison.OrdinalIgnoreCase);
         }
         
         /// <summary>

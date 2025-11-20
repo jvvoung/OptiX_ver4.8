@@ -132,6 +132,9 @@ namespace OptiX.OPTIC
                 int zoneCount = int.Parse(GlobalDataManager.GetValue("Settings", "MTP_ZONE", "2"));
                 ErrorLogger.Log($"Zone 개수: {zoneCount}", ErrorLogger.LogLevel.INFO);
 
+                bool isHviMode = GlobalDataManager.IsHviModeEnabled();
+                ErrorLogger.Log($"HVI 모드: {(isHviMode ? "활성" : "비활성")}", ErrorLogger.LogLevel.INFO);
+
                 // SequenceCacheManager에서 캐싱된 시퀀스 가져오기
                 var cachedSeq = SequenceCacheManager.Instance.GetOpticSequenceCopy();
                 if (cachedSeq == null || cachedSeq.Count == 0)
@@ -154,7 +157,7 @@ namespace OptiX.OPTIC
                 for (int zoneId = 1; zoneId <= zoneCount; zoneId++)
                 {
                     int currentZoneId = zoneId;
-                    tasks.Add(Task.Run(() => ExecuteSeqForZoneAsync(currentZoneId, orderedSeq)));
+                    tasks.Add(Task.Run(() => ExecuteSeqForZoneAsync(currentZoneId, orderedSeq, isHviMode)));
                 }
 
                 // 모든 Zone 완료 대기
@@ -167,15 +170,21 @@ namespace OptiX.OPTIC
                 SeqExecutionManager.SetSeqEndTime(DateTime.Now);
                 ErrorLogger.Log("=== 모든 Zone OPTIC SEQ 완료 ===", ErrorLogger.LogLevel.INFO);
 
-                int[] zones = Enumerable.Range(1, zoneCount).ToArray();
-                
-                //25.11.01 - 판정은 각 Zone 완료 시 즉시 수행됨 (finally 블록에서)
-                // 여기서는 그래프 최종 업데이트만 수행
+                if (isHviMode)
+                {
+                    await FinalizeHviModeAsync(zoneCount);
+                }
+                else
+                {
+                    int[] zones = Enumerable.Range(1, zoneCount).ToArray();
+                    await FinalizeNormalModeAsync(zones);
+                }
+
+                // 그래프 최종 업데이트 (HVI / 일반 공통)
                 _ = Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     try
                     {
-                        // 모든 Zone 처리 완료 후 그래프 최종 업데이트
                         var graphDataPoints = graphManager?.GetDataPoints();
                         if (graphDataPoints != null && graphDataPoints.Count > 0)
                         {
@@ -187,20 +196,6 @@ namespace OptiX.OPTIC
                         ErrorLogger.LogException(ex, "그래프 최종 업데이트 중 오류");
                     }
                 }, System.Windows.Threading.DispatcherPriority.Normal);
-                
-                //25.10.31 - 로그 생성은 UI 업데이트 후 백그라운드에서 (UI 블록 제거!)
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await CreateAllResultLogs(zones);
-                        ErrorLogger.Log("=== OPTIC 테스트 완료 ===", ErrorLogger.LogLevel.INFO);
-                    }
-                    catch (Exception ex)
-                    {
-                        ErrorLogger.LogException(ex, "결과 로그 생성 중 오류");
-                    }
-                });
             }
             finally
             {
@@ -210,6 +205,19 @@ namespace OptiX.OPTIC
                 
                 // 외부 INPUT 데이터 초기화
                 viewModel?.ClearExternalInputData();
+            }
+        }
+
+        private async Task FinalizeNormalModeAsync(int[] zones)
+        {
+            try
+            {
+                await CreateAllResultLogs(zones);
+                ErrorLogger.Log("=== OPTIC 테스트 완료 ===", ErrorLogger.LogLevel.INFO);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogException(ex, "정상 모드 결과 로그 생성 중 오류");
             }
         }
 
@@ -256,10 +264,167 @@ namespace OptiX.OPTIC
             }
         }
         
+        private Task FinalizeHviModeAsync(int zoneCount)
+        {
+            try
+            {
+                ErrorLogger.Log("HVI 모드 최종 처리 시작", ErrorLogger.LogLevel.INFO);
+
+                var outputs = new List<Output>();
+                var contexts = new List<ZoneContext>();
+
+                for (int zone = 1; zone <= zoneCount; zone++)
+                {
+                    try
+                    {
+                        var context = SeqExecutionManager.GetZoneContext(zone);
+                        contexts.Add(context);
+                        outputs.Add(context.SharedOutput);
+                    }
+                    catch (Exception ex)
+                    {
+                        ErrorLogger.LogException(ex, "HVI 모드 컨텍스트 조회 중 오류", zone);
+                    }
+                }
+
+                outputs = outputs.Where(o => o.data != null && o.data.Length > 0).ToList();
+
+                if (outputs.Count == 0)
+                {
+                    ErrorLogger.Log("HVI 모드: 유효한 측정 데이터가 없어 판정을 건너뜁니다.", ErrorLogger.LogLevel.WARNING);
+                    return Task.CompletedTask;
+                }
+
+                DateTime earliestStart = contexts
+                    .Where(c => c != null && c.SeqStartTime != default)
+                    .Select(c => c.SeqStartTime)
+                    .DefaultIfEmpty(DateTime.Now)
+                    .Min();
+
+                DateTime latestEnd = contexts
+                    .Where(c => c != null && c.SeqEndTime != default)
+                    .Select(c => c.SeqEndTime)
+                    .DefaultIfEmpty(DateTime.Now)
+                    .Max();
+
+                var combinedOutput = CombineHviOutputs(outputs);
+
+                var zone1Context = SeqExecutionManager.GetZoneContext(1);
+                zone1Context.SharedOutput = combinedOutput;
+                zone1Context.SeqStartTime = earliestStart;
+                zone1Context.SeqEndTime = latestEnd;
+                SeqExecutionManager.SetZoneSeqStartTime(1, earliestStart);
+                SeqExecutionManager.SetZoneSeqEndTime(1, latestEnd);
+
+                string cellIdForHvi = zone1Context.SharedInput.CELL_ID ?? "";
+                string innerIdForHvi = zone1Context.SharedInput.INNER_ID ?? "";
+                if (string.IsNullOrWhiteSpace(cellIdForHvi) || string.IsNullOrWhiteSpace(innerIdForHvi))
+                {
+                    var (fallbackCell, fallbackInner) = GlobalDataManager.GetZoneInfo(1);
+                    if (string.IsNullOrWhiteSpace(cellIdForHvi)) cellIdForHvi = fallbackCell;
+                    if (string.IsNullOrWhiteSpace(innerIdForHvi)) innerIdForHvi = fallbackInner;
+                }
+
+                var handler = new DllResultHandler();
+                string categoriesStr = GlobalDataManager.GetValue("MTP", "Category", "W,WG,R,G,B");
+                string[] categoryNames = categoriesStr.Split(',').Select(c => c.Trim()).ToArray();
+                int selectedWadIndex = viewModel?.SelectedWadIndex ?? 0;
+
+                MonitorLogService.Instance.Log(0, "ENTER JUDGMENT (HVI)");
+                string zoneJudgment = handler.ProcessOpticResult(
+                    combinedOutput,
+                    "1",
+                    dataTableManager,
+                    selectedWadIndex,
+                    categoryNames,
+                    null
+                );
+                MonitorLogService.Instance.Log(0, $"JUDGMENT => {zoneJudgment}");
+
+                double tactSeconds = (latestEnd - earliestStart).TotalSeconds;
+                if (tactSeconds < 0) tactSeconds = 0;
+                string tactStr = tactSeconds.ToString("F3");
+                string errorName = DetermineErrorName(combinedOutput, zoneJudgment);
+                var testResult = ZoneTestResult.Create(errorName, tactStr, zoneJudgment);
+
+                for (int zone = 1; zone <= zoneCount; zone++)
+                {
+                    SeqExecutionManager.StoreZoneTestResult(zone, testResult);
+                }
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    try
+                    {
+                        for (int zone = 1; zone <= zoneCount; zone++)
+                        {
+                            dataTableManager?.UpdateZoneFullTestResult(zone.ToString(), testResult);
+                        }
+                        dataTableManager?.UpdateZoneCellInfo("1", cellIdForHvi, innerIdForHvi);
+                        viewModel?.RefreshDataTable();
+
+                        if (!string.IsNullOrEmpty(zoneJudgment))
+                        {
+                            viewModel?.AddGraphDataPoint(1, zoneJudgment, graphManager);
+                            viewModel?.UpdateJudgmentStatusTable(zoneJudgment);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ErrorLogger.LogException(ex, "HVI 모드 UI 업데이트 중 오류");
+                    }
+                }, System.Windows.Threading.DispatcherPriority.Send);
+
+                MonitorLogService.Instance.Log(0, "ENTER CIM (HVI)");
+
+                _ = Task.Run(() =>
+                {
+                    try
+                    {
+                        bool cimSuccess = ResultLogManager.CreateCIMForZone(
+                            earliestStart,
+                            latestEnd,
+                            cellIdForHvi,
+                            innerIdForHvi,
+                            1,
+                            combinedOutput,
+                            testResult
+                        );
+
+                        MonitorLogService.Instance.Log(0, $"CIM {(cimSuccess ? "OK" : "FAIL")}");
+
+                        var zoneData = new Dictionary<int, (string cellId, string innerId, Output output)>
+                        {
+                            { 1, (cellIdForHvi, innerIdForHvi, combinedOutput) }
+                        };
+
+                        bool logSuccess = ResultLogManager.CreateAllResultLogs(
+                            earliestStart,
+                            latestEnd,
+                            zoneData
+                        );
+
+                        ErrorLogger.Log($"=== OPTIC 테스트 완료 (HVI) / 로그 결과: {logSuccess} ===", ErrorLogger.LogLevel.INFO);
+                    }
+                    catch (Exception ex)
+                    {
+                        ErrorLogger.LogException(ex, "HVI 모드 로그 생성 중 오류");
+                        MonitorLogService.Instance.Log(0, "PROCESS ERROR");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogException(ex, "HVI 모드 최종 처리 중 오류");
+            }
+
+            return Task.CompletedTask;
+        }
+        
         /// <summary>
         /// Zone별 SEQ 비동기 실행
         /// </summary>
-        private async Task ExecuteSeqForZoneAsync(int zoneId, List<string> orderedSeq)
+        private async Task ExecuteSeqForZoneAsync(int zoneId, List<string> orderedSeq, bool isHviMode)
         {
             try
             {
@@ -277,107 +442,137 @@ namespace OptiX.OPTIC
                 //25.10.29 - Zone SEQ 종료 - 종료 시간 기록
                 SeqExecutionManager.EndZoneSeq(zoneId);
                 
-                //25.11.01 - Zone 완료 시 판정 수행 → CIM 생성 (순서 중요!)
-                //25.11.02 - 판정 시퀀스 변경: 판정 로직을 백그라운드에서 수행, UI 업데이트만 UI 스레드에서 실행
-                // 기존: 판정 전체를 UI 스레드에서 수행 (InvokeAsync) → UI 프리즈 발생
-                // 변경: 판정 로직(백그라운드) → UI 업데이트(UI 스레드, Invoke) → CIM 생성(백그라운드)
-                try
+                if (isHviMode)
                 {
-                    var (cellId, innerId) = GlobalDataManager.GetZoneInfo(zoneId);
-                    DateTime startTime = SeqExecutionManager.GetZoneSeqStartTime(zoneId);
-                    DateTime endTime = SeqExecutionManager.GetZoneSeqEndTime(zoneId);
-                    Output? storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneId);
-                    
-                    if (storedOutput.HasValue)
-                    {
-                        // 1️⃣ 판정 로직 (백그라운드에서 수행)
-                        MonitorLogService.Instance.Log(zoneId - 1, "ENTER JUDGMENT");
-                        
-                        // 백그라운드에서 판정 수행
-                        var handler = new DllResultHandler();
-                        string categoriesStr = GlobalDataManager.GetValue("MTP", "Category", "W,WG,R,G,B");
-                        string[] categoryNames = categoriesStr.Split(',').Select(c => c.Trim()).ToArray();
-                        int selectedWadIndex = viewModel?.SelectedWadIndex ?? 0;
-                        
-                        // 판정 로직 실행 (백그라운드)
-                        string zoneJudgment = handler.ProcessOpticResult(
-                            storedOutput.Value,
-                            zoneId.ToString(),
-                            dataTableManager,
-                            selectedWadIndex,
-                            categoryNames,
-                            null // 판정 현황 콜백은 나중에 UI에서
-                        );
-                        
-                        MonitorLogService.Instance.Log(zoneId - 1, $"JUDGMENT => {zoneJudgment}");
-                        
-                        //25.11.08 - Zone 전체 FullTest 결과 계산 및 ZoneTestResult 구조체 생성
-                        double tactSeconds = (endTime - startTime).TotalSeconds;
-                        string tactStr = tactSeconds.ToString("F3");
-                        string errorName = DetermineErrorName(storedOutput.Value, zoneJudgment);
-                        
-                        // ZoneTestResult 구조체 생성
-                        var testResult = ZoneTestResult.Create(errorName, tactStr, zoneJudgment);
-                        
-                        //25.11.08 - ZoneTestResult를 SeqExecutionManager에 저장 (CIM 로그 생성 시 사용)
-                        SeqExecutionManager.StoreZoneTestResult(zoneId, testResult);
-                        
-                        // 2️⃣ UI 업데이트 (UI 스레드에서 실행)
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            try
-                            {
-                                //25.11.08 - ZoneTestResult 구조체 사용
-                                dataTableManager?.UpdateZoneFullTestResult(zoneId.ToString(), testResult);
-                                
-                                // DataTable UI 갱신 (중요!)
-                                viewModel?.RefreshDataTable();
-                                
-                                // 그래프 데이터 포인트 추가
-                                if (!string.IsNullOrEmpty(zoneJudgment))
-                                {
-                                    viewModel?.AddGraphDataPoint(zoneId, zoneJudgment, graphManager);
-                                }
-                                
-                                // 판정 현황 표 업데이트
-                                if (!string.IsNullOrEmpty(zoneJudgment))
-                                {
-                                    viewModel?.UpdateJudgmentStatusTable(zoneJudgment);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                ErrorLogger.LogException(ex, $"Zone {zoneId} UI 업데이트 중 오류", zoneId);
-                            }
-                        }, System.Windows.Threading.DispatcherPriority.Send);
-                        
-                        //25.11.02 - CIM 로그 생성 (백그라운드에서 실행)
-                        //25.11.08 - ZoneTestResult 구조체 전달
-                        // 3️⃣ CIM 로그 생성 (백그라운드에서 실행)
-                        MonitorLogService.Instance.Log(zoneId - 1, "ENTER CIM");
-                        
-                        _ = Task.Run(() =>
-                        {
-                            bool success = ResultLogManager.CreateCIMForZone(
-                                startTime,
-                                endTime,
-                                cellId,
-                                innerId,
-                                zoneId,
-                                storedOutput.Value,
-                                testResult // ZoneTestResult 구조체 전달
-                            );
-                            
-                            MonitorLogService.Instance.Log(zoneId - 1, $"CIM {(success ? "OK" : "FAIL")}");
-                        });
-                    }
+                    await ProcessZoneResultHviBufferingAsync(zoneId);
                 }
-                catch (Exception ex)
+                else
                 {
-                    ErrorLogger.LogException(ex, "Zone 판정/CIM 로그 생성 중 오류", zoneId);
-                    MonitorLogService.Instance.Log(zoneId - 1, "PROCESS ERROR");
+                    await ProcessZoneResultNormalAsync(zoneId);
                 }
             }
+        }
+
+        private async Task ProcessZoneResultNormalAsync(int zoneId)
+        {
+            try
+            {
+                var (cellId, innerId) = GlobalDataManager.GetZoneInfo(zoneId);
+                DateTime startTime = SeqExecutionManager.GetZoneSeqStartTime(zoneId);
+                DateTime endTime = SeqExecutionManager.GetZoneSeqEndTime(zoneId);
+                Output? storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneId);
+
+                if (!storedOutput.HasValue)
+                {
+                    return;
+                }
+
+                MonitorLogService.Instance.Log(zoneId - 1, "ENTER JUDGMENT");
+
+                var handler = new DllResultHandler();
+                string categoriesStr = GlobalDataManager.GetValue("MTP", "Category", "W,WG,R,G,B");
+                string[] categoryNames = categoriesStr.Split(',').Select(c => c.Trim()).ToArray();
+                int selectedWadIndex = viewModel?.SelectedWadIndex ?? 0;
+
+                string zoneJudgment = handler.ProcessOpticResult(
+                    storedOutput.Value,
+                    zoneId.ToString(),
+                    dataTableManager,
+                    selectedWadIndex,
+                    categoryNames,
+                    null);
+
+                MonitorLogService.Instance.Log(zoneId - 1, $"JUDGMENT => {zoneJudgment}");
+
+                double tactSeconds = (endTime - startTime).TotalSeconds;
+                string tactStr = tactSeconds.ToString("F3");
+                string errorName = DetermineErrorName(storedOutput.Value, zoneJudgment);
+
+                var testResult = ZoneTestResult.Create(errorName, tactStr, zoneJudgment);
+                SeqExecutionManager.StoreZoneTestResult(zoneId, testResult);
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    try
+                    {
+                        dataTableManager?.UpdateZoneFullTestResult(zoneId.ToString(), testResult);
+                        viewModel?.RefreshDataTable();
+
+                        if (!string.IsNullOrEmpty(zoneJudgment))
+                        {
+                            viewModel?.AddGraphDataPoint(zoneId, zoneJudgment, graphManager);
+                            viewModel?.UpdateJudgmentStatusTable(zoneJudgment);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ErrorLogger.LogException(ex, $"Zone {zoneId} UI 업데이트 중 오류", zoneId);
+                    }
+                }, System.Windows.Threading.DispatcherPriority.Send);
+
+                MonitorLogService.Instance.Log(zoneId - 1, "ENTER CIM");
+
+                _ = Task.Run(() =>
+                {
+                    bool success = ResultLogManager.CreateCIMForZone(
+                        startTime,
+                        endTime,
+                        cellId,
+                        innerId,
+                        zoneId,
+                        storedOutput.Value,
+                        testResult);
+
+                    MonitorLogService.Instance.Log(zoneId - 1, $"CIM {(success ? "OK" : "FAIL")}");
+                });
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogException(ex, "Zone 판정/CIM 로그 생성 중 오류", zoneId);
+                MonitorLogService.Instance.Log(zoneId - 1, "PROCESS ERROR");
+            }
+        }
+
+        private Task ProcessZoneResultHviBufferingAsync(int zoneId)
+        {
+            try
+            {
+                Output? storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneId);
+                if (storedOutput.HasValue)
+                {
+                    var handler = new DllResultHandler();
+                    string categoriesStr = GlobalDataManager.GetValue("MTP", "Category", "W,WG,R,G,B");
+                    string[] categoryNames = categoriesStr.Split(',').Select(c => c.Trim()).ToArray();
+                    int selectedWadIndex = viewModel?.SelectedWadIndex ?? 0;
+
+                    handler.ProcessOpticResult(
+                        storedOutput.Value,
+                        zoneId.ToString(),
+                        dataTableManager,
+                        selectedWadIndex,
+                        categoryNames,
+                        null,
+                        applyZoneJudgment: false);
+
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        try
+                        {
+                            viewModel?.RefreshDataTable();
+                        }
+                        catch (Exception ex)
+                        {
+                            ErrorLogger.LogException(ex, $"HVI 모드 Zone {zoneId} UI 갱신 중 오류", zoneId);
+                        }
+                    }, System.Windows.Threading.DispatcherPriority.Send);
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogException(ex, "HVI 모드 Zone 측정 데이터 업데이트 중 오류", zoneId);
+            }
+
+            return Task.CompletedTask;
         }
 
         //25.10.29 - Zone SEQ 실행 메서드 리팩토링 (새로운 API 사용)
@@ -513,6 +708,163 @@ namespace OptiX.OPTIC
         public bool IsTestStarted()
         {
             return isTestStarted;
+        }
+
+        private Output CombineHviOutputs(IList<Output> outputs)
+        {
+            var combined = new Output
+            {
+                data = new Pattern[DllConstants.OPTIC_DATA_SIZE],
+                IPVS_data = new Pattern[DllConstants.IPVS_DATA_SIZE],
+                measure = new Pattern[DllConstants.MAX_WAD_COUNT],
+                lut = new LUTParameter[DllConstants.RGB_CHANNEL_COUNT]
+            };
+
+            if (outputs == null || outputs.Count == 0)
+            {
+                return combined;
+            }
+
+            for (int i = 0; i < DllConstants.OPTIC_DATA_SIZE; i++)
+            {
+                float sumX = 0f, sumY = 0f, sumU = 0f, sumV = 0f, sumL = 0f, sumCur = 0f, sumEff = 0f;
+                int maxResult = 0;
+                int validCount = 0;
+
+                foreach (var output in outputs)
+                {
+                    if (output.data == null || output.data.Length <= i) continue;
+                    var pattern = output.data[i];
+                    sumX += pattern.x;
+                    sumY += pattern.y;
+                    sumU += pattern.u;
+                    sumV += pattern.v;
+                    sumL += pattern.L;
+                    sumCur += pattern.cur;
+                    sumEff += pattern.eff;
+                    maxResult = Math.Max(maxResult, pattern.result);
+                    validCount++;
+                }
+
+                if (validCount > 0)
+                {
+                    combined.data[i] = new Pattern
+                    {
+                        x = sumX / validCount,
+                        y = sumY / validCount,
+                        u = sumU / validCount,
+                        v = sumV / validCount,
+                        L = sumL / validCount,
+                        cur = sumCur / validCount,
+                        eff = sumEff / validCount,
+                        result = maxResult
+                    };
+                }
+            }
+
+            for (int i = 0; i < DllConstants.IPVS_DATA_SIZE; i++)
+            {
+                float sumX = 0f, sumY = 0f, sumU = 0f, sumV = 0f, sumL = 0f, sumCur = 0f, sumEff = 0f;
+                int maxResult = 0;
+                int validCount = 0;
+
+                foreach (var output in outputs)
+                {
+                    if (output.IPVS_data == null || output.IPVS_data.Length <= i) continue;
+                    var pattern = output.IPVS_data[i];
+                    sumX += pattern.x;
+                    sumY += pattern.y;
+                    sumU += pattern.u;
+                    sumV += pattern.v;
+                    sumL += pattern.L;
+                    sumCur += pattern.cur;
+                    sumEff += pattern.eff;
+                    maxResult = Math.Max(maxResult, pattern.result);
+                    validCount++;
+                }
+
+                if (validCount > 0)
+                {
+                    combined.IPVS_data[i] = new Pattern
+                    {
+                        x = sumX / validCount,
+                        y = sumY / validCount,
+                        u = sumU / validCount,
+                        v = sumV / validCount,
+                        L = sumL / validCount,
+                        cur = sumCur / validCount,
+                        eff = sumEff / validCount,
+                        result = maxResult
+                    };
+                }
+            }
+
+            for (int i = 0; i < DllConstants.MAX_WAD_COUNT; i++)
+            {
+                float sumX = 0f, sumY = 0f, sumU = 0f, sumV = 0f, sumL = 0f, sumCur = 0f, sumEff = 0f;
+                int maxResult = 0;
+                int validCount = 0;
+
+                foreach (var output in outputs)
+                {
+                    if (output.measure == null || output.measure.Length <= i) continue;
+                    var pattern = output.measure[i];
+                    sumX += pattern.x;
+                    sumY += pattern.y;
+                    sumU += pattern.u;
+                    sumV += pattern.v;
+                    sumL += pattern.L;
+                    sumCur += pattern.cur;
+                    sumEff += pattern.eff;
+                    maxResult = Math.Max(maxResult, pattern.result);
+                    validCount++;
+                }
+
+                if (validCount > 0)
+                {
+                    combined.measure[i] = new Pattern
+                    {
+                        x = sumX / validCount,
+                        y = sumY / validCount,
+                        u = sumU / validCount,
+                        v = sumV / validCount,
+                        L = sumL / validCount,
+                        cur = sumCur / validCount,
+                        eff = sumEff / validCount,
+                        result = maxResult
+                    };
+                }
+            }
+
+            for (int i = 0; i < DllConstants.RGB_CHANNEL_COUNT; i++)
+            {
+                float sumMaxLumi = 0f, sumMaxIndex = 0f, sumGamma = 0f, sumBlack = 0f;
+                int validCount = 0;
+
+                foreach (var output in outputs)
+                {
+                    if (output.lut == null || output.lut.Length <= i) continue;
+                    var lut = output.lut[i];
+                    sumMaxLumi += lut.max_lumi;
+                    sumMaxIndex += lut.max_index;
+                    sumGamma += lut.gamma;
+                    sumBlack += lut.black;
+                    validCount++;
+                }
+
+                if (validCount > 0)
+                {
+                    combined.lut[i] = new LUTParameter
+                    {
+                        max_lumi = sumMaxLumi / validCount,
+                        max_index = sumMaxIndex / validCount,
+                        gamma = sumGamma / validCount,
+                        black = sumBlack / validCount
+                    };
+                }
+            }
+
+            return combined;
         }
 
         /// <summary>

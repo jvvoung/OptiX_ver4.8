@@ -500,7 +500,8 @@ namespace OptiX.OPTIC
                 System.Diagnostics.Debug.WriteLine($"현재 상태 - isTestStarted: {isTestStarted}, zoneTestCompleted: [{string.Join(", ", zoneTestCompleted ?? new bool[0])}], zoneMeasured: [{string.Join(", ", zoneMeasured ?? new bool[0])}]");
                 
                 // Zone 개수 가져오기
-                int zoneCount = int.Parse(GlobalDataManager.GetValue("Settings", "MTP_ZONE", "2"));
+                int zoneCountSetting = int.Parse(GlobalDataManager.GetValue("Settings", "MTP_ZONE", "2"));
+                int zoneCount = zoneCountSetting;
                 
                 // 저장된 데이터가 있는 모든 Zone 업데이트
                 bool anyZoneUpdated = false;
@@ -768,7 +769,8 @@ namespace OptiX.OPTIC
 
             var categories = new[] { "W", "WG", "R", "G", "B" };
             
-            int zoneCount = int.Parse(GlobalDataManager.GetValue("Settings", "MTP_ZONE", "2"));
+            int zoneCountSetting = int.Parse(GlobalDataManager.GetValue("Settings", "MTP_ZONE", "2"));
+            int zoneCount = GlobalDataManager.IsHviModeEnabled() ? Math.Min(1, zoneCountSetting) : zoneCountSetting;
             
             // Zone별 빈 데이터 생성
             for (int zoneNum = 1; zoneNum <= zoneCount; zoneNum++)

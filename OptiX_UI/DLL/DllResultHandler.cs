@@ -30,7 +30,8 @@ namespace OptiX.DLL
             OpticDataTableManager dataTableManager,
             int selectedWadIndex,
             string[] categoryNames,
-            Action<string> onZoneJudgmentUpdate)
+            Action<string> onZoneJudgmentUpdate,
+            bool applyZoneJudgment = true)
         {
             try
             {
@@ -113,12 +114,12 @@ namespace OptiX.DLL
                 dataTableManager.UpdateZoneCellInfo(targetZone, cellId, innerId);
 
                 //25.11.08 - Zone 전체 판정을 모든 아이템에 적용
-                dataTableManager.UpdateZoneJudgment(targetZone, zoneJudgment);
-                //25.10.31 - DEBUG 로그 제거 (UI 병목 해결)
-                //Common.ErrorLogger.Log($"전체 판정 적용: {zoneJudgment}", Common.ErrorLogger.LogLevel.DEBUG, actualZone);
-
-                // 판정 현황 표 업데이트 콜백 호출
-                onZoneJudgmentUpdate?.Invoke(zoneJudgment);
+                if (applyZoneJudgment)
+                {
+                    dataTableManager.UpdateZoneJudgment(targetZone, zoneJudgment);
+                    // 판정 현황 표 업데이트 콜백 호출
+                    onZoneJudgmentUpdate?.Invoke(zoneJudgment);
+                }
 
                 Common.ErrorLogger.Log($"=== OPTIC 결과 처리 완료 - 판정: {zoneJudgment} ===", Common.ErrorLogger.LogLevel.INFO, zoneNum > 0 ? zoneNum : (int?)null);
                 

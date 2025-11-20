@@ -24,6 +24,7 @@ namespace OptiX.OPTIC
         private bool isDarkMode = false;
         private DispatcherTimer characteristicsTimer;
         private DispatcherTimer ipvsTimer;
+        private bool isHviMode = false;
         #endregion
 
         #region Events (View와의 통신용 - 순환 참조 제거)
@@ -67,6 +68,8 @@ namespace OptiX.OPTIC
             get => isDarkMode;
             set => SetProperty(ref isDarkMode, value);
         }
+
+        public bool IsHviMode => isHviMode;
         #endregion
 
         #region Commands
@@ -115,6 +118,7 @@ namespace OptiX.OPTIC
         {
             try
             {
+                isHviMode = GlobalDataManager.IsHviModeEnabled();
                 // 다크모드 설정 로드
                 string darkModeStr = GlobalDataManager.GetValue("Theme", "IsDarkMode", "F");
                 IsDarkMode = darkModeStr.ToUpper() == "T";
@@ -509,8 +513,20 @@ namespace OptiX.OPTIC
                 // Zone별 데이터 저장 (자동 모드용)
                 externalZoneData[zoneNumber] = (cellID ?? "", innerID ?? "");
 
-                // 데이터 테이블만 업데이트 (GlobalDataManager는 수동 모드용이므로 건드리지 않음)
-                UpdateDataTableZoneInfo(zoneNumber, cellID, innerID);
+                if (isHviMode)
+                {
+                    int zoneCount = int.Parse(GlobalDataManager.GetValue("Settings", "MTP_ZONE", "2"));
+                    for (int zone = 1; zone <= zoneCount; zone++)
+                    {
+                        externalZoneData[zone] = (cellID ?? "", innerID ?? "");
+                    }
+                    UpdateDataTableZoneInfo(1, cellID, innerID);
+                }
+                else
+                {
+                    // 데이터 테이블만 업데이트 (GlobalDataManager는 수동 모드용이므로 건드리지 않음)
+                    UpdateDataTableZoneInfo(zoneNumber, cellID, innerID);
+                }
 
                 System.Diagnostics.Debug.WriteLine($"[OpticPageViewModel] Zone {zoneNumber} INPUT 데이터 설정 완료 (자동 모드)");
             }
@@ -531,8 +547,18 @@ namespace OptiX.OPTIC
                 // UI 스레드에서 실행
                 System.Windows.Application.Current?.Dispatcher.Invoke(() =>
                 {
-                    // 해당 Zone의 모든 행 업데이트
-                    var zoneItems = DataItems.Where(item => item.Zone == zoneNumber.ToString()).ToList();
+                    // 해당 Zone (또는 HVI 모드에서는 모든 Zone) 업데이트
+                    IEnumerable<DataTableItem> targetItems;
+                    if (isHviMode)
+                    {
+                        targetItems = DataItems.Where(item => true);
+                    }
+                    else
+                    {
+                        targetItems = DataItems.Where(item => item.Zone == zoneNumber.ToString());
+                    }
+                    
+                    var zoneItems = targetItems.ToList();
                     
                     System.Diagnostics.Debug.WriteLine($"[OpticPageViewModel] Zone {zoneNumber} 업데이트 시작 - {zoneItems.Count}개 행 발견");
                     
@@ -563,6 +589,12 @@ namespace OptiX.OPTIC
                 var data = externalZoneData[zoneNumber];
                 return (data.cellID, data.innerID, true);
             }
+
+            if (isHviMode && zoneNumber != 1 && externalZoneData.ContainsKey(1))
+            {
+                var data = externalZoneData[1];
+                return (data.cellID, data.innerID, true);
+            }
             return ("", "", false);
         }
 
@@ -582,6 +614,7 @@ namespace OptiX.OPTIC
             externalZoneData.Clear();
         }
         #endregion
+
     }
 }
 

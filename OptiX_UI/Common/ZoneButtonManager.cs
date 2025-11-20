@@ -178,6 +178,10 @@ namespace OptiX.Common
                 // Settings에서 MTP_ZONE 개수 읽기
                 string zoneCountStr = GlobalDataManager.GetValue("Settings", "MTP_ZONE", "2");
                 int zoneCount = int.Parse(zoneCountStr);
+                if (GlobalDataManager.IsHviModeEnabled())
+                {
+                    zoneCount = Math.Min(1, zoneCount);
+                }
 
                 // 스타일 미리 가져오기
                 var activeStyle = GetResourceStyle("ActiveZoneButtonStyle");
@@ -263,6 +267,10 @@ namespace OptiX.Common
             {
                 // INI 파일에서 Zone 개수 읽기
                 int zoneCount = int.Parse(GlobalDataManager.GetValue("Settings", "MTP_ZONE", "2"));
+                if (GlobalDataManager.IsHviModeEnabled())
+                {
+                    zoneCount = Math.Min(1, zoneCount);
+                }
                 
                 // Zone별 테스트 완료/측정 여부 배열 초기화 (모두 false)
                 zoneTestCompleted = new bool[zoneCount];

@@ -20,6 +20,7 @@ namespace OptiX.DLL
 
         #region OPTIC 시퀀스 캐싱
         private Queue<string> _opticSequence = null;
+        private List<List<string>> _opticSequenceGroups = null;
         private bool _opticLoaded = false;
         private readonly object _opticLock = new object();
         #endregion
@@ -53,49 +54,105 @@ namespace OptiX.DLL
                     {
                         Debug.WriteLine($"⚠️ OPTIC 시퀀스 파일 없음: {seqPath}");
                         _opticSequence = new Queue<string>();
+                        _opticSequenceGroups = new List<List<string>>();
                         _opticLoaded = false;
                         return;
                     }
 
                     var iniManager = new IniFileManager(seqPath);
-                    
-                    // SEQ_COUNT 읽기
-                    string countStr = iniManager.ReadValue("SETTING", "SEQ_COUNT", "0");
-                    if (!int.TryParse(countStr, out int count) || count <= 0)
+
+                    // 새로운 구조: [SETTING] SEQUENCE_COUNT + [SEQUENCE#] 섹션
+                    string sequenceCountRaw = iniManager.ReadValue("SETTING", "SEQUENCE_COUNT", null);
+                    bool hasNewStructure = int.TryParse(sequenceCountRaw, out int sequenceCount) && sequenceCount > 0;
+
+                    var sequenceGroups = new List<List<string>>();
+
+                    if (hasNewStructure)
                     {
-                        Debug.WriteLine($"⚠️ OPTIC SEQ_COUNT가 유효하지 않음: {countStr}");
-                        _opticSequence = new Queue<string>();
-                        _opticLoaded = false;
-                        return;
+                        Debug.WriteLine($"📋 OPTIC 시퀀스 신규 구조 감지 - SEQUENCE_COUNT={sequenceCount}");
+                        for (int sequenceIndex = 1; sequenceIndex <= sequenceCount; sequenceIndex++)
+                        {
+                            string sectionName = $"SEQUENCE{sequenceIndex}";
+                            string seqCountRaw = iniManager.ReadValue(sectionName, "SEQ_COUNT", "0");
+
+                            if (!int.TryParse(seqCountRaw, out int seqCount) || seqCount <= 0)
+                            {
+                                Debug.WriteLine($"   ⚠️ {sectionName}의 SEQ_COUNT가 유효하지 않음: {seqCountRaw}");
+                                sequenceGroups.Add(new List<string>());
+                                continue;
+                            }
+
+                            var innerSeq = new List<string>(capacity: seqCount);
+                            for (int stepIndex = 0; stepIndex < seqCount; stepIndex++)
+                            {
+                                string seqKey = $"SEQ{stepIndex:D2}";
+                                string seqValue = iniManager.ReadValue(sectionName, seqKey, "");
+
+                                if (!string.IsNullOrWhiteSpace(seqValue))
+                                {
+                                    innerSeq.Add(seqValue.Trim());
+                                    Debug.WriteLine($"   ✅ {sectionName}.{seqKey} = {seqValue}");
+                                }
+                                else
+                                {
+                                    Debug.WriteLine($"   ⚠️ {sectionName}.{seqKey} 비어있음 - 건너뜀");
+                                }
+                            }
+
+                            sequenceGroups.Add(innerSeq);
+                        }
+                    }
+                    else
+                    {
+                        // 기존 구조: [SETTING] SEQ_COUNT + [SEQ] 섹션
+                        string countStr = iniManager.ReadValue("SETTING", "SEQ_COUNT", "0");
+                        if (!int.TryParse(countStr, out int count) || count <= 0)
+                        {
+                            Debug.WriteLine($"⚠️ OPTIC SEQ_COUNT가 유효하지 않음: {countStr}");
+                            _opticSequence = new Queue<string>();
+                            _opticSequenceGroups = new List<List<string>>();
+                            _opticLoaded = false;
+                            return;
+                        }
+
+                        var singleGroup = new List<string>(capacity: count);
+                        for (int i = 0; i < count; i++)
+                        {
+                            string seqKey = $"SEQ{i:D2}"; // SEQ00, SEQ01, SEQ02, ...
+                            string seqValue = iniManager.ReadValue("SEQ", seqKey, "");
+
+                            if (!string.IsNullOrWhiteSpace(seqValue))
+                            {
+                                singleGroup.Add(seqValue.Trim());
+                                Debug.WriteLine($"   ✅ {seqKey} = {seqValue}");
+                            }
+                            else
+                            {
+                                Debug.WriteLine($"   ⚠️ {seqKey} 비어있음 - 건너뜀");
+                            }
+                        }
+
+                        sequenceGroups.Add(singleGroup);
                     }
 
-                    // 시퀀스 로드
-                    _opticSequence = new Queue<string>();
-                    for (int i = 0; i < count; i++)
-                    {
-                        string seqKey = $"SEQ{i:D2}"; // SEQ00, SEQ01, SEQ02, ...
-                        string seqValue = iniManager.ReadValue("SEQ", seqKey, "");
-                        
-                        if (!string.IsNullOrEmpty(seqValue))
-                        {
-                            _opticSequence.Enqueue(seqValue);
-                            Debug.WriteLine($"   ✅ {seqKey} = {seqValue}");
-                        }
-                        else
-                        {
-                            Debug.WriteLine($"   ⚠️ {seqKey} 비어있음 - 건너뜀");
-                        }
-                    }
+                    // 그룹 정보 캐싱
+                    _opticSequenceGroups = sequenceGroups;
 
-                    _opticLoaded = true;
-                    Debug.WriteLine($"✅ OPTIC 시퀀스 캐싱 완료: {_opticSequence.Count}개");
-                    Common.ErrorLogger.Log($"OPTIC 시퀀스 캐싱 완료: {_opticSequence.Count}개", Common.ErrorLogger.LogLevel.INFO);
+                    // 전체 SEQ를 평탄화하여 Queue 생성
+                    var flattened = sequenceGroups.SelectMany(group => group).ToList();
+                    _opticSequence = new Queue<string>(flattened);
+
+                    _opticLoaded = flattened.Count > 0;
+
+                    Debug.WriteLine($"✅ OPTIC 시퀀스 캐싱 완료: 그룹 {sequenceGroups.Count}개, 총 Step {flattened.Count}개");
+                    Common.ErrorLogger.Log($"OPTIC 시퀀스 캐싱 완료: 그룹 {sequenceGroups.Count}개, 총 Step {flattened.Count}개", Common.ErrorLogger.LogLevel.INFO);
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"❌ OPTIC 시퀀스 로드 실패: {ex.Message}");
                     ErrorLogger.LogException(ex, "OPTIC 시퀀스 로드 중 예외 발생");
                     _opticSequence = new Queue<string>();
+                    _opticSequenceGroups = new List<List<string>>();
                     _opticLoaded = false;
                 }
             }
@@ -195,6 +252,27 @@ namespace OptiX.DLL
         }
 
         /// <summary>
+        /// OPTIC 시퀀스 그룹 복사본 반환 (Thread-safe)
+        /// 각 그룹은 큰 틀 시퀀스, 내부 리스트는 세부 Step
+        /// </summary>
+        public List<List<string>> GetOpticSequenceGroupsCopy()
+        {
+            lock (_opticLock)
+            {
+                if (_opticSequenceGroups == null || !_opticLoaded)
+                {
+                    Debug.WriteLine("⚠️ OPTIC 시퀀스 그룹 미로드 - 빈 리스트 반환");
+                    return new List<List<string>>();
+                }
+
+                // 깊은 복사
+                return _opticSequenceGroups
+                    .Select(group => new List<string>(group))
+                    .ToList();
+            }
+        }
+
+        /// <summary>
         /// IPVS 시퀀스 List 반환 (Thread-safe)
         /// 각 Zone이 독립적으로 사용할 수 있도록 List로 반환합니다.
         /// </summary>
@@ -236,6 +314,7 @@ namespace OptiX.DLL
             lock (_opticLock)
             {
                 _opticSequence = null;
+                _opticSequenceGroups = null;
                 _opticLoaded = false;
                 Debug.WriteLine("🔄 OPTIC 시퀀스 캐시 초기화");
             }
