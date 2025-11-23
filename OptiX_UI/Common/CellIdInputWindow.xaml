@@ -225,54 +225,17 @@
                         CornerRadius="8"
                         Padding="16"
                         Margin="0,0,0,16">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        
-                        <!-- Cell 정보 제목 -->
+                    <StackPanel>
                         <TextBlock x:Name="CellInfoTitle"
-                                   Grid.Row="0" 
                                    Text="Cell 정보" 
                                    FontSize="16" 
                                    FontWeight="SemiBold" 
                                    Foreground="{DynamicResource DynamicTextColor}" 
                                    Margin="0,0,0,12"/>
-                        
-                        <!-- Cell ID -->
-                        <Grid Grid.Row="1" Margin="0,0,0,12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" 
-                                       Text="Cell ID" 
-                                       VerticalAlignment="Center" 
-                                       Foreground="{DynamicResource DynamicTextColor}"
-                                       FontSize="14"/>
-                            <TextBox Grid.Column="1" 
-                                     x:Name="CellIdTextBox"
-                                     Style="{StaticResource PortTextBoxStyle}"/>
-                        </Grid>
-                        
-                        <!-- Inner ID -->
-                        <Grid Grid.Row="2">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" 
-                                       Text="Inner ID" 
-                                       VerticalAlignment="Center" 
-                                       Foreground="{DynamicResource DynamicTextColor}"
-                                       FontSize="14"/>
-                            <TextBox Grid.Column="1" 
-                                     x:Name="InnerIdTextBox"
-                                     Style="{StaticResource PortTextBoxStyle}"/>
-                        </Grid>
-                    </Grid>
+                        <StackPanel x:Name="CellInfoStackPanel"
+                                    Orientation="Vertical"
+                                    Background="{DynamicResource DynamicCardBackground}"/>
+                    </StackPanel>
                 </Border>
 
 
@@ -290,7 +253,7 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         
-                        <!-- Port 연결 제목과 Connect 버튼 -->
+                        <!-- Port 연결 제목과 All Connect 버튼 -->
                         <Grid Grid.Row="0" Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -306,57 +269,28 @@
                                        VerticalAlignment="Center"/>
                             
                             <Button Grid.Column="1"
-                                    x:Name="ConnectButton"
-                                    Content="🔗 Connect"
+                                    x:Name="AllConnectButton"
+                                    Content="ALL CONNECT"
                                     Style="{StaticResource ModernButtonStyle}"
                                     FontSize="11"
-                                    Height="28"
-                                    Width="90"
-                                    Padding="6,2"
-                                    Click="ConnectButton_Click"/>
+                                    Height="30"
+                                    Width="120"
+                                    Padding="10,2"
+                                    Click="AllConnectButton_Click"/>
                         </Grid>
                         
-                        <!-- Port 테이블 -->
+                        <!-- Port 섹션 (스크롤 가능) -->
                         <ScrollViewer Grid.Row="1" 
-                                      HorizontalScrollBarVisibility="Auto" 
+                                      HorizontalScrollBarVisibility="Disabled" 
                                       VerticalScrollBarVisibility="Auto"
-                                      Background="{DynamicResource DynamicInputBackground}"
+                                      Background="{DynamicResource DynamicCardBackground}"
                                       BorderBrush="{DynamicResource DynamicBorderColor}"
-                                      BorderThickness="1">
-                            <Grid x:Name="PortTableGrid" 
-                                  Background="{DynamicResource DynamicInputBackground}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                
-                                <!-- 왼쪽: PG -->
-                                <StackPanel Grid.Column="0" Margin="10">
-                                    <!-- PG 행 -->
-                                    <Grid Margin="0,0,0,8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="80"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" 
-                                                   Text="PG" 
-                                                   VerticalAlignment="Center" 
-                                                   HorizontalAlignment="Center"
-                                                   FontWeight="Bold"
-                                                   Background="{StaticResource PrimaryColor}"
-                                                   Foreground="White"
-                                                   Padding="8,4"/>
-                                        <TextBox Grid.Column="1" 
-                                                 x:Name="PgPortTextBox"
-                                                 Style="{StaticResource PortTextBoxStyle}"
-                                                 Margin="4,0,0,0"/>
-                                    </Grid>
-                                </StackPanel>
-                                
-                                <!-- 오른쪽: MEAS 관련 (동적 생성) -->
-                                <StackPanel x:Name="MeasPortsStackPanel" Grid.Column="1" Margin="10"/>
-                                
-                            </Grid>
+                                      BorderThickness="1"
+                                      Padding="8">
+                            <StackPanel x:Name="PortSectionsStackPanel"
+                                        Background="{DynamicResource DynamicCardBackground}"
+                                        Orientation="Vertical"
+                                        Margin="0"/>
                         </ScrollViewer>
                     </Grid>
                 </Border>

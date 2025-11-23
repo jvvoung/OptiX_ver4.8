@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using OptiX.Common;
+using OptiX.DLL;
 
 namespace OptiX.Common
 {
@@ -20,7 +22,40 @@ namespace OptiX.Common
         private bool isEecpEnabled = false;
         private bool isEecpSummaryEnabled = false;
         private bool isValidationEnabled = false;
-        private Dictionary<string, TextBox> dynamicMeasTextBoxes = new Dictionary<string, TextBox>();
+
+        private class PortBinding
+        {
+            public string IniSection { get; set; } = "MTP";
+            public List<string> IniKeys { get; } = new List<string>();
+            public TextBox TextBox { get; set; }
+            public string PortType { get; set; } = "MEAS";
+            public string DisplayName { get; set; } = "";
+        }
+
+        private class ConnectContext
+        {
+            public string ContextType { get; set; } = "";
+            public List<int> Zones { get; set; } = new List<int>();
+            public string PortLabel { get; set; } = "";
+            public string SectionName { get; set; } = "";
+            public List<string> IniKeys { get; set; } = new List<string>();
+            public List<PortBinding> Bindings { get; set; } = new List<PortBinding>();
+        }
+
+        private class CellInfoBinding
+        {
+            public List<int> Zones { get; } = new List<int>();
+            public TextBox CellIdTextBox { get; set; }
+            public TextBox InnerIdTextBox { get; set; }
+            public string DisplayName { get; set; } = "";
+        }
+
+        private readonly List<CellInfoBinding> cellBindings = new List<CellInfoBinding>();
+        private readonly List<PortBinding> portBindings = new List<PortBinding>();
+        private bool isHviModeEnabled = false;
+        private bool isMeasMultiEnabled = false;
+        private int totalZoneCount = 1;
+        private string[] wadAngles = Array.Empty<string>();
 
         public CellIdInputWindow() : this(1)
         {
@@ -40,6 +75,7 @@ namespace OptiX.Common
             this.zoneNumber = zoneNumber;
             this.isDarkMode = isDarkMode;
             this.iniSection = iniSection;
+            InitializeConfigurationOptions();
             
             // INI 섹션에 따라 창 제목 설정
             string inspectionType = iniSection == "IPVS" ? "IPVS" : "OPTIC";
@@ -50,13 +86,14 @@ namespace OptiX.Common
             
             // 언어 적용
             ApplyLanguage();
-            LoadCurrentValues();
             
             // 추가 초기화는 UI가 로드된 후 실행
             this.Loaded += (s, e) => {
                 try 
                 {
-                   CreateDynamicMeasPorts();
+                   BuildCellInfoSections();
+                   LoadCellInformation();
+                   BuildPortSections();
                    LoadPortSettings();
                 }
                 catch (Exception ex)
@@ -64,6 +101,510 @@ namespace OptiX.Common
                     System.Diagnostics.Debug.WriteLine($"추가 초기화 오류: {ex.Message}");
                 }
             };
+        }
+
+        private void InitializeConfigurationOptions()
+        {
+            bool isOptic = iniSection != "IPVS";
+            totalZoneCount = isOptic
+                ? int.Parse(GlobalDataManager.GetValue("Settings", "MTP_ZONE", "2"))
+                : int.Parse(GlobalDataManager.GetValue("Settings", "IPVS_ZONE", "2"));
+
+            string measMultiRaw = GlobalDataManager.GetValue("Settings", "MEAS_MULTI",
+                GlobalDataManager.GetValue("Settings", "MEAS_MULIT", "F"));
+            isMeasMultiEnabled = measMultiRaw.Trim().Equals("T", StringComparison.OrdinalIgnoreCase);
+            isHviModeEnabled = isOptic && GlobalDataManager.IsHviModeEnabled();
+
+            string wadSection = isOptic ? "MTP" : "IPVS";
+            string wadDefault = isOptic ? "0,15,30,45,60" : "0,30,60,90,120";
+            string wadValue = GlobalDataManager.GetValue(wadSection, "WAD", wadDefault);
+            wadAngles = wadValue
+                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(w => w.Trim())
+                .Where(w => !string.IsNullOrEmpty(w))
+                .ToArray();
+
+            if (wadAngles.Length == 0)
+            {
+                wadAngles = new[] { "0" };
+            }
+        }
+
+        private void BuildCellInfoSections()
+        {
+            if (CellInfoStackPanel == null)
+            {
+                return;
+            }
+
+            CellInfoStackPanel.Children.Clear();
+            cellBindings.Clear();
+
+            if (isHviModeEnabled)
+            {
+                CreateCellInfoSection("Cell", Enumerable.Range(1, totalZoneCount).ToList());
+            }
+            else
+            {
+                for (int zone = 1; zone <= totalZoneCount; zone++)
+                {
+                    CreateCellInfoSection($"Zone {zone}", new List<int> { zone });
+                }
+            }
+        }
+
+        private void CreateCellInfoSection(string header, List<int> zones)
+        {
+            var border = new Border
+            {
+                Background = (Brush)FindResource("DynamicCardBackground"),
+                BorderBrush = (Brush)FindResource("DynamicBorderColor"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(12),
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var headerText = new TextBlock
+            {
+                Text = header,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = (Brush)FindResource("DynamicTextColor"),
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            Grid.SetRow(headerText, 0);
+
+            var cellIdGrid = CreateCellInfoRow("Cell ID", out TextBox cellIdTextBox);
+            Grid.SetRow(cellIdGrid, 1);
+
+            var innerIdGrid = CreateCellInfoRow("Inner ID", out TextBox innerIdTextBox);
+            Grid.SetRow(innerIdGrid, 2);
+
+            grid.Children.Add(headerText);
+            grid.Children.Add(cellIdGrid);
+            grid.Children.Add(innerIdGrid);
+
+            border.Child = grid;
+            CellInfoStackPanel.Children.Add(border);
+
+            var binding = new CellInfoBinding
+            {
+                CellIdTextBox = cellIdTextBox,
+                InnerIdTextBox = innerIdTextBox,
+                DisplayName = header
+            };
+            binding.Zones.AddRange(zones);
+
+            cellBindings.Add(binding);
+        }
+
+        private Grid CreateCellInfoRow(string labelText, out TextBox textBox)
+        {
+            var rowGrid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var label = new TextBlock
+            {
+                Text = labelText,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = (Brush)FindResource("DynamicTextColor"),
+                FontSize = 13
+            };
+            Grid.SetColumn(label, 0);
+
+            textBox = new TextBox();
+            try
+            {
+                textBox.Style = (Style)FindResource("PortTextBoxStyle");
+            }
+            catch
+            {
+                textBox.Height = 32;
+                textBox.FontSize = 12;
+                textBox.Padding = new Thickness(8, 4, 8, 4);
+            }
+            Grid.SetColumn(textBox, 1);
+
+        rowGrid.Children.Add(label);
+        rowGrid.Children.Add(textBox);
+
+        return rowGrid;
+        }
+
+        private void LoadCellInformation()
+        {
+            string section = iniSection == "IPVS" ? "IPVS" : "MTP";
+
+            foreach (var binding in cellBindings)
+            {
+                if (binding.CellIdTextBox == null || binding.InnerIdTextBox == null)
+                {
+                    continue;
+                }
+
+                string cellIdValue = "";
+                string innerIdValue = "";
+
+                if (binding.Zones.Count > 0)
+                {
+                    int primaryZone = binding.Zones[0];
+                    cellIdValue = GlobalDataManager.GetValue(section, $"CELL_ID_ZONE_{primaryZone}", "");
+                    innerIdValue = GlobalDataManager.GetValue(section, $"INNER_ID_ZONE_{primaryZone}", "");
+
+                    bool allSame = true;
+                    foreach (int zone in binding.Zones.Skip(1))
+                    {
+                        string otherCell = GlobalDataManager.GetValue(section, $"CELL_ID_ZONE_{zone}", "");
+                        string otherInner = GlobalDataManager.GetValue(section, $"INNER_ID_ZONE_{zone}", "");
+
+                        if (!string.Equals(cellIdValue, otherCell, StringComparison.OrdinalIgnoreCase) ||
+                            !string.Equals(innerIdValue, otherInner, StringComparison.OrdinalIgnoreCase))
+                        {
+                            allSame = false;
+                            break;
+                        }
+                    }
+
+                    if (!allSame)
+                    {
+                        cellIdValue = "";
+                        innerIdValue = "";
+                    }
+                }
+
+                binding.CellIdTextBox.Text = cellIdValue ?? "";
+                binding.InnerIdTextBox.Text = innerIdValue ?? "";
+            }
+        }
+
+        private void BuildPortSections()
+        {
+            if (PortSectionsStackPanel == null) return;
+
+            PortSectionsStackPanel.Children.Clear();
+            portBindings.Clear();
+
+            BuildPgSections();
+            BuildMeasSections();
+        }
+
+        private void BuildPgSections()
+        {
+            if (totalZoneCount <= 0)
+            {
+                totalZoneCount = 1;
+            }
+
+            if (isHviModeEnabled)
+            {
+                CreatePgSection("PG", Enumerable.Range(1, totalZoneCount).ToList(), suppressSectionButton: true);
+            }
+            else
+            {
+                for (int zone = 1; zone <= totalZoneCount; zone++)
+                {
+                    CreatePgSection($"PG_{zone}", new List<int> { zone }, suppressSectionButton: true);
+                }
+            }
+        }
+
+        private void CreatePgSection(string header, List<int> zoneIndices, bool suppressSectionButton)
+        {
+            var context = new ConnectContext
+            {
+                ContextType = "PG_SECTION",
+                Zones = zoneIndices.ToList(),
+                PortLabel = header,
+                SectionName = header,
+                Bindings = new List<PortBinding>()
+            };
+
+            var sectionContent = CreateSectionContainer(header, $"{header} CONNECT", SectionConnectButton_Click, context, suppressSectionButton);
+
+            var portContext = new ConnectContext
+            {
+                ContextType = "PG_PORT",
+                Zones = zoneIndices.ToList(),
+                PortLabel = "Port",
+                SectionName = header,
+                Bindings = new List<PortBinding>()
+            };
+
+            var portRow = CreatePortRow("Port", "CONNECT", PortConnectButton_Click, portContext);
+            sectionContent.Children.Add(portRow.row);
+
+            var binding = new PortBinding
+            {
+                IniSection = iniSection,
+                TextBox = portRow.textBox,
+                PortType = "PG",
+                DisplayName = $"{header} ({FormatZoneList(zoneIndices)})"
+            };
+
+            foreach (int zone in zoneIndices)
+            {
+                binding.IniKeys.Add($"PG_PORT_{zone}");
+            }
+
+            portBindings.Add(binding);
+            context.Bindings.Add(binding);
+            portContext.Bindings.Add(binding);
+        }
+
+        private void BuildMeasSections()
+        {
+            string measSection = iniSection == "IPVS" ? "IPVS" : "MTP";
+
+            for (int zone = 1; zone <= totalZoneCount; zone++)
+            {
+                string header = $"MEAS_{zone}";
+                var groupContext = new ConnectContext
+                {
+                    ContextType = "MEAS_SECTION",
+                    Zones = new List<int> { zone },
+                    PortLabel = header,
+                    SectionName = header,
+                    Bindings = new List<PortBinding>()
+                };
+
+                var sectionContent = CreateSectionContainer(header, $"{header} CONNECT", SectionConnectButton_Click, groupContext, suppressSectionButton: isMeasMultiEnabled);
+
+                if (isMeasMultiEnabled)
+                {
+                    var portContext = new ConnectContext
+                    {
+                        ContextType = "MEAS_PORT",
+                        Zones = new List<int> { zone },
+                        PortLabel = "Port",
+                        SectionName = header,
+                        Bindings = new List<PortBinding>(),
+                        IniKeys = new List<string> { $"MEAS_PORT_{zone}" }
+                    };
+
+                    var portRow = CreatePortRow("Port", "CONNECT", PortConnectButton_Click, portContext);
+                    sectionContent.Children.Add(portRow.row);
+
+                    var binding = new PortBinding
+                    {
+                        IniSection = measSection,
+                        TextBox = portRow.textBox,
+                        PortType = "MEAS",
+                        DisplayName = $"{header} ({FormatZoneList(new List<int> { zone })})"
+                    };
+                    binding.IniKeys.Add($"MEAS_PORT_{zone}");
+                    portBindings.Add(binding);
+                    portContext.Bindings.Add(binding);
+                    groupContext.Bindings.Add(binding);
+                    groupContext.Bindings.Add(binding);
+                }
+                else
+                {
+                    bool basePortCreated = false;
+                    var zoneBindings = new List<PortBinding>();
+
+                    foreach (string wad in wadAngles)
+                    {
+                        string wadTrimmed = wad.Trim();
+                        if (string.IsNullOrEmpty(wadTrimmed))
+                            continue;
+
+                        string label = wadTrimmed == "0" ? "Port" : $"Port_{wadTrimmed}";
+                        string key = wadTrimmed == "0"
+                            ? $"MEAS_PORT_{zone}"
+                            : $"MEAS_PORT_{wadTrimmed}_{zone}";
+
+                        if (wadTrimmed == "0")
+                        {
+                            basePortCreated = true;
+                        }
+
+                        var portContext = new ConnectContext
+                        {
+                            ContextType = "MEAS_PORT",
+                            Zones = new List<int> { zone },
+                            PortLabel = label,
+                            SectionName = header,
+                            Bindings = new List<PortBinding>(),
+                            IniKeys = new List<string> { key }
+                        };
+
+                        var portRow = CreatePortRow(label, "CONNECT", PortConnectButton_Click, portContext);
+                        sectionContent.Children.Add(portRow.row);
+
+                        var binding = new PortBinding
+                        {
+                            IniSection = measSection,
+                            TextBox = portRow.textBox,
+                            PortType = "MEAS",
+                            DisplayName = $"{header} - {label} ({FormatZoneList(new List<int> { zone })})"
+                        };
+                        binding.IniKeys.Add(key);
+                        portBindings.Add(binding);
+                        portContext.Bindings.Add(binding);
+                        zoneBindings.Add(binding);
+                    }
+
+                    if (!basePortCreated)
+                    {
+                        string key = $"MEAS_PORT_{zone}";
+                        var portContext = new ConnectContext
+                        {
+                            ContextType = "MEAS_PORT",
+                            Zones = new List<int> { zone },
+                            PortLabel = "Port",
+                            SectionName = header,
+                            Bindings = new List<PortBinding>(),
+                            IniKeys = new List<string> { key }
+                        };
+
+                        var portRow = CreatePortRow("Port", "CONNECT", PortConnectButton_Click, portContext);
+                        sectionContent.Children.Add(portRow.row);
+
+                        var binding = new PortBinding
+                        {
+                            IniSection = measSection,
+                            TextBox = portRow.textBox,
+                            PortType = "MEAS",
+                            DisplayName = $"{header} - Port ({FormatZoneList(new List<int> { zone })})"
+                        };
+                        binding.IniKeys.Add(key);
+                        portBindings.Add(binding);
+                        portContext.Bindings.Add(binding);
+                        zoneBindings.Add(binding);
+                    }
+
+                    groupContext.Bindings = zoneBindings;
+                }
+            }
+        }
+
+        private StackPanel CreateSectionContainer(string header, string connectButtonText, RoutedEventHandler connectHandler, ConnectContext context)
+            => CreateSectionContainer(header, connectButtonText, connectHandler, context, suppressSectionButton: false);
+
+        private StackPanel CreateSectionContainer(string header, string connectButtonText, RoutedEventHandler connectHandler, ConnectContext context, bool suppressSectionButton)
+        {
+            var border = new Border
+            {
+                Background = (Brush)FindResource("DynamicCardBackground"),
+                BorderBrush = (Brush)FindResource("DynamicBorderColor"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(12),
+                Margin = new Thickness(0, 0, 0, 12)
+            };
+
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var headerText = new TextBlock
+            {
+                Text = header,
+                FontSize = 15,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = (Brush)FindResource("DynamicTextColor"),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(headerText, 0);
+
+            var connectButton = new Button
+            {
+                Content = connectButtonText,
+                Style = (Style)FindResource("ModernButtonStyle"),
+                FontSize = 11,
+                Height = 28,
+                Padding = new Thickness(10, 2, 10, 2),
+                Tag = context
+            };
+            connectButton.Click += connectHandler;
+            Grid.SetColumn(connectButton, 1);
+
+            headerGrid.Children.Add(headerText);
+            if (!suppressSectionButton)
+            {
+                headerGrid.Children.Add(connectButton);
+            }
+
+            var contentStack = new StackPanel { Orientation = Orientation.Vertical };
+
+            Grid.SetRow(headerGrid, 0);
+            Grid.SetRow(contentStack, 1);
+
+            grid.Children.Add(headerGrid);
+            grid.Children.Add(contentStack);
+
+            border.Child = grid;
+            PortSectionsStackPanel.Children.Add(border);
+
+            return contentStack;
+        }
+
+        private (Grid row, TextBox textBox) CreatePortRow(string label, string buttonText, RoutedEventHandler clickHandler, ConnectContext context)
+        {
+            var rowGrid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var labelBlock = new TextBlock
+            {
+                Text = label,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                FontWeight = FontWeights.Bold,
+                Background = (Brush)FindResource("PrimaryColor"),
+                Foreground = Brushes.White,
+                Padding = new Thickness(10, 4, 10, 4),
+                Margin = new Thickness(0, 0, 8, 0),
+                MinWidth = 70,
+                TextAlignment = TextAlignment.Center
+            };
+            Grid.SetColumn(labelBlock, 0);
+
+            var textBox = new TextBox
+            {
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            try
+            {
+                textBox.Style = (Style)FindResource("PortTextBoxStyle");
+            }
+            catch
+            {
+                textBox.Height = 32;
+                textBox.FontSize = 12;
+                textBox.Padding = new Thickness(8, 4, 8, 4);
+            }
+            Grid.SetColumn(textBox, 1);
+
+            var button = new Button
+            {
+                Content = buttonText,
+                Style = (Style)FindResource("ModernButtonStyle"),
+                FontSize = 11,
+                Height = 28,
+                Padding = new Thickness(10, 2, 10, 2),
+                Tag = context
+            };
+            button.Click += clickHandler;
+            Grid.SetColumn(button, 2);
+
+            rowGrid.Children.Add(labelBlock);
+            rowGrid.Children.Add(textBox);
+            rowGrid.Children.Add(button);
+
+            return (rowGrid, textBox);
         }
 
         private void ApplyTheme()
@@ -100,59 +641,21 @@ namespace OptiX.Common
             }
         }
 
-        private void LoadCurrentValues()
-        {
-            try
-            {
-                // 구조체 기반으로 데이터 로드
-                InspectionData data;
-                if (iniSection == "IPVS")
-                {
-                    IPVSDataManager.LoadFromIni();
-                    data = IPVSDataManager.GetData(zoneNumber);
-                }
-                else
-                {
-                    MTPDataManager.LoadFromIni();
-                    data = MTPDataManager.GetData(zoneNumber);
-                }
-
-                // 텍스트 설정
-                CellIdTextBox.Text = string.IsNullOrEmpty(data.CellId) ? "-" : data.CellId;
-                InnerIdTextBox.Text = string.IsNullOrEmpty(data.InnerId) ? "..." : data.InnerId;
-                
-                // 텍스트박스 포커스 설정
-                CellIdTextBox.CaretIndex = CellIdTextBox.Text.Length;
-                InnerIdTextBox.CaretIndex = InnerIdTextBox.Text.Length;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"기존 값 로드 오류: {ex.Message}");
-            }
-        }
-
-
-
         private void LoadPortSettings()
         {
             try
             {
-                // PG 포트 로드 (OPTIC은 MTP 섹션, IPVS는 IPVS 섹션)
-                string pgKey = $"PG_PORT_{zoneNumber}";
-                PgPortTextBox.Text = GlobalDataManager.GetValue(iniSection, pgKey, "");
-
-                // 동적 MEAS 포트들 로드 (OPTIC은 MTP 섹션, IPVS는 IPVS 섹션)
-                foreach (var kvp in dynamicMeasTextBoxes)
+                foreach (var binding in portBindings)
                 {
-                    string measKey = kvp.Key;
-                    TextBox textBox = kvp.Value;
-                    string measSection = (iniSection == "IPVS") ? "IPVS" : "MTP";
-                    string value = GlobalDataManager.GetValue(measSection, measKey, "");
-                    textBox.Text = value;
+                    string value = GetIniValue(binding.IniSection, binding.IniKeys);
+
+                    if (binding.TextBox != null)
+                    {
+                        binding.TextBox.Text = value ?? "";
+                    }
                 }
 
-                string measSectionForLog = (iniSection == "IPVS") ? "IPVS" : "MTP";
-                System.Diagnostics.Debug.WriteLine($"포트 설정 로드 완료: PG({iniSection}) + {dynamicMeasTextBoxes.Count}개 MEAS({measSectionForLog}) 포트");
+                System.Diagnostics.Debug.WriteLine($"포트 설정 로드 완료: {portBindings.Count}개의 바인딩");
             }
             catch (Exception ex)
             {
@@ -192,27 +695,26 @@ namespace OptiX.Common
 
         private void SaveCellInformation()
         {
-            string cellId = CellIdTextBox.Text.Trim();
-            string innerId = InnerIdTextBox.Text.Trim();
+            string section = iniSection == "IPVS" ? "IPVS" : "MTP";
 
-            // 구조체 기반으로 데이터 저장
-            InspectionData data;
-            if (iniSection == "IPVS")
+            foreach (var binding in cellBindings)
             {
-                data = IPVSDataManager.GetData(zoneNumber);
-                data.CellId = cellId;
-                data.InnerId = innerId;
-                IPVSDataManager.SaveToIni(zoneNumber, data);
-            }
-            else
-            {
-                data = MTPDataManager.GetData(zoneNumber);
-                data.CellId = cellId;
-                data.InnerId = innerId;
-                MTPDataManager.SaveToIni(zoneNumber, data);
-            }
+                string cellId = binding.CellIdTextBox?.Text?.Trim() ?? "";
+                string innerId = binding.InnerIdTextBox?.Text?.Trim() ?? "";
 
-            System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} Cell 정보 저장됨 - Cell ID: {cellId}, Inner ID: {innerId}");
+                if (binding.Zones.Count == 0)
+                {
+                    continue;
+                }
+
+                foreach (int zone in binding.Zones)
+                {
+                    GlobalDataManager.SetValue(section, $"CELL_ID_ZONE_{zone}", cellId);
+                    GlobalDataManager.SetValue(section, $"INNER_ID_ZONE_{zone}", innerId);
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Cell 정보 저장: {binding.DisplayName} => CELL_ID='{cellId}', INNER_ID='{innerId}' (Zones: {FormatZoneList(binding.Zones)})");
+            }
         }
 
         private void SaveFileGenerationSettings()
@@ -244,148 +746,236 @@ namespace OptiX.Common
         {
             try
             {
-                // 구조체 기반으로 데이터 저장
-                InspectionData data;
-                if (iniSection == "IPVS")
+                foreach (var binding in portBindings)
                 {
-                    data = IPVSDataManager.GetData(zoneNumber);
-                    data.PgPort = PgPortTextBox.Text.Trim();
+                    string text = binding.TextBox?.Text?.Trim() ?? "";
                     
-                    // 동적 MEAS 포트들 업데이트
-                    foreach (var kvp in dynamicMeasTextBoxes)
+                    foreach (var key in binding.IniKeys)
                     {
-                        data.MeasPorts[kvp.Key] = kvp.Value.Text.Trim();
+                        GlobalDataManager.SetValue(binding.IniSection, key, text);
+                    }
                     }
                     
-                    IPVSDataManager.SaveToIni(zoneNumber, data);
+                if (iniSection == "IPVS")
+                {
+                    IPVSDataManager.LoadFromIni();
                 }
                 else
                 {
-                    data = MTPDataManager.GetData(zoneNumber);
-                    data.PgPort = PgPortTextBox.Text.Trim();
-                    
-                    // 동적 MEAS 포트들 업데이트
-                    foreach (var kvp in dynamicMeasTextBoxes)
-                    {
-                        data.MeasPorts[kvp.Key] = kvp.Value.Text.Trim();
-                    }
-                    
-                    MTPDataManager.SaveToIni(zoneNumber, data);
+                    MTPDataManager.LoadFromIni();
                 }
 
-                System.Diagnostics.Debug.WriteLine($"Zone {zoneNumber} 포트 설정 저장 완료: PG({iniSection}) + {dynamicMeasTextBoxes.Count}개 MEAS(MTP) 포트");
+                System.Diagnostics.Debug.WriteLine($"포트 설정 저장 완료 - 바인딩 수: {portBindings.Count}");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"포트 설정 저장 오류: {ex.Message}");
+                throw;
             }
         }
 
-        private void CreateDynamicMeasPorts()
+        private string GetIniValue(string section, List<string> keys)
+        {
+            if (keys == null || keys.Count == 0)
+            {
+                return "";
+            }
+
+            var sectionData = GlobalDataManager.ReadSection(section);
+
+            foreach (string key in keys)
+            {
+                if (sectionData != null && sectionData.TryGetValue(key, out string rawValue))
+                {
+                    if (!string.IsNullOrWhiteSpace(rawValue))
+                    {
+                        return rawValue.Trim();
+                    }
+                }
+
+                string cachedValue = GlobalDataManager.GetValue(section, key, "");
+                if (!string.IsNullOrWhiteSpace(cachedValue))
+                {
+                    return cachedValue.Trim();
+                }
+            }
+
+            return "";
+        }
+
+        private void AllConnectButton_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // INI 섹션에 따라 WAD 값을 읽어서 동적으로 MEAS 포트 생성
-                string wadValues;
-                if (iniSection == "IPVS")
+                if (portBindings.Count == 0)
                 {
-                    wadValues = GlobalDataManager.GetValue("IPVS", "WAD", "0,30,60,90,120");
+                    MessageBox.Show("연결할 포트가 없습니다.", "ALL CONNECT",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                ExecutePortBindings(portBindings, "ALL CONNECT", showSummary: true);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"전체 연결 중 오류가 발생했습니다: {ex.Message}", "연결 오류",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void SectionConnectButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (sender is Button button && button.Tag is ConnectContext context)
+                {
+                    if (context.Bindings == null || context.Bindings.Count == 0)
+                    {
+                        MessageBox.Show("연결할 포트가 없습니다.", "Section Connect",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                        return;
+                    }
+
+                    ExecutePortBindings(context.Bindings,
+                        string.IsNullOrWhiteSpace(context.SectionName) ? context.PortLabel : $"{context.SectionName} CONNECT",
+                        showSummary: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"섹션 연결 중 오류가 발생했습니다: {ex.Message}", "연결 오류",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void PortConnectButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (sender is Button button && button.Tag is ConnectContext context)
+                {
+                    if (context.Bindings == null || context.Bindings.Count == 0)
+                    {
+                        MessageBox.Show("연결할 포트가 없습니다.", "Port Connect",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                        return;
+                    }
+
+                    ExecutePortBindings(context.Bindings,
+                        string.IsNullOrWhiteSpace(context.SectionName)
+                            ? $"{context.PortLabel} CONNECT"
+                            : $"{context.SectionName} - {context.PortLabel}",
+                        showSummary: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"포트 연결 중 오류가 발생했습니다: {ex.Message}", "연결 오류",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ExecutePortBindings(IEnumerable<PortBinding> bindings, string contextTitle, bool showSummary)
+        {
+            var successList = new List<string>();
+            var failureList = new List<string>();
+
+            foreach (var binding in bindings)
+            {
+                string displayName = binding.DisplayName;
+                string portText = binding.TextBox?.Text?.Trim() ?? "";
+
+                if (string.IsNullOrEmpty(portText))
+                {
+                    failureList.Add($"{displayName}: 포트 번호가 비어 있습니다.");
+                    continue;
+                }
+
+                if (!int.TryParse(portText, out int portNumber))
+                {
+                    failureList.Add($"{displayName}: 숫자로 변환할 수 없습니다. (입력값: {portText})");
+                    continue;
+                }
+
+                bool result;
+                try
+                {
+                    result = binding.PortType == "PG"
+                        ? DllFunctions.CallPGTurn(portNumber)
+                        : DllFunctions.CallMeasTurn(portNumber);
+                }
+                catch (Exception ex)
+                {
+                    failureList.Add($"{displayName}: 예외 발생 - {ex.Message}");
+                    continue;
+                }
+
+                if (result)
+                {
+                    successList.Add($"{displayName}: 성공 (Port {portNumber})");
                 }
                 else
                 {
-                    wadValues = GlobalDataManager.GetValue("MTP", "WAD", "0,15,30,45,60");
+                    failureList.Add($"{displayName}: 실패 (Port {portNumber})");
                 }
-                string[] wadNumbers = wadValues.Split(',');
-
-                MeasPortsStackPanel.Children.Clear();
-                dynamicMeasTextBoxes.Clear();
-
-                foreach (string wadValue in wadNumbers)
-                {
-                    string trimmedValue = wadValue.Trim();
-                    if (string.IsNullOrEmpty(trimmedValue)) continue;
-
-                    // MEAS 포트 이름 결정 (0이면 "MEAS", 나머지는 "MEAS_숫자")
-                    string measName = trimmedValue == "0" ? "MEAS" : $"MEAS_{trimmedValue}";
-                    string measKey = trimmedValue == "0" ? $"MEAS_PORT_{zoneNumber}" : $"MEAS_PORT_{trimmedValue}_{zoneNumber}";
-
-                    // Grid 생성
-                    Grid measGrid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
-                    measGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-                    measGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                    // 라벨 생성
-                    TextBlock label = new TextBlock
-                    {
-                        Text = measName,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        FontWeight = FontWeights.Bold,
-                        Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8B5CF6")),
-                        Foreground = Brushes.White,
-                        Padding = new Thickness(8, 4, 8, 4)
-                    };
-                    Grid.SetColumn(label, 0);
-
-                    // TextBox 생성
-                    TextBox textBox = new TextBox
-                    {
-                        Name = $"Dynamic{measName.Replace("_", "")}PortTextBox",
-                        Margin = new Thickness(4, 0, 0, 0)
-                    };
-
-                    // PortTextBoxStyle 적용
-                    try
-                    {
-                        Style portStyle = (Style)this.FindResource("PortTextBoxStyle");
-                        textBox.Style = portStyle;
-                    }
-                    catch
-                    {
-                        // 스타일 적용 실패 시 기본 설정
-                        textBox.FontSize = 12;
-                        textBox.Height = 32;
-                        textBox.Padding = new Thickness(8, 4, 8, 4);
-                    }
-
-                    Grid.SetColumn(textBox, 1);
-
-                    // Grid에 추가
-                    measGrid.Children.Add(label);
-                    measGrid.Children.Add(textBox);
-
-                    // StackPanel에 추가
-                    MeasPortsStackPanel.Children.Add(measGrid);
-
-                    // Dictionary에 저장
-                    dynamicMeasTextBoxes[measKey] = textBox;
-                }
-
-                System.Diagnostics.Debug.WriteLine($"동적 MEAS 포트 생성 완료: {dynamicMeasTextBoxes.Count}개");
             }
-            catch (Exception ex)
+
+            if (showSummary)
             {
-                System.Diagnostics.Debug.WriteLine($"동적 MEAS 포트 생성 오류: {ex.Message}");
+                var sb = new StringBuilder();
+                if (successList.Count > 0)
+                {
+                    sb.AppendLine("[성공]");
+                    foreach (var msg in successList)
+                        sb.AppendLine($" - {msg}");
+                }
+                if (failureList.Count > 0)
+                {
+                    if (sb.Length > 0) sb.AppendLine();
+                    sb.AppendLine("[실패]");
+                    foreach (var msg in failureList)
+                        sb.AppendLine($" - {msg}");
+                }
+
+                string message = sb.Length > 0 ? sb.ToString() : "실행할 포트가 없습니다.";
+                MessageBox.Show(message, contextTitle,
+                    MessageBoxButton.OK,
+                    failureList.Count > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
+            }
+            else
+            {
+                string message;
+                MessageBoxImage icon;
+
+                if (failureList.Count > 0)
+                {
+                    message = failureList.First();
+                    icon = MessageBoxImage.Warning;
+                }
+                else
+                {
+                    message = successList.FirstOrDefault() ?? "성공적으로 수행했습니다.";
+                    icon = MessageBoxImage.Information;
+                }
+
+                MessageBox.Show(message, contextTitle, MessageBoxButton.OK, icon);
             }
         }
 
-        // Connect 버튼 이벤트 핸들러
-        private void ConnectButton_Click(object sender, RoutedEventArgs e)
+        private static string FormatZoneList(IEnumerable<int> zones)
         {
-            try
+            if (zones == null)
             {
-                // Port 연결 로직 구현
-                System.Windows.MessageBox.Show("Port 연결 기능이 구현되었습니다!", "Connect", 
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
-                
-                // 여기에 실제 연결 로직을 추가할 수 있습니다
-                // 예: TCP/IP 연결, 시리얼 포트 연결 등
+                return "Zone ?";
             }
-            catch (Exception ex)
+
+            var list = zones.ToList();
+            if (list.Count == 0)
             {
-                System.Windows.MessageBox.Show($"연결 중 오류가 발생했습니다: {ex.Message}", "연결 오류", 
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                return "Zone ?";
             }
+
+            return string.Join(", ", list.Select(z => $"Zone {z}"));
         }
 
         // 언어 적용 메서드

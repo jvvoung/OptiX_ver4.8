@@ -111,7 +111,7 @@ namespace OptiX.Common
                 "Category", "WAD", "TCP_IP", "CREATE_EECP", "CREATE_CIM", 
                 "CREATE_EECP_SUMMARY", "CREATE_VALIDATION", "MAX_POINT",
                 "EECP_FOLDER", "CIM_FOLDER", "VALID_FOLDER", "DLL_FOLDER", "SEQUENCE_FOLDER", "EECP_SUMMARY_FOLDER",
-                "IsDarkMode", "LANGUAGE", "MTP_ZONE", "IPVS_ZONE", "HVI_MODE"
+                "IsDarkMode", "LANGUAGE", "MTP_ZONE", "IPVS_ZONE", "HVI_MODE", "MEAS_MULTI", "MEAS_MULIT"
             };
 
                 foreach (var key in commonKeys)
