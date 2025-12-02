@@ -30,6 +30,18 @@ namespace OptiX.Common
             public TextBox TextBox { get; set; }
             public string PortType { get; set; } = "MEAS";
             public string DisplayName { get; set; } = "";
+            public Button ConnectButton { get; set; }
+
+            public string StateKey
+            {
+                get
+                {
+                    string keyPart = IniKeys != null && IniKeys.Count > 0
+                        ? string.Join("|", IniKeys)
+                        : string.Empty;
+                    return $"{PortType}:{IniSection}:{keyPart}";
+                }
+            }
         }
 
         private class ConnectContext
@@ -52,6 +64,7 @@ namespace OptiX.Common
 
         private readonly List<CellInfoBinding> cellBindings = new List<CellInfoBinding>();
         private readonly List<PortBinding> portBindings = new List<PortBinding>();
+        private static readonly Dictionary<string, bool> connectionStates = new Dictionary<string, bool>();
         private bool isHviModeEnabled = false;
         private bool isMeasMultiEnabled = false;
         private int totalZoneCount = 1;
@@ -345,7 +358,8 @@ namespace OptiX.Common
                 IniSection = iniSection,
                 TextBox = portRow.textBox,
                 PortType = "PG",
-                DisplayName = $"{header} ({FormatZoneList(zoneIndices)})"
+                DisplayName = $"{header} ({FormatZoneList(zoneIndices)})",
+                ConnectButton = portRow.button
             };
 
             foreach (int zone in zoneIndices)
@@ -354,6 +368,7 @@ namespace OptiX.Common
             }
 
             portBindings.Add(binding);
+            ApplyStoredConnectionState(binding);
             context.Bindings.Add(binding);
             portContext.Bindings.Add(binding);
         }
@@ -396,10 +411,12 @@ namespace OptiX.Common
                         IniSection = measSection,
                         TextBox = portRow.textBox,
                         PortType = "MEAS",
-                        DisplayName = $"{header} ({FormatZoneList(new List<int> { zone })})"
+                        DisplayName = $"{header} ({FormatZoneList(new List<int> { zone })})",
+                        ConnectButton = portRow.button
                     };
                     binding.IniKeys.Add($"MEAS_PORT_{zone}");
                     portBindings.Add(binding);
+                    ApplyStoredConnectionState(binding);
                     portContext.Bindings.Add(binding);
                     groupContext.Bindings.Add(binding);
                     groupContext.Bindings.Add(binding);
@@ -443,10 +460,12 @@ namespace OptiX.Common
                             IniSection = measSection,
                             TextBox = portRow.textBox,
                             PortType = "MEAS",
-                            DisplayName = $"{header} - {label} ({FormatZoneList(new List<int> { zone })})"
+                            DisplayName = $"{header} - {label} ({FormatZoneList(new List<int> { zone })})",
+                            ConnectButton = portRow.button
                         };
                         binding.IniKeys.Add(key);
                         portBindings.Add(binding);
+                        ApplyStoredConnectionState(binding);
                         portContext.Bindings.Add(binding);
                         zoneBindings.Add(binding);
                     }
@@ -472,10 +491,12 @@ namespace OptiX.Common
                             IniSection = measSection,
                             TextBox = portRow.textBox,
                             PortType = "MEAS",
-                            DisplayName = $"{header} - Port ({FormatZoneList(new List<int> { zone })})"
+                            DisplayName = $"{header} - Port ({FormatZoneList(new List<int> { zone })})",
+                            ConnectButton = portRow.button
                         };
                         binding.IniKeys.Add(key);
                         portBindings.Add(binding);
+                        ApplyStoredConnectionState(binding);
                         portContext.Bindings.Add(binding);
                         zoneBindings.Add(binding);
                     }
@@ -550,7 +571,7 @@ namespace OptiX.Common
             return contentStack;
         }
 
-        private (Grid row, TextBox textBox) CreatePortRow(string label, string buttonText, RoutedEventHandler clickHandler, ConnectContext context)
+        private (Grid row, TextBox textBox, Button button) CreatePortRow(string label, string buttonText, RoutedEventHandler clickHandler, ConnectContext context)
         {
             var rowGrid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
             rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -604,7 +625,24 @@ namespace OptiX.Common
             rowGrid.Children.Add(textBox);
             rowGrid.Children.Add(button);
 
-            return (rowGrid, textBox);
+            return (rowGrid, textBox, button);
+        }
+
+        private void ApplyStoredConnectionState(PortBinding binding)
+        {
+            if (binding == null || binding.ConnectButton == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(binding.StateKey) && connectionStates.TryGetValue(binding.StateKey, out bool state))
+            {
+                ApplyButtonResult(binding.ConnectButton, state);
+            }
+            else
+            {
+                ResetButtonAppearance(binding.ConnectButton);
+            }
         }
 
         private void ApplyTheme()
@@ -814,7 +852,11 @@ namespace OptiX.Common
                     return;
                 }
 
-                ExecutePortBindings(portBindings, "ALL CONNECT", showSummary: true);
+                _ = ExecutePortBindings(
+                    portBindings,
+                    "ALL CONNECT",
+                    showSummary: true,
+                    sourceButton: sender as Button);
             }
             catch (Exception ex)
             {
@@ -836,9 +878,11 @@ namespace OptiX.Common
                         return;
                     }
 
-                    ExecutePortBindings(context.Bindings,
+                    _ = ExecutePortBindings(
+                        context.Bindings,
                         string.IsNullOrWhiteSpace(context.SectionName) ? context.PortLabel : $"{context.SectionName} CONNECT",
-                        showSummary: true);
+                        showSummary: true,
+                        sourceButton: button);
                 }
             }
             catch (Exception ex)
@@ -861,11 +905,13 @@ namespace OptiX.Common
                         return;
                     }
 
-                    ExecutePortBindings(context.Bindings,
+                    _ = ExecutePortBindings(
+                        context.Bindings,
                         string.IsNullOrWhiteSpace(context.SectionName)
                             ? $"{context.PortLabel} CONNECT"
                             : $"{context.SectionName} - {context.PortLabel}",
-                        showSummary: false);
+                        showSummary: false,
+                        sourceButton: button);
                 }
             }
             catch (Exception ex)
@@ -875,7 +921,7 @@ namespace OptiX.Common
             }
         }
 
-        private void ExecutePortBindings(IEnumerable<PortBinding> bindings, string contextTitle, bool showSummary)
+        private bool ExecutePortBindings(IEnumerable<PortBinding> bindings, string contextTitle, bool showSummary, Button sourceButton)
         {
             var successList = new List<string>();
             var failureList = new List<string>();
@@ -885,15 +931,19 @@ namespace OptiX.Common
                 string displayName = binding.DisplayName;
                 string portText = binding.TextBox?.Text?.Trim() ?? "";
 
+                bool bindingSuccess = false;
+
                 if (string.IsNullOrEmpty(portText))
                 {
                     failureList.Add($"{displayName}: 포트 번호가 비어 있습니다.");
+                    ApplyButtonResult(binding.ConnectButton, false);
                     continue;
                 }
 
                 if (!int.TryParse(portText, out int portNumber))
                 {
                     failureList.Add($"{displayName}: 숫자로 변환할 수 없습니다. (입력값: {portText})");
+                    ApplyButtonResult(binding.ConnectButton, false);
                     continue;
                 }
 
@@ -913,12 +963,19 @@ namespace OptiX.Common
                 if (result)
                 {
                     successList.Add($"{displayName}: 성공 (Port {portNumber})");
+                    bindingSuccess = true;
                 }
                 else
                 {
                     failureList.Add($"{displayName}: 실패 (Port {portNumber})");
                 }
+
+                ApplyButtonResult(binding.ConnectButton, bindingSuccess);
+                UpdateConnectionState(binding, bindingSuccess);
             }
+
+            bool allSuccess = failureList.Count == 0;
+            ApplyButtonResult(sourceButton, allSuccess);
 
             if (showSummary)
             {
@@ -960,6 +1017,53 @@ namespace OptiX.Common
 
                 MessageBox.Show(message, contextTitle, MessageBoxButton.OK, icon);
             }
+
+            return allSuccess;
+        }
+
+        private void ApplyButtonResult(Button button, bool success)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            ResetButtonAppearance(button);
+
+            var successBrush = new SolidColorBrush(Color.FromRgb(34, 197, 94)); // #22C55E
+            var failureBrush = new SolidColorBrush(Color.FromRgb(248, 113, 113)); // #F87171
+            var targetBrush = success ? successBrush : failureBrush;
+
+            button.Background = targetBrush;
+            button.BorderBrush = targetBrush;
+            button.Foreground = Brushes.White;
+        }
+
+        private void ResetButtonAppearance(Button button)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            var baseStyle = FindResource("ModernButtonStyle") as Style;
+            if (baseStyle != null)
+            {
+                button.Style = baseStyle;
+            }
+            button.ClearValue(Button.BackgroundProperty);
+            button.ClearValue(Button.BorderBrushProperty);
+            button.ClearValue(Button.ForegroundProperty);
+        }
+
+        private void UpdateConnectionState(PortBinding binding, bool success)
+        {
+            if (binding == null || string.IsNullOrEmpty(binding.StateKey))
+            {
+                return;
+            }
+
+            connectionStates[binding.StateKey] = success;
         }
 
         private static string FormatZoneList(IEnumerable<int> zones)

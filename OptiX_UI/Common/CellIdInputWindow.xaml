@@ -232,9 +232,18 @@
                                    FontWeight="SemiBold" 
                                    Foreground="{DynamicResource DynamicTextColor}" 
                                    Margin="0,0,0,12"/>
-                        <StackPanel x:Name="CellInfoStackPanel"
-                                    Orientation="Vertical"
-                                    Background="{DynamicResource DynamicCardBackground}"/>
+                        <ScrollViewer x:Name="CellInfoScrollViewer"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      Background="{DynamicResource DynamicCardBackground}"
+                                      BorderBrush="{DynamicResource DynamicBorderColor}"
+                                      BorderThickness="1"
+                                      Padding="8"
+                                      MaxHeight="220">
+                            <StackPanel x:Name="CellInfoStackPanel"
+                                        Orientation="Vertical"
+                                        Background="{DynamicResource DynamicCardBackground}"/>
+                        </ScrollViewer>
                     </StackPanel>
                 </Border>
 
