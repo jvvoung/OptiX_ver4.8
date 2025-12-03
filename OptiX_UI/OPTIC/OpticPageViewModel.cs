@@ -146,10 +146,19 @@ namespace OptiX.OPTIC
                 DataItems.Clear();
 
                 // Zone과 Category에 따라 데이터 생성 (각 카테고리를 개별 행으로)
+                bool isHvi = GlobalDataManager.IsHviModeEnabled();
+                var (hviCellId, hviInnerId) = GlobalDataManager.GetZoneInfo(1);
+
                 for (int zone = 1; zone <= zoneCount; zone++)
                 {
                     // INI 파일에서 Zone 정보 가져오기 (수동 모드용)
                     var (iniCellId, iniInnerId) = GlobalDataManager.GetZoneInfo(zone);
+
+                    if (isHvi)
+                    {
+                        if (!string.IsNullOrWhiteSpace(hviCellId)) iniCellId = hviCellId;
+                        if (!string.IsNullOrWhiteSpace(hviInnerId)) iniInnerId = hviInnerId;
+                    }
                     
                     for (int i = 0; i < categories.Length; i++)
                     {

@@ -229,14 +229,23 @@ namespace OptiX.OPTIC
                 ErrorLogger.Log($"전체 결과 로그 생성 시작 - {zones.Length}개 Zone", ErrorLogger.LogLevel.INFO);
 
                 // 모든 Zone의 데이터 수집
-                var zoneData = new System.Collections.Generic.Dictionary<int, (string cellId, string innerId, Output output)>();
+                var zoneData = new System.Collections.Generic.Dictionary<int, (Input input, Output output, ZoneTestResult testResult)>();
+                
                 foreach (int zoneNumber in zones)
                 {
                     var storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneNumber);
                     if (storedOutput.HasValue)
                     {
-                        var (cellId, innerId) = GlobalDataManager.GetZoneInfo(zoneNumber);
-                        zoneData[zoneNumber] = (cellId, innerId, storedOutput.Value);
+                        var storedInput = SeqExecutionManager.GetStoredZoneInput(zoneNumber) ?? new Input();
+                        if (string.IsNullOrWhiteSpace(storedInput.CELL_ID) || string.IsNullOrWhiteSpace(storedInput.INNER_ID))
+                        {
+                            var (cellId, innerId) = GlobalDataManager.GetZoneInfo(zoneNumber);
+                            if (string.IsNullOrWhiteSpace(storedInput.CELL_ID)) storedInput.CELL_ID = cellId;
+                            if (string.IsNullOrWhiteSpace(storedInput.INNER_ID)) storedInput.INNER_ID = innerId;
+                        }
+
+                        var storedTestResult = SeqExecutionManager.GetStoredZoneTestResult(zoneNumber) ?? ZoneTestResult.CreateEmpty();
+                        zoneData[zoneNumber] = (storedInput, storedOutput.Value, storedTestResult);
                     }
                 }
 
@@ -270,16 +279,13 @@ namespace OptiX.OPTIC
             {
                 ErrorLogger.Log("HVI 모드 최종 처리 시작", ErrorLogger.LogLevel.INFO);
 
-                var outputs = new List<Output>();
-                var contexts = new List<ZoneContext>();
-
+                var zoneContexts = new Dictionary<int, ZoneContext>();
                 for (int zone = 1; zone <= zoneCount; zone++)
                 {
                     try
                     {
                         var context = SeqExecutionManager.GetZoneContext(zone);
-                        contexts.Add(context);
-                        outputs.Add(context.SharedOutput);
+                        zoneContexts[zone] = context;
                     }
                     catch (Exception ex)
                     {
@@ -287,30 +293,51 @@ namespace OptiX.OPTIC
                     }
                 }
 
-                outputs = outputs.Where(o => o.data != null && o.data.Length > 0).ToList();
+                var validOutputs = zoneContexts
+                    .Values
+                    .Where(c => c?.SharedOutput.data != null && c.SharedOutput.data.Length > 0)
+                    .Select(c => c.SharedOutput)
+                    .ToList();
 
-                if (outputs.Count == 0)
+                if (validOutputs.Count == 0)
                 {
                     ErrorLogger.Log("HVI 모드: 유효한 측정 데이터가 없어 판정을 건너뜁니다.", ErrorLogger.LogLevel.WARNING);
                     return Task.CompletedTask;
                 }
 
-                DateTime earliestStart = contexts
+                DateTime earliestStart = zoneContexts.Values
                     .Where(c => c != null && c.SeqStartTime != default)
                     .Select(c => c.SeqStartTime)
                     .DefaultIfEmpty(DateTime.Now)
                     .Min();
 
-                DateTime latestEnd = contexts
+                DateTime latestEnd = zoneContexts.Values
                     .Where(c => c != null && c.SeqEndTime != default)
                     .Select(c => c.SeqEndTime)
                     .DefaultIfEmpty(DateTime.Now)
                     .Max();
 
-                var combinedOutput = CombineHviOutputs(outputs);
+                if (!zoneContexts.TryGetValue(1, out var zone1Context) || zone1Context == null)
+                {
+                    ErrorLogger.Log("HVI 모드: Zone 1 컨텍스트를 찾을 수 없어 종료합니다.", ErrorLogger.LogLevel.ERROR);
+                    return Task.CompletedTask;
+                }
 
-                var zone1Context = SeqExecutionManager.GetZoneContext(1);
-                zone1Context.SharedOutput = combinedOutput;
+                var handler = new DllResultHandler();
+                string categoriesStr = GlobalDataManager.GetValue("MTP", "Category", "W,WG,R,G,B");
+                string[] categoryNames = categoriesStr.Split(',').Select(c => c.Trim()).ToArray();
+                int selectedWadIndex = viewModel?.SelectedWadIndex ?? 0;
+
+                string zoneJudgment = handler.ProcessOpticResultHvi(
+                    validOutputs,
+                    "1",
+                    dataTableManager,
+                    selectedWadIndex,
+                    categoryNames,
+                    null);
+
+                var representativeOutput = validOutputs[0];
+                zone1Context.SharedOutput = representativeOutput;
                 zone1Context.SeqStartTime = earliestStart;
                 zone1Context.SeqEndTime = latestEnd;
                 SeqExecutionManager.SetZoneSeqStartTime(1, earliestStart);
@@ -324,27 +351,18 @@ namespace OptiX.OPTIC
                     if (string.IsNullOrWhiteSpace(cellIdForHvi)) cellIdForHvi = fallbackCell;
                     if (string.IsNullOrWhiteSpace(innerIdForHvi)) innerIdForHvi = fallbackInner;
                 }
-
-                var handler = new DllResultHandler();
-                string categoriesStr = GlobalDataManager.GetValue("MTP", "Category", "W,WG,R,G,B");
-                string[] categoryNames = categoriesStr.Split(',').Select(c => c.Trim()).ToArray();
-                int selectedWadIndex = viewModel?.SelectedWadIndex ?? 0;
+                var normalizedInput = zone1Context.SharedInput;
+                normalizedInput.CELL_ID = cellIdForHvi;
+                normalizedInput.INNER_ID = innerIdForHvi;
+                zone1Context.SharedInput = normalizedInput;
 
                 MonitorLogService.Instance.Log(0, "ENTER JUDGMENT (HVI)");
-                string zoneJudgment = handler.ProcessOpticResult(
-                    combinedOutput,
-                    "1",
-                    dataTableManager,
-                    selectedWadIndex,
-                    categoryNames,
-                    null
-                );
                 MonitorLogService.Instance.Log(0, $"JUDGMENT => {zoneJudgment}");
 
                 double tactSeconds = (latestEnd - earliestStart).TotalSeconds;
                 if (tactSeconds < 0) tactSeconds = 0;
                 string tactStr = tactSeconds.ToString("F3");
-                string errorName = DetermineErrorName(combinedOutput, zoneJudgment);
+                string errorName = DetermineErrorName(representativeOutput, zoneJudgment);
                 var testResult = ZoneTestResult.Create(errorName, tactStr, zoneJudgment);
 
                 for (int zone = 1; zone <= zoneCount; zone++)
@@ -377,32 +395,35 @@ namespace OptiX.OPTIC
 
                 MonitorLogService.Instance.Log(0, "ENTER CIM (HVI)");
 
+                var zoneLogData = new Dictionary<int, (Input input, Output output, ZoneTestResult testResult)>();
+                foreach (var kvp in zoneContexts)
+                {
+                    var ctx = kvp.Value;
+                    if (ctx == null) continue;
+                    if (ctx.SharedOutput.data == null || ctx.SharedOutput.data.Length == 0) continue;
+
+                    var zoneInput = ctx.SharedInput;
+                    if (string.IsNullOrWhiteSpace(zoneInput.CELL_ID)) zoneInput.CELL_ID = cellIdForHvi;
+                    if (string.IsNullOrWhiteSpace(zoneInput.INNER_ID)) zoneInput.INNER_ID = innerIdForHvi;
+
+                    zoneLogData[kvp.Key] = (zoneInput, ctx.SharedOutput, testResult);
+                }
+
                 _ = Task.Run(() =>
                 {
                     try
                     {
-                        bool cimSuccess = ResultLogManager.CreateCIMForZone(
+                        bool cimSuccess = ResultLogManager.CreateCIMForZone_HVI(
                             earliestStart,
                             latestEnd,
-                            cellIdForHvi,
-                            innerIdForHvi,
-                            1,
-                            combinedOutput,
-                            testResult
-                        );
+                            zoneLogData);
 
-                        MonitorLogService.Instance.Log(0, $"CIM {(cimSuccess ? "OK" : "FAIL")}");
+                        MonitorLogService.Instance.Log(0, $"CIM (HVI) {(cimSuccess ? "OK" : "FAIL")}");
 
-                        var zoneData = new Dictionary<int, (string cellId, string innerId, Output output)>
-                        {
-                            { 1, (cellIdForHvi, innerIdForHvi, combinedOutput) }
-                        };
-
-                        bool logSuccess = ResultLogManager.CreateAllResultLogs(
+                        bool logSuccess = ResultLogManager.CreateAllResultLogs_HVI(
                             earliestStart,
                             latestEnd,
-                            zoneData
-                        );
+                            zoneLogData);
 
                         ErrorLogger.Log($"=== OPTIC 테스트 완료 (HVI) / 로그 결과: {logSuccess} ===", ErrorLogger.LogLevel.INFO);
                     }
@@ -457,7 +478,16 @@ namespace OptiX.OPTIC
         {
             try
             {
-                var (cellId, innerId) = GlobalDataManager.GetZoneInfo(zoneId);
+                var context = SeqExecutionManager.GetZoneContext(zoneId);
+                Input storedInput = context.SharedInput;
+                var (fallbackCellId, fallbackInnerId) = GlobalDataManager.GetZoneInfo(zoneId);
+
+                var resolvedInput = storedInput;
+                if (string.IsNullOrWhiteSpace(resolvedInput.CELL_ID)) resolvedInput.CELL_ID = fallbackCellId;
+                if (string.IsNullOrWhiteSpace(resolvedInput.INNER_ID)) resolvedInput.INNER_ID = fallbackInnerId;
+
+                string cellId = resolvedInput.CELL_ID;
+                string innerId = resolvedInput.INNER_ID;
                 DateTime startTime = SeqExecutionManager.GetZoneSeqStartTime(zoneId);
                 DateTime endTime = SeqExecutionManager.GetZoneSeqEndTime(zoneId);
                 Output? storedOutput = SeqExecutionManager.GetStoredZoneResult(zoneId);
@@ -521,7 +551,8 @@ namespace OptiX.OPTIC
                         innerId,
                         zoneId,
                         storedOutput.Value,
-                        testResult);
+                        testResult,
+                        resolvedInput);
 
                     MonitorLogService.Instance.Log(zoneId - 1, $"CIM {(success ? "OK" : "FAIL")}");
                 });
@@ -708,163 +739,6 @@ namespace OptiX.OPTIC
         public bool IsTestStarted()
         {
             return isTestStarted;
-        }
-
-        private Output CombineHviOutputs(IList<Output> outputs)
-        {
-            var combined = new Output
-            {
-                data = new Pattern[DllConstants.OPTIC_DATA_SIZE],
-                IPVS_data = new Pattern[DllConstants.IPVS_DATA_SIZE],
-                measure = new Pattern[DllConstants.MAX_WAD_COUNT],
-                lut = new LUTParameter[DllConstants.RGB_CHANNEL_COUNT]
-            };
-
-            if (outputs == null || outputs.Count == 0)
-            {
-                return combined;
-            }
-
-            for (int i = 0; i < DllConstants.OPTIC_DATA_SIZE; i++)
-            {
-                float sumX = 0f, sumY = 0f, sumU = 0f, sumV = 0f, sumL = 0f, sumCur = 0f, sumEff = 0f;
-                int maxResult = 0;
-                int validCount = 0;
-
-                foreach (var output in outputs)
-                {
-                    if (output.data == null || output.data.Length <= i) continue;
-                    var pattern = output.data[i];
-                    sumX += pattern.x;
-                    sumY += pattern.y;
-                    sumU += pattern.u;
-                    sumV += pattern.v;
-                    sumL += pattern.L;
-                    sumCur += pattern.cur;
-                    sumEff += pattern.eff;
-                    maxResult = Math.Max(maxResult, pattern.result);
-                    validCount++;
-                }
-
-                if (validCount > 0)
-                {
-                    combined.data[i] = new Pattern
-                    {
-                        x = sumX / validCount,
-                        y = sumY / validCount,
-                        u = sumU / validCount,
-                        v = sumV / validCount,
-                        L = sumL / validCount,
-                        cur = sumCur / validCount,
-                        eff = sumEff / validCount,
-                        result = maxResult
-                    };
-                }
-            }
-
-            for (int i = 0; i < DllConstants.IPVS_DATA_SIZE; i++)
-            {
-                float sumX = 0f, sumY = 0f, sumU = 0f, sumV = 0f, sumL = 0f, sumCur = 0f, sumEff = 0f;
-                int maxResult = 0;
-                int validCount = 0;
-
-                foreach (var output in outputs)
-                {
-                    if (output.IPVS_data == null || output.IPVS_data.Length <= i) continue;
-                    var pattern = output.IPVS_data[i];
-                    sumX += pattern.x;
-                    sumY += pattern.y;
-                    sumU += pattern.u;
-                    sumV += pattern.v;
-                    sumL += pattern.L;
-                    sumCur += pattern.cur;
-                    sumEff += pattern.eff;
-                    maxResult = Math.Max(maxResult, pattern.result);
-                    validCount++;
-                }
-
-                if (validCount > 0)
-                {
-                    combined.IPVS_data[i] = new Pattern
-                    {
-                        x = sumX / validCount,
-                        y = sumY / validCount,
-                        u = sumU / validCount,
-                        v = sumV / validCount,
-                        L = sumL / validCount,
-                        cur = sumCur / validCount,
-                        eff = sumEff / validCount,
-                        result = maxResult
-                    };
-                }
-            }
-
-            for (int i = 0; i < DllConstants.MAX_WAD_COUNT; i++)
-            {
-                float sumX = 0f, sumY = 0f, sumU = 0f, sumV = 0f, sumL = 0f, sumCur = 0f, sumEff = 0f;
-                int maxResult = 0;
-                int validCount = 0;
-
-                foreach (var output in outputs)
-                {
-                    if (output.measure == null || output.measure.Length <= i) continue;
-                    var pattern = output.measure[i];
-                    sumX += pattern.x;
-                    sumY += pattern.y;
-                    sumU += pattern.u;
-                    sumV += pattern.v;
-                    sumL += pattern.L;
-                    sumCur += pattern.cur;
-                    sumEff += pattern.eff;
-                    maxResult = Math.Max(maxResult, pattern.result);
-                    validCount++;
-                }
-
-                if (validCount > 0)
-                {
-                    combined.measure[i] = new Pattern
-                    {
-                        x = sumX / validCount,
-                        y = sumY / validCount,
-                        u = sumU / validCount,
-                        v = sumV / validCount,
-                        L = sumL / validCount,
-                        cur = sumCur / validCount,
-                        eff = sumEff / validCount,
-                        result = maxResult
-                    };
-                }
-            }
-
-            for (int i = 0; i < DllConstants.RGB_CHANNEL_COUNT; i++)
-            {
-                float sumMaxLumi = 0f, sumMaxIndex = 0f, sumGamma = 0f, sumBlack = 0f;
-                int validCount = 0;
-
-                foreach (var output in outputs)
-                {
-                    if (output.lut == null || output.lut.Length <= i) continue;
-                    var lut = output.lut[i];
-                    sumMaxLumi += lut.max_lumi;
-                    sumMaxIndex += lut.max_index;
-                    sumGamma += lut.gamma;
-                    sumBlack += lut.black;
-                    validCount++;
-                }
-
-                if (validCount > 0)
-                {
-                    combined.lut[i] = new LUTParameter
-                    {
-                        max_lumi = sumMaxLumi / validCount,
-                        max_index = sumMaxIndex / validCount,
-                        gamma = sumGamma / validCount,
-                        black = sumBlack / validCount
-                    };
-                }
-            }
-
-            return combined;
         }
 
         /// <summary>

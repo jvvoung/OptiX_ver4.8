@@ -596,6 +596,13 @@ namespace OptiX.OPTIC
                 // Zone별 Cell ID, Inner ID 읽기
                 string cellId = GlobalDataManager.GetValue("MTP", $"CELL_ID_ZONE_{targetZone}", "");
                 string innerId = GlobalDataManager.GetValue("MTP", $"INNER_ID_ZONE_{targetZone}", "");
+
+                if (GlobalDataManager.IsHviModeEnabled())
+                {
+                    var (hviCellId, hviInnerId) = GlobalDataManager.GetZoneInfo(1);
+                    if (!string.IsNullOrWhiteSpace(hviCellId)) cellId = hviCellId;
+                    if (!string.IsNullOrWhiteSpace(hviInnerId)) innerId = hviInnerId;
+                }
                 
                 System.Diagnostics.Debug.WriteLine($"Zone {targetZone} - Cell ID: {cellId}, Inner ID: {innerId}");
                 

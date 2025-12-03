@@ -62,6 +62,7 @@ namespace OptiX.Common
             public string DisplayName { get; set; } = "";
         }
 
+        private const string PortStatusSection = "PORT_STATUS";
         private readonly List<CellInfoBinding> cellBindings = new List<CellInfoBinding>();
         private readonly List<PortBinding> portBindings = new List<PortBinding>();
         private static readonly Dictionary<string, bool> connectionStates = new Dictionary<string, bool>();
@@ -635,7 +636,22 @@ namespace OptiX.Common
                 return;
             }
 
-            if (!string.IsNullOrEmpty(binding.StateKey) && connectionStates.TryGetValue(binding.StateKey, out bool state))
+            if (string.IsNullOrEmpty(binding?.StateKey))
+            {
+                ResetButtonAppearance(binding?.ConnectButton);
+                return;
+            }
+
+            if (!connectionStates.TryGetValue(binding.StateKey, out bool state))
+            {
+                if (TryLoadPersistedConnectionState(binding.StateKey, out bool persistedState))
+                {
+                    state = persistedState;
+                    connectionStates[binding.StateKey] = state;
+                }
+            }
+
+            if (connectionStates.TryGetValue(binding.StateKey, out state))
             {
                 ApplyButtonResult(binding.ConnectButton, state);
             }
@@ -1064,6 +1080,44 @@ namespace OptiX.Common
             }
 
             connectionStates[binding.StateKey] = success;
+            PersistConnectionState(binding.StateKey, success);
+        }
+
+        private void PersistConnectionState(string stateKey, bool success)
+        {
+            try
+            {
+                GlobalDataManager.SetValue(PortStatusSection, stateKey, success ? "T" : "F");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"포트 상태 저장 실패 ({stateKey}): {ex.Message}");
+            }
+        }
+
+        private bool TryLoadPersistedConnectionState(string stateKey, out bool state)
+        {
+            state = false;
+            try
+            {
+                string raw = GlobalDataManager.GetValue(PortStatusSection, stateKey, "");
+                if (string.Equals(raw, "T", StringComparison.OrdinalIgnoreCase))
+                {
+                    state = true;
+                    return true;
+                }
+                if (string.Equals(raw, "F", StringComparison.OrdinalIgnoreCase))
+                {
+                    state = false;
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"포트 상태 로드 실패 ({stateKey}): {ex.Message}");
+            }
+
+            return false;
         }
 
         private static string FormatZoneList(IEnumerable<int> zones)

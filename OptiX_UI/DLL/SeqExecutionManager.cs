@@ -179,6 +179,19 @@ namespace OptiX.DLL
             return null;
         }
         
+        /// <summary>
+        /// Zone Input 가져오기
+        /// </summary>
+        public static Input? GetStoredZoneInput(int zoneNumber)
+        {
+            if (_zoneContexts.TryGetValue(zoneNumber, out var context))
+            {
+                return context.SharedInput;
+            }
+
+            return null;
+        }
+
         //25.11.08 - ZoneTestResult 저장 및 가져오기 메서드 추가
         /// <summary>
         /// Zone 테스트 결과 저장 (ErrorName, Tact, Judgment 등)

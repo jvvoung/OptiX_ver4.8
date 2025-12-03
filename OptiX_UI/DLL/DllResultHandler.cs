@@ -133,7 +133,135 @@ namespace OptiX.DLL
             }
         }
 
+        /// <summary>
+        /// HVI 모드 전용 OPTIC 결과 처리
+        /// </summary>
+        public string ProcessOpticResultHvi(
+            IReadOnlyList<Output> zoneOutputs,
+            string targetZone,
+            OpticDataTableManager dataTableManager,
+            int selectedWadIndex,
+            string[] categoryNames,
+            Action<string> onZoneJudgmentUpdate,
+            bool applyZoneJudgment = true)
+        {
+            try
+            {
+                if (zoneOutputs == null || zoneOutputs.Count == 0)
+                {
+                    throw new ArgumentException("HVI 모드 결과가 존재하지 않습니다.", nameof(zoneOutputs));
+                }
+
+                int actualZone = int.TryParse(targetZone, out int z) ? z : 1;
+                Common.ErrorLogger.Log("=== OPTIC HVI 결과 처리 시작 ===", Common.ErrorLogger.LogLevel.INFO, actualZone);
+
+                var resultMatrices = zoneOutputs
+                    .Where(o => o.data != null && o.data.Length > 0)
+                    .Select(BuildResultMatrix)
+                    .ToList();
+
+                if (resultMatrices.Count == 0)
+                {
+                    Common.ErrorLogger.Log("HVI 모드: 유효한 result 데이터가 없어 기본 판정을 반환합니다.", Common.ErrorLogger.LogLevel.WARNING, actualZone);
+                    return "R/J";
+                }
+
+                var context = SeqExecutionManager.GetZoneContext(actualZone);
+                string cellId = context?.SharedInput.CELL_ID ?? "";
+                string innerId = context?.SharedInput.INNER_ID ?? "";
+
+                Common.ErrorLogger.Log($"[HVI] Cell ID: '{cellId}', Inner ID: '{innerId}'", Common.ErrorLogger.LogLevel.INFO, actualZone);
+
+                DateTime zoneSeqStartTime = SeqExecutionManager.GetZoneSeqStartTime(actualZone);
+                DateTime zoneSeqEndTime = SeqExecutionManager.GetZoneSeqEndTime(actualZone);
+                if (zoneSeqEndTime == default(DateTime) || zoneSeqEndTime < zoneSeqStartTime)
+                {
+                    zoneSeqEndTime = DateTime.Now;
+                }
+
+                double tactSeconds = (zoneSeqEndTime - zoneSeqStartTime).TotalSeconds;
+                string tactValue = tactSeconds.ToString("F3");
+                Common.ErrorLogger.Log($"[HVI] TACT: {tactValue}초", Common.ErrorLogger.LogLevel.INFO, actualZone);
+
+                string zoneJudgment = OpticJudgment.Instance.JudgeZoneFromResults_HVI(resultMatrices);
+                Common.ErrorLogger.Log($"[HVI] Zone 전체 판정: {zoneJudgment}", Common.ErrorLogger.LogLevel.INFO, actualZone);
+
+                int availableCategories = Math.Min(categoryNames.Length, DllConstants.MAX_PATTERN_COUNT);
+                for (int zoneIndex = 0; zoneIndex < zoneOutputs.Count; zoneIndex++)
+                {
+                    var currentOutput = zoneOutputs[zoneIndex];
+                    int currentZoneNumber = zoneIndex + 1;
+                    string zoneKey = currentZoneNumber.ToString();
+
+                    string zoneCellId = cellId;
+                    string zoneInnerId = innerId;
+
+                    for (int categoryIndex = 0; categoryIndex < availableCategories; categoryIndex++)
+                    {
+                        int patternIndex = OpticHelpers.GetPatternArrayIndex(categoryNames[categoryIndex]);
+                        int dataIndex = selectedWadIndex * DllConstants.MAX_PATTERN_COUNT + patternIndex;
+
+                        if (currentOutput.data == null || dataIndex >= currentOutput.data.Length)
+                        {
+                            continue;
+                        }
+
+                        var pattern = currentOutput.data[dataIndex];
+                        dataTableManager.UpdatePatternData(
+                            zoneKey,
+                            categoryNames[categoryIndex],
+                            pattern.x.ToString("F2"),
+                            pattern.y.ToString("F2"),
+                            pattern.L.ToString("F2"),
+                            pattern.cur.ToString("F3"),
+                            pattern.eff.ToString("F2"));
+                    }
+
+                    dataTableManager.UpdateZoneCellInfo(zoneKey, zoneCellId, zoneInnerId);
+                }
+
+                if (applyZoneJudgment)
+                {
+                    dataTableManager.UpdateZoneJudgment(targetZone, zoneJudgment);
+                    onZoneJudgmentUpdate?.Invoke(zoneJudgment);
+                }
+
+                Common.ErrorLogger.Log($"=== OPTIC HVI 결과 처리 완료 - 판정: {zoneJudgment} ===", Common.ErrorLogger.LogLevel.INFO, actualZone);
+                return zoneJudgment;
+            }
+            catch (Exception ex)
+            {
+                int zoneNum = int.TryParse(targetZone, out int zone) ? zone : 0;
+                Common.ErrorLogger.LogException(ex, "OPTIC HVI 결과 처리 중 예외", zoneNum > 0 ? zoneNum : (int?)null);
+                throw;
+            }
+        }
+
         #endregion
+
+        private static int[,] BuildResultMatrix(Output output)
+        {
+            var matrix = new int[DllConstants.MAX_WAD_COUNT, DllConstants.MAX_PATTERN_COUNT];
+
+            if (output.data == null)
+            {
+                return matrix;
+            }
+
+            for (int wad = 0; wad < DllConstants.MAX_WAD_COUNT; wad++)
+            {
+                for (int pattern = 0; pattern < DllConstants.MAX_PATTERN_COUNT; pattern++)
+                {
+                    int index = wad * DllConstants.MAX_PATTERN_COUNT + pattern;
+                    if (index < output.data.Length)
+                    {
+                        matrix[wad, pattern] = output.data[index].result;
+                    }
+                }
+            }
+
+            return matrix;
+        }
 
         #region IPVS 결과 처리 (7x10 = 70개)
 

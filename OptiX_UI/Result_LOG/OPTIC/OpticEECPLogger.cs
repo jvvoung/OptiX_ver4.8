@@ -129,6 +129,7 @@ namespace OptiX.Result_LOG.OPTIC
                 }
             }
             
+            header.Append(",ERROR_NAME,JUDGMENT,TOTAL_POINT,CUR_POINT");
             header.AppendLine();
             File.WriteAllText(_fullPath, header.ToString(), Encoding.UTF8);
         }
@@ -136,7 +137,7 @@ namespace OptiX.Result_LOG.OPTIC
         /// <summary>
         /// EECP 로그 데이터 기록
         /// </summary>
-        public void LogEECPData(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneNumber, Output outputData)
+        public void LogEECPData(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneNumber, Output outputData, Input input, ZoneTestResult testResult)
         {
             var logEntry = new StringBuilder();
             
@@ -174,7 +175,11 @@ namespace OptiX.Result_LOG.OPTIC
                 }
             }
             
-            // 마지막 쉼표 제거
+            logEntry.Append($"{testResult.ErrorName},");
+            logEntry.Append($"{testResult.Judgment},");
+            logEntry.Append($"{input.total_point},");
+            logEntry.Append($"{input.cur_point},");
+
             if (logEntry.Length > 0 && logEntry[logEntry.Length - 1] == ',')
             {
                 logEntry.Length--;
@@ -191,10 +196,26 @@ namespace OptiX.Result_LOG.OPTIC
         /// <summary>
         /// 간단한 로그 메서드
         /// </summary>
-        public void LogEECPData(string cellId, string innerId, int zoneNumber, Output outputData)
+        public void LogEECPData(string cellId, string innerId, int zoneNumber, Output outputData, Input input, ZoneTestResult testResult)
         {
             var now = DateTime.Now;
-            LogEECPData(now.AddSeconds(-10), now, cellId, innerId, zoneNumber, outputData);
+            LogEECPData(now.AddSeconds(-10), now, cellId, innerId, zoneNumber, outputData, input, testResult);
+        }
+
+        /// <summary>
+        /// HVI 모드 전용 EECP 로그 기록 (Output 배열 전체 처리)
+        /// </summary>
+        public void LogEECPDataHvi(DateTime startTime, DateTime endTime, string cellId, string innerId, Output[] outputs, Input input, ZoneTestResult testResult)
+        {
+            if (outputs == null || outputs.Length == 0)
+            {
+                return;
+            }
+
+            for (int index = 0; index < outputs.Length; index++)
+            {
+                LogEECPData(startTime, endTime, cellId, innerId, index + 1, outputs[index], input, testResult);
+            }
         }
     }
 }

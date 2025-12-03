@@ -198,6 +198,78 @@ namespace OptiX.OPTIC
         }
 
         /// <summary>
+        /// HVI 모드 전용 Zone 판정
+        /// </summary>
+        /// <param name="resultMatrices">Zone별 result 배열 목록</param>
+        /// <returns>Zone 전체 판정 결과</returns>
+        public string JudgeZoneFromResults_HVI(IReadOnlyList<int[,]> resultMatrices)
+        {
+            try
+            {
+                if (resultMatrices == null || resultMatrices.Count == 0)
+                {
+                    return "R/J";
+                }
+
+                int okCount = 0;
+                int ptnCount = 0;
+                int totalCount = 0;
+
+                foreach (var matrix in resultMatrices)
+                {
+                    if (matrix == null)
+                    {
+                        continue;
+                    }
+
+                    int rows = matrix.GetLength(0);
+                    int cols = matrix.GetLength(1);
+
+                    for (int r = 0; r < rows; r++)
+                    {
+                        for (int c = 0; c < cols; c++)
+                        {
+                            int result = matrix[r, c];
+                            totalCount++;
+
+                            switch (result)
+                            {
+                                case DLL.DllConstants.RESULT_OK:
+                                    okCount++;
+                                    break;
+                                case DLL.DllConstants.RESULT_PTN:
+                                    ptnCount++;
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                int okThreshold = DLL.DllConstants.OPTIC_OK_THRESHOLD * resultMatrices.Count;
+                int ptnThreshold = DLL.DllConstants.OPTIC_PTN_THRESHOLD * resultMatrices.Count;
+
+                System.Diagnostics.Debug.WriteLine($"[HVI] Zone 판정 분석: OK={okCount}, PTN={ptnCount}, Total={totalCount}, Threshold(OK)={okThreshold}");
+
+                if (okCount >= okThreshold)
+                {
+                    return "OK";
+                }
+
+                if (ptnCount >= ptnThreshold)
+                {
+                    return "PTN";
+                }
+
+                return "R/J";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"HVI Zone 판정 오류: {ex.Message}");
+                return "R/J";
+            }
+        }
+
+        /// <summary>
         /// 개별 패턴의 result 값을 문자열로 변환
         /// </summary>
         /// <param name="result">DLL에서 받은 result 값 (RESULT_OK, RESULT_NG, RESULT_PTN)</param>

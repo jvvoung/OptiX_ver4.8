@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 using OptiX.Common;
+using OptiX.DLL;
 
 namespace OptiX.Result_LOG.OPTIC
 {
@@ -73,7 +74,7 @@ namespace OptiX.Result_LOG.OPTIC
         /// CIM 로그 데이터 기록 (Zone별 파일 생성)
         /// 형식: 데이터명 = 값 (struct pattern data[7][17] 구조)
         /// </summary>
-        public static void LogCIMData(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneNumber, OptiX.DLL.Output outputData, OptiX.DLL.ZoneTestResult testResult)
+        public static void LogCIMData(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneNumber, Output outputData, ZoneTestResult testResult, Input input)
         {
             try
             {
@@ -92,6 +93,8 @@ namespace OptiX.Result_LOG.OPTIC
                 logEntry.AppendLine($"CELL_ID = {cellId}");
                 logEntry.AppendLine($"INNER_ID = {innerId}");
                 logEntry.AppendLine($"ZONE = {zoneNumber}");
+                logEntry.AppendLine($"TOTAL_POINT = {input.total_point}");
+                logEntry.AppendLine($"CUR_POINT = {input.cur_point}");
                 
                 //25.11.08 - ZoneTestResult 구조체에서 판정 정보 추가
                 logEntry.AppendLine($"ERROR_NAME = {testResult.ErrorName}");
@@ -161,6 +164,24 @@ namespace OptiX.Result_LOG.OPTIC
             {
                 System.Diagnostics.Debug.WriteLine($"OPTIC CIM 로그 생성 오류 (Zone {zoneNumber}): {ex.Message}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// HVI 모드 전용 CIM 로그 데이터 기록 (Output 배열 전체 처리)
+        /// </summary>
+        public static void LogCIMDataHvi(DateTime startTime, DateTime endTime, string cellId, string innerId, Output[] outputs, ZoneTestResult testResult, Input input)
+        {
+            if (outputs == null || outputs.Length == 0)
+            {
+                return;
+            }
+
+            for (int index = 0; index < outputs.Length; index++)
+            {
+                var output = outputs[index];
+                int zoneNumber = index + 1;
+                LogCIMData(startTime, endTime, cellId, innerId, zoneNumber, output, testResult, input);
             }
         }
     }

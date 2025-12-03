@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 using OptiX.Common;
+using OptiX.DLL;
 
 namespace OptiX.Result_LOG.OPTIC
 {
@@ -112,7 +113,7 @@ namespace OptiX.Result_LOG.OPTIC
         private void CreateHeader()
         {
             var header = new StringBuilder();
-            header.AppendLine("START TIME,END TIME,CELL ID,INNER ID,ZONE,SUMMARY_DATA");
+            header.AppendLine("START TIME,END TIME,CELL ID,INNER ID,ZONE,SUMMARY_DATA,TACT,JUDGMENT,ERROR_NAME,TOTAL_POINT,CUR_POINT");
             
             File.WriteAllText(_fullPath, header.ToString(), Encoding.UTF8);
         }
@@ -120,7 +121,7 @@ namespace OptiX.Result_LOG.OPTIC
         /// <summary>
         /// EECP_SUMMARY 로그 데이터 기록
         /// </summary>
-        public void LogEECPSummaryData(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneNumber, string summaryData)
+        public void LogEECPSummaryData(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneNumber, string summaryData, Input input, ZoneTestResult testResult)
         {
             var logEntry = new StringBuilder();
             
@@ -129,7 +130,13 @@ namespace OptiX.Result_LOG.OPTIC
             logEntry.Append($"{cellId},");
             logEntry.Append($"{innerId},");
             logEntry.Append($"{zoneNumber},");
-            logEntry.AppendLine(summaryData);
+            logEntry.Append($"{summaryData},");
+            double tact = (endTime - startTime).TotalSeconds;
+            logEntry.Append($"{tact:F3},");
+            logEntry.Append($"{testResult.Judgment},");
+            logEntry.Append($"{testResult.ErrorName},");
+            logEntry.Append($"{input.total_point},");
+            logEntry.AppendLine($"{input.cur_point}");
             
             lock (_fileLock)
             {
@@ -140,10 +147,22 @@ namespace OptiX.Result_LOG.OPTIC
         /// <summary>
         /// 간단한 로그 메서드
         /// </summary>
-        public void LogEECPSummaryData(string cellId, string innerId, int zoneNumber, string summaryData)
+        public void LogEECPSummaryData(string cellId, string innerId, int zoneNumber, string summaryData, Input input, ZoneTestResult testResult)
         {
             var now = DateTime.Now;
-            LogEECPSummaryData(now.AddSeconds(-10), now, cellId, innerId, zoneNumber, summaryData);
+            LogEECPSummaryData(now.AddSeconds(-10), now, cellId, innerId, zoneNumber, summaryData, input, testResult);
+        }
+
+        /// <summary>
+        /// HVI 모드 전용 EECP_SUMMARY 로그 기록 (Output 배열 길이에 맞춰 반복)
+        /// </summary>
+        public void LogEECPSummaryDataHvi(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneCount, Input input, ZoneTestResult testResult)
+        {
+            for (int index = 0; index < zoneCount; index++)
+            {
+                string summaryData = $"Zone_{index + 1}_Summary_Data";
+                LogEECPSummaryData(startTime, endTime, cellId, innerId, index + 1, summaryData, input, testResult);
+            }
         }
     }
 }

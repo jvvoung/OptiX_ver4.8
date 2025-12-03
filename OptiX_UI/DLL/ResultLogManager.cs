@@ -28,18 +28,19 @@ namespace OptiX.DLL
             string innerId, 
             int zoneNumber, 
             Output output,
-            ZoneTestResult testResult)
+            ZoneTestResult testResult,
+            Input input)
         {
             try
             {
-                ErrorLogger.Log($"CIM 로그 생성 시작", ErrorLogger.LogLevel.INFO, zoneNumber);
+                ErrorLogger.Log($"CIM 로그 생성 시작 (INPUT total_point={input.total_point})", ErrorLogger.LogLevel.INFO, zoneNumber);
                 
                 // CIM 로그 생성 (OPTIC)
                 string createCim = GlobalDataManager.GetValue("MTP", "CREATE_CIM", "F");
                 if (createCim == "T")
                 {
                     //25.11.08 - ZoneTestResult 구조체 전달
-                    OptiX.Result_LOG.OPTIC.OpticCIMLogger.LogCIMData(startTime, endTime, cellId, innerId, zoneNumber, output, testResult);
+                    OptiX.Result_LOG.OPTIC.OpticCIMLogger.LogCIMData(startTime, endTime, cellId, innerId, zoneNumber, output, testResult, input);
                     ErrorLogger.Log($"OPTIC CIM 로그 생성 완료", ErrorLogger.LogLevel.INFO, zoneNumber);
                 }
                 
@@ -59,7 +60,7 @@ namespace OptiX.DLL
         public static bool CreateAllResultLogs(
             DateTime startTime,
             DateTime endTime,
-            Dictionary<int, (string cellId, string innerId, Output output)> zoneData)
+            Dictionary<int, (Input input, Output output, ZoneTestResult testResult)> zoneData)
         {
             try
             {
@@ -79,7 +80,9 @@ namespace OptiX.DLL
                         {
                             int zoneNumber = kvp.Key;
                             var data = kvp.Value;
-                            eecpLogger.LogEECPData(startTime, endTime, data.cellId, data.innerId, zoneNumber, data.output);
+                            string cellId = data.input.CELL_ID ?? string.Empty;
+                            string innerId = data.input.INNER_ID ?? string.Empty;
+                            eecpLogger.LogEECPData(startTime, endTime, cellId, innerId, zoneNumber, data.output, data.input, data.testResult);
                         }
                         
                         ErrorLogger.Log($"OPTIC EECP 로그 생성 완료 (Zone {zoneData.Count}개)", ErrorLogger.LogLevel.INFO);
@@ -103,8 +106,10 @@ namespace OptiX.DLL
                         {
                             int zoneNumber = kvp.Key;
                             var data = kvp.Value;
+                            string cellId = data.input.CELL_ID ?? string.Empty;
+                            string innerId = data.input.INNER_ID ?? string.Empty;
                             string summaryData = $"Zone_{zoneNumber}_Summary_Data";
-                            eecpSummaryLogger.LogEECPSummaryData(startTime, endTime, data.cellId, data.innerId, zoneNumber, summaryData);
+                            eecpSummaryLogger.LogEECPSummaryData(startTime, endTime, cellId, innerId, zoneNumber, summaryData, data.input, data.testResult);
                         }
                         
                         ErrorLogger.Log($"OPTIC EECP_SUMMARY 로그 생성 완료 (Zone {zoneData.Count}개)", ErrorLogger.LogLevel.INFO);
@@ -231,6 +236,102 @@ namespace OptiX.DLL
             catch (Exception ex)
             {
                 ErrorLogger.LogException(ex, "IPVS 전체 로그 생성 중 오류");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// HVI 모드 전용 CIM 로그 생성
+        /// </summary>
+        public static bool CreateCIMForZone_HVI(
+            DateTime startTime,
+            DateTime endTime,
+            IReadOnlyDictionary<int, (Input input, Output output, ZoneTestResult testResult)> zoneData)
+        {
+            try
+            {
+                ErrorLogger.Log("HVI CIM 로그 생성 시작", ErrorLogger.LogLevel.INFO);
+
+                if (zoneData == null || zoneData.Count == 0)
+                {
+                    ErrorLogger.Log("HVI CIM: 출력 데이터가 없어 생성 건너뜀", ErrorLogger.LogLevel.WARNING);
+                    return false;
+                }
+
+                var ordered = zoneData.OrderBy(k => k.Key).ToList();
+                var outputs = ordered.Select(entry => entry.Value.output).ToArray();
+                var representative = ordered.First().Value;
+                string cellId = representative.input.CELL_ID ?? string.Empty;
+                string innerId = representative.input.INNER_ID ?? string.Empty;
+
+                OptiX.Result_LOG.OPTIC.OpticCIMLogger.LogCIMDataHvi(
+                    startTime,
+                    endTime,
+                    cellId,
+                    innerId,
+                    outputs,
+                    representative.testResult,
+                    representative.input);
+
+                ErrorLogger.Log("HVI CIM 로그 생성 완료 (배열 기반)", ErrorLogger.LogLevel.INFO);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogException(ex, "HVI CIM 로그 생성 중 오류");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// HVI 모드 전용 EECP/EECP_SUMMARY 로그 생성
+        /// </summary>
+        public static bool CreateAllResultLogs_HVI(
+            DateTime startTime,
+            DateTime endTime,
+            IReadOnlyDictionary<int, (Input input, Output output, ZoneTestResult testResult)> zoneData)
+        {
+            try
+            {
+                if (zoneData == null || zoneData.Count == 0)
+                {
+                    ErrorLogger.Log("HVI EECP: Zone 데이터가 없어 생성 건너뜁니다.", ErrorLogger.LogLevel.WARNING);
+                    return false;
+                }
+
+                var ordered = zoneData.OrderBy(k => k.Key).ToList();
+                var outputs = ordered.Select(entry => entry.Value.output).ToArray();
+                var representative = ordered.First().Value;
+
+                string cellId = representative.input.CELL_ID ?? string.Empty;
+                string innerId = representative.input.INNER_ID ?? string.Empty;
+
+                var eecpLogger = OptiX.Result_LOG.OPTIC.OpticEECPLogger.Instance;
+                eecpLogger.LogEECPDataHvi(
+                    startTime,
+                    endTime,
+                    cellId,
+                    innerId,
+                    outputs,
+                    representative.input,
+                    representative.testResult);
+
+                var summaryLogger = OptiX.Result_LOG.OPTIC.OpticEECPSummaryLogger.Instance;
+                summaryLogger.LogEECPSummaryDataHvi(
+                    startTime,
+                    endTime,
+                    cellId,
+                    innerId,
+                    outputs.Length,
+                    representative.input,
+                    representative.testResult);
+
+                ErrorLogger.Log("HVI EECP/EECP_SUMMARY 로그 생성 완료 (배열 기반)", ErrorLogger.LogLevel.INFO);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogException(ex, "HVI 전체 로그 생성 중 오류");
                 return false;
             }
         }
