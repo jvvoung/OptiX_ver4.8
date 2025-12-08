@@ -48,6 +48,8 @@ namespace OptiX.OPTIC
         private bool isTestStarted = false;
         private bool[] zoneTestCompleted;
         private bool[] zoneMeasured;
+        private OptiX.Communication.CommunicationServer communicationServer; //25.12.08 - Client 통신용
+        private System.Threading.SemaphoreSlim restartSemaphore; //25.12.08 - RESTART 대기용 세마포어
 
         public OpticSeqExecutor(
             Action<List<GraphManager.GraphDataPoint>> updateGraphDisplay,
@@ -61,6 +63,50 @@ namespace OptiX.OPTIC
             this.viewModel = viewModel;
             this.graphManager = graphManager ?? throw new ArgumentNullException(nameof(graphManager));
             this.monitorManager = monitorManager ?? throw new ArgumentNullException(nameof(monitorManager));
+            
+            //25.12.08 - RESTART 대기용 세마포어 초기화 (초기값 0 = 대기 상태)
+            restartSemaphore = new System.Threading.SemaphoreSlim(0, 1);
+            
+            //25.12.08 - CommunicationServer 가져오기 (MainWindow에서)
+            try
+            {
+                var mainWindow = System.Windows.Application.Current.MainWindow as MainWindow;
+                if (mainWindow != null)
+                {
+                    communicationServer = mainWindow.GetCommunicationServer();
+                    
+                    // RESTART 이벤트 구독
+                    if (communicationServer != null)
+                    {
+                        communicationServer.OpticRestartRequested += OnOpticRestartRequested;
+                        ErrorLogger.Log("OPTIC RESTART 이벤트 구독 완료", ErrorLogger.LogLevel.INFO);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogException(ex, "CommunicationServer 가져오기 실패");
+            }
+        }
+        
+        //25.12.08 - RESTART 이벤트 핸들러 (Client로부터 다음 SEQUENCE 진행 명령 수신)
+        private void OnOpticRestartRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                ErrorLogger.Log("✅ OPTIC RESTART 명령 수신 - 다음 SEQUENCE 진행", ErrorLogger.LogLevel.INFO);
+                
+                // 세마포어 해제 (대기 중인 스레드가 진행할 수 있도록)
+                if (restartSemaphore.CurrentCount == 0)
+                {
+                    restartSemaphore.Release();
+                    ErrorLogger.Log("세마포어 해제 완료 - SEQUENCE 진행", ErrorLogger.LogLevel.INFO);
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogException(ex, "RESTART 이벤트 처리 중 오류");
+            }
         }
 
         /// <summary>
@@ -134,10 +180,14 @@ namespace OptiX.OPTIC
 
                 bool isHviMode = GlobalDataManager.IsHviModeEnabled();
                 ErrorLogger.Log($"HVI 모드: {(isHviMode ? "활성" : "비활성")}", ErrorLogger.LogLevel.INFO);
+                
+                //25.12.08 - 수동/자동 모드 구분
+                bool isAutoMode = viewModel?.IsAutoMode() ?? false;
+                ErrorLogger.Log($"실행 모드: {(isAutoMode ? "자동 (Client 연결)" : "수동 (UI 버튼)")}", ErrorLogger.LogLevel.INFO);
 
-                // SequenceCacheManager에서 캐싱된 시퀀스 가져오기
-                var cachedSeq = SequenceCacheManager.Instance.GetOpticSequenceCopy();
-                if (cachedSeq == null || cachedSeq.Count == 0)
+                // SequenceCacheManager에서 시퀀스 그룹 가져오기
+                var sequenceGroups = SequenceCacheManager.Instance.GetOpticSequenceGroupsCopy();
+                if (sequenceGroups == null || sequenceGroups.Count == 0)
                 {
                     ErrorLogger.Log("시퀀스가 로드되지 않음", ErrorLogger.LogLevel.WARNING);
                     _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
@@ -147,21 +197,88 @@ namespace OptiX.OPTIC
                     }, System.Windows.Threading.DispatcherPriority.Background);
                     return;
                 }
+                
+                //25.12.08 - Normal 모드: SEQUENCE1만 실행, HVI 모드: 모든 SEQUENCE 실행
+                int sequencesToRun = isHviMode ? sequenceGroups.Count : 1;
+                ErrorLogger.Log($"실행할 SEQUENCE 개수: {sequencesToRun} (총 {sequenceGroups.Count}개) - {(isHviMode ? "HVI 모드" : "Normal 모드")}", ErrorLogger.LogLevel.INFO);
 
-                // Queue를 List로 변환 (모든 Zone에서 같은 시퀀스 사용)
-                var orderedSeq = cachedSeq.ToList();
-                ErrorLogger.Log($"SEQ 개수: {orderedSeq.Count}", ErrorLogger.LogLevel.INFO);
-
-                // Zone별로 병렬 실행
-                var tasks = new List<Task>();
-                for (int zoneId = 1; zoneId <= zoneCount; zoneId++)
+                // SEQUENCE별로 순차 실행
+                for (int seqIndex = 0; seqIndex < sequencesToRun; seqIndex++)
                 {
-                    int currentZoneId = zoneId;
-                    tasks.Add(Task.Run(() => ExecuteSeqForZoneAsync(currentZoneId, orderedSeq, isHviMode)));
-                }
+                    if (seqIndex >= sequenceGroups.Count) break;
+                    
+                    var currentSequence = sequenceGroups[seqIndex];
+                    ErrorLogger.Log($"=== SEQUENCE{seqIndex + 1} 시작 ({currentSequence.Count}개 Step) ===", ErrorLogger.LogLevel.INFO);
+                    
+                    // Zone별로 병렬 실행
+                    var tasks = new List<Task>();
+                    for (int zoneId = 1; zoneId <= zoneCount; zoneId++)
+                    {
+                        int currentZoneId = zoneId;
+                        int currentSeqIndex = seqIndex;
+                        tasks.Add(Task.Run(() => ExecuteSeqForZoneAsync(currentZoneId, currentSequence, isHviMode, currentSeqIndex)));
+                    }
 
-                // 모든 Zone 완료 대기
-                await Task.WhenAll(tasks);
+                    // 모든 Zone 완료 대기
+                    await Task.WhenAll(tasks);
+                    
+                    ErrorLogger.Log($"=== SEQUENCE{seqIndex + 1} 완료 ===", ErrorLogger.LogLevel.INFO);
+                    
+                    //25.12.08 - HVI 모드일 때만 SEQUENCE 완료 후 Output 저장 (배열화)
+                    if (isHviMode)
+                    {
+                        for (int zoneId = 1; zoneId <= zoneCount; zoneId++)
+                        {
+                            SeqExecutionManager.AddSequenceOutput(zoneId);
+                        }
+                    }
+                    
+                    //25.12.08 - SEND_TO_CLIENT 처리 (자동 모드 & HVI 모드 & 마지막 Step 확인)
+                    if (isAutoMode && isHviMode && currentSequence.Count > 0)
+                    {
+                        string lastStep = currentSequence[currentSequence.Count - 1];
+                        if (lastStep.ToUpper().Contains("SEND_TO_CLIENT"))
+                        {
+                            // SMID_OT_HALF_FINISH 전송
+                            await SendSequenceCompleteToClient(seqIndex + 1, sequencesToRun);
+                            
+                            // 마지막 SEQUENCE가 아니면 RESTART 명령 대기
+                            if (seqIndex < sequencesToRun - 1)
+                            {
+                                ErrorLogger.Log($"⏸️ SEQUENCE{seqIndex + 1} 완료 - RESTART 명령 대기 중...", ErrorLogger.LogLevel.INFO);
+                                MonitorLogService.Instance.Log(0, $"WAIT RESTART (SEQUENCE{seqIndex + 1} → SEQUENCE{seqIndex + 2})");
+                                
+                                // RESTART 명령이 올 때까지 대기 (타임아웃: 10분)
+                                int timeoutSeconds = int.Parse(GlobalDataManager.GetValue("Settings", "RESTART_TIMEOUT_SEC", "600"));
+                                var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+                                
+                                try
+                                {
+                                    await restartSemaphore.WaitAsync(cts.Token);
+                                    ErrorLogger.Log($"▶️ RESTART 명령 수신 완료 - SEQUENCE{seqIndex + 2} 진행", ErrorLogger.LogLevel.INFO);
+                                    MonitorLogService.Instance.Log(0, $"RESTART OK → SEQUENCE{seqIndex + 2} START");
+                                }
+                                catch (OperationCanceledException)
+                                {
+                                    // 타임아웃 발생
+                                    ErrorLogger.Log($"⏱️ RESTART 대기 타임아웃 ({timeoutSeconds}초) - 테스트 중단", ErrorLogger.LogLevel.WARNING);
+                                    MonitorLogService.Instance.Log(0, $"TIMEOUT - TEST ABORTED");
+                                    
+                                    _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                                    {
+                                        MessageBox.Show(
+                                            $"RESTART 명령 대기 시간 초과 ({timeoutSeconds}초)\n테스트를 중단합니다.",
+                                            "타임아웃",
+                                            MessageBoxButton.OK,
+                                            MessageBoxImage.Warning);
+                                    }, System.Windows.Threading.DispatcherPriority.Background);
+                                    
+                                    return; // 테스트 중단
+                                }
+                            }
+                        }
+                    }
+                }
                 
                 // 짧은 지연: 모든 Zone의 finally 블록이 완료될 시간 제공 (Race Condition 방지)
                 await Task.Delay(DLL.DllConstants.ZONE_COMPLETION_DELAY_MS);
@@ -169,10 +286,16 @@ namespace OptiX.OPTIC
                 // SEQ 종료 시간 설정
                 SeqExecutionManager.SetSeqEndTime(DateTime.Now);
                 ErrorLogger.Log("=== 모든 Zone OPTIC SEQ 완료 ===", ErrorLogger.LogLevel.INFO);
+                
+                //25.12.08 - 자동 모드: 전체 완료 메시지 전송
+                if (isAutoMode)
+                {
+                    await SendTestCompleteToClient(sequencesToRun);
+                }
 
                 if (isHviMode)
                 {
-                    await FinalizeHviModeAsync(zoneCount);
+                    await FinalizeHviModeAsync(zoneCount, sequencesToRun);
                 }
                 else
                 {
@@ -227,7 +350,7 @@ namespace OptiX.OPTIC
             try
             {
                 ErrorLogger.Log($"전체 결과 로그 생성 시작 - {zones.Length}개 Zone", ErrorLogger.LogLevel.INFO);
-
+                
                 // 모든 Zone의 데이터 수집
                 var zoneData = new System.Collections.Generic.Dictionary<int, (Input input, Output output, ZoneTestResult testResult)>();
                 
@@ -273,11 +396,18 @@ namespace OptiX.OPTIC
             }
         }
         
-        private Task FinalizeHviModeAsync(int zoneCount)
+        private Task FinalizeHviModeAsync(int zoneCount, int sequenceCount)
         {
             try
             {
-                ErrorLogger.Log("HVI 모드 최종 처리 시작", ErrorLogger.LogLevel.INFO);
+                ErrorLogger.Log($"HVI 모드 최종 처리 시작 (SEQUENCE {sequenceCount}개)", ErrorLogger.LogLevel.INFO);
+                
+                //25.12.08 - HVI 모드에서 SEQUENCE별 Output 2차원 배열 처리
+                if (sequenceCount > 1)
+                {
+                    var allZonesOutputs = SeqExecutionManager.GetAllZonesSequenceOutputs();
+                    ErrorLogger.Log($"HVI 모드: {allZonesOutputs.Count}개 Zone, 각 {sequenceCount}개 SEQUENCE Output", ErrorLogger.LogLevel.INFO);
+                }
 
                 var zoneContexts = new Dictionary<int, ZoneContext>();
                 for (int zone = 1; zone <= zoneCount; zone++)
@@ -445,30 +575,38 @@ namespace OptiX.OPTIC
         /// <summary>
         /// Zone별 SEQ 비동기 실행
         /// </summary>
-        private async Task ExecuteSeqForZoneAsync(int zoneId, List<string> orderedSeq, bool isHviMode)
+        private async Task ExecuteSeqForZoneAsync(int zoneId, List<string> orderedSeq, bool isHviMode, int sequenceIndex)
         {
             try
             {
+                ErrorLogger.Log($"Zone {zoneId} SEQUENCE{sequenceIndex + 1} 시작", ErrorLogger.LogLevel.INFO, zoneId);
                 await ExecuteSeqForZone(zoneId, orderedSeq);
 
                 // 존 완료 표시
                 SetZoneTestCompleted(zoneId - 1, true);
+                ErrorLogger.Log($"Zone {zoneId} SEQUENCE{sequenceIndex + 1} 완료", ErrorLogger.LogLevel.INFO, zoneId);
             }
             catch (Exception ex)
             {
-                ErrorLogger.LogException(ex, $"Zone SEQ 실행 중 오류", zoneId);
+                ErrorLogger.LogException(ex, $"Zone {zoneId} SEQUENCE{sequenceIndex + 1} 실행 중 오류", zoneId);
             }
             finally
             {
                 //25.10.29 - Zone SEQ 종료 - 종료 시간 기록
                 SeqExecutionManager.EndZoneSeq(zoneId);
                 
+                //25.12.08 - Normal 모드: 항상 판정/로그 처리, HVI 모드: 첫 SEQUENCE에서만 버퍼링
                 if (isHviMode)
                 {
-                    await ProcessZoneResultHviBufferingAsync(zoneId);
+                    // HVI 모드: 첫 SEQUENCE에서만 버퍼링 (최종 판정은 FinalizeHviModeAsync에서)
+                    if (sequenceIndex == 0)
+                    {
+                        await ProcessZoneResultHviBufferingAsync(zoneId);
+                    }
                 }
                 else
                 {
+                    // Normal 모드: SEQUENCE1 완료 시 즉시 판정/로그 처리
                     await ProcessZoneResultNormalAsync(zoneId);
                 }
             }
@@ -796,6 +934,67 @@ namespace OptiX.OPTIC
             {
                 ErrorLogger.LogException(ex, "에러명 판정 중 오류");
                 return "ERROR_UNKNOWN";
+            }
+        }
+        
+        //25.12.08 - Client에 메시지 전송 메서드들
+        /// <summary>
+        /// SEQUENCE 완료 메시지 전송 (SMID_OT_HALF_FINISH)
+        /// </summary>
+        private async Task SendSequenceCompleteToClient(int completedSequence, int totalSequences)
+        {
+            try
+            {
+                if (communicationServer == null)
+                {
+                    ErrorLogger.Log("CommunicationServer가 null - 메시지 전송 불가", ErrorLogger.LogLevel.WARNING);
+                    return;
+                }
+                
+                var completeMsg = new Communication.CommunicationProtocol.SMPACK_OT_COMPLETE(
+                    Communication.CommunicationProtocol.SMID_OT_HALF_FINISH,
+                    (byte)completedSequence,
+                    (byte)totalSequences
+                );
+                
+                byte[] msgBytes = Communication.CommunicationProtocol.StructureToByteArray(completeMsg);
+                await communicationServer.SendBytesToAllClientsAsync(msgBytes);
+                
+                ErrorLogger.Log($"✅ Client에 SEQUENCE{completedSequence} 완료 전송 (HALF_FINISH)", ErrorLogger.LogLevel.INFO);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogException(ex, "SEQUENCE 완료 메시지 전송 실패");
+            }
+        }
+        
+        /// <summary>
+        /// 전체 테스트 완료 메시지 전송 (SMID_OT_FINISH)
+        /// </summary>
+        private async Task SendTestCompleteToClient(int totalSequences)
+        {
+            try
+            {
+                if (communicationServer == null)
+                {
+                    ErrorLogger.Log("CommunicationServer가 null - 메시지 전송 불가", ErrorLogger.LogLevel.WARNING);
+                    return;
+                }
+                
+                var finishMsg = new Communication.CommunicationProtocol.SMPACK_OT_COMPLETE(
+                    Communication.CommunicationProtocol.SMID_OT_FINISH,
+                    (byte)totalSequences,
+                    (byte)totalSequences
+                );
+                
+                byte[] msgBytes = Communication.CommunicationProtocol.StructureToByteArray(finishMsg);
+                await communicationServer.SendBytesToAllClientsAsync(msgBytes);
+                
+                ErrorLogger.Log($"✅ Client에 전체 테스트 완료 전송 (FINISH)", ErrorLogger.LogLevel.INFO);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogException(ex, "전체 완료 메시지 전송 실패");
             }
         }
     }

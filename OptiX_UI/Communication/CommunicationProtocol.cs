@@ -11,6 +11,9 @@ namespace OptiX.Communication
         // 메시지 ID 정의
         public const int SMID_IPVS_START = 1;
         public const int SMID_OT_START = 2;
+        public const int SMID_OT_HALF_FINISH = 3;  // SEQUENCE 중간 완료 (SEND_TO_CLIENT)
+        public const int SMID_OT_FINISH = 4;       // 전체 SEQUENCE 완료
+        public const int SMID_OT_RESTART = 5;      // 다음 SEQUENCE 진행 명령 (Client → UI)
 
         /// <summary>
         /// IPVS 시작 요청 구조체
@@ -244,8 +247,63 @@ namespace OptiX.Communication
                     return "IPVS_START";
                 case SMID_OT_START:
                     return "OPTIC_START";
+                case SMID_OT_HALF_FINISH:
+                    return "OPTIC_HALF_FINISH";
+                case SMID_OT_FINISH:
+                    return "OPTIC_FINISH";
+                case SMID_OT_RESTART:
+                    return "OPTIC_RESTART";
                 default:
                     return "UNKNOWN";
+            }
+        }
+
+        /// <summary>
+        /// OPTIC 완료 알림 구조체 (HALF_FINISH / FINISH)
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
+        public struct SMPACK_OT_COMPLETE
+        {
+            public int msgID;           // SMID_OT_HALF_FINISH 또는 SMID_OT_FINISH
+            public int SetLength;       // sizeof(SMPACK_OT_COMPLETE)
+            
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+            public byte[] cETX;         // ETX
+            
+            public byte sequenceIndex;  // 완료된 SEQUENCE 인덱스 (1-based)
+            public byte totalSequences; // 전체 SEQUENCE 개수
+            
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+            public byte[] cETX2;        // ETX
+
+            public SMPACK_OT_COMPLETE(int msgID, byte sequenceIndex, byte totalSequences)
+            {
+                this.msgID = msgID;
+                this.SetLength = Marshal.SizeOf(typeof(SMPACK_OT_COMPLETE));
+                this.cETX = new byte[32];
+                this.sequenceIndex = sequenceIndex;
+                this.totalSequences = totalSequences;
+                this.cETX2 = new byte[32];
+            }
+        }
+
+        /// <summary>
+        /// OPTIC RESTART 요청 구조체 (Client → UI, 다음 SEQUENCE 진행)
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
+        public struct SMPACK_OT_RESTART
+        {
+            public int msgID;           // SMID_OT_RESTART
+            public int SetLength;       // sizeof(SMPACK_OT_RESTART)
+            
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+            public byte[] cETX;         // ETX
+
+            public SMPACK_OT_RESTART(bool dummy = false)
+            {
+                this.msgID = SMID_OT_RESTART;
+                this.SetLength = Marshal.SizeOf(typeof(SMPACK_OT_RESTART));
+                this.cETX = new byte[32];
             }
         }
     }

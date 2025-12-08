@@ -506,6 +506,7 @@ namespace OptiX.OPTIC
         // 자동 모드: 클라이언트에서 받은 데이터 사용
         // 수동 모드: INI 파일 데이터 사용 (GlobalDataManager)
         private Dictionary<int, (string cellID, string innerID)> externalZoneData = new Dictionary<int, (string, string)>();
+        private bool isAutoMode = false; //25.12.08 - 자동 모드 플래그 (클라이언트 연결 시 true)
 
         /// <summary>
         /// 외부(통신)에서 Zone별 INPUT 데이터 설정
@@ -621,6 +622,25 @@ namespace OptiX.OPTIC
         public void ClearExternalInputData()
         {
             externalZoneData.Clear();
+            isAutoMode = false; //25.12.08 - 자동 모드 플래그 초기화
+        }
+        
+        //25.12.08 - 자동 모드 플래그 설정 및 가져오기
+        /// <summary>
+        /// 자동 모드 플래그 설정 (클라이언트 연결 시 true)
+        /// </summary>
+        public void SetAutoMode(bool autoMode)
+        {
+            isAutoMode = autoMode;
+            System.Diagnostics.Debug.WriteLine($"[OpticPageViewModel] 자동 모드: {(autoMode ? "활성" : "비활성")}");
+        }
+        
+        /// <summary>
+        /// 자동 모드 여부 확인
+        /// </summary>
+        public bool IsAutoMode()
+        {
+            return isAutoMode;
         }
         #endregion
 

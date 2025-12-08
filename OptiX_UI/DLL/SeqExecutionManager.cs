@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using OptiX.Common;
 
@@ -22,6 +23,9 @@ namespace OptiX.DLL
         
         //25.11.08 - ZoneTestResult 저장 필드 추가
         public ZoneTestResult? TestResult { get; set; }
+        
+        //25.12.08 - SEQUENCE별 Output 배열 저장 (자동 모드용)
+        public List<Output> SequenceOutputs { get; set; }
         
         /// <summary>
         /// 컨텍스트 초기화
@@ -47,6 +51,7 @@ namespace OptiX.DLL
             SeqStartTime = default(DateTime);
             SeqEndTime = default(DateTime);
             TestResult = null; //25.11.08 - TestResult 초기화
+            SequenceOutputs = new List<Output>(); //25.12.08 - SEQUENCE별 Output 배열 초기화
         }
         
         //25.10.29 - Input 설정 메서드 추가
@@ -215,6 +220,46 @@ namespace OptiX.DLL
                 return context.TestResult;
             }
             return null;
+        }
+        
+        //25.12.08 - SEQUENCE별 Output 저장 및 가져오기 메서드 추가
+        /// <summary>
+        /// SEQUENCE 완료 시 현재 Output을 배열에 추가
+        /// </summary>
+        public static void AddSequenceOutput(int zoneNumber)
+        {
+            if (_zoneContexts.TryGetValue(zoneNumber, out var context))
+            {
+                // 현재 SharedOutput을 복사하여 리스트에 추가
+                context.SequenceOutputs.Add(context.SharedOutput);
+                Debug.WriteLine($"[Zone {zoneNumber}] SEQUENCE Output 추가 (총 {context.SequenceOutputs.Count}개)");
+            }
+        }
+        
+        /// <summary>
+        /// Zone의 모든 SEQUENCE Output 배열 가져오기
+        /// </summary>
+        public static List<Output> GetSequenceOutputs(int zoneNumber)
+        {
+            if (_zoneContexts.TryGetValue(zoneNumber, out var context))
+            {
+                return context.SequenceOutputs ?? new List<Output>();
+            }
+            return new List<Output>();
+        }
+        
+        /// <summary>
+        /// 모든 Zone의 SEQUENCE Output 2차원 배열 가져오기 (HVI 모드용)
+        /// </summary>
+        public static List<List<Output>> GetAllZonesSequenceOutputs()
+        {
+            var result = new List<List<Output>>();
+            var sortedContexts = _zoneContexts.OrderBy(x => x.Key).ToList();
+            foreach (var kvp in sortedContexts)
+            {
+                result.Add(kvp.Value.SequenceOutputs ?? new List<Output>());
+            }
+            return result;
         }
         
         /// <summary>

@@ -63,6 +63,7 @@ public partial class MainWindow : Window
         communicationServer.ConnectionStatusChanged += OnCommunicationStatusChanged;
         communicationServer.OpticTestStartRequested += OnOpticTestStartRequested;
         communicationServer.IpvsTestStartRequested += OnIpvsTestStartRequested;
+        communicationServer.OpticRestartRequested += OnOpticRestartRequested; //25.12.08 - RESTART 이벤트 구독
         
         // INI에서 서버 설정 로드
         string tcpIp = GlobalDataManager.GetValue("Settings", "TCP_IP", "127.0.0.1");
@@ -231,6 +232,9 @@ public partial class MainWindow : Window
                     {
                         System.Diagnostics.Debug.WriteLine($"[MainWindow] Zone 데이터 설정 시작...");
                         
+                        // 자동 모드 플래그 설정
+                        viewModel.SetAutoMode(true);
+                        
                         foreach (var kvp in pendingOpticZones)
                         {
                             int zoneNumber = kvp.Key;
@@ -284,6 +288,18 @@ public partial class MainWindow : Window
         // pageNavigationManager?.NavigateToIpvsPage();
     }
 
+    //25.12.08 - OPTIC RESTART 요청 처리 (다음 SEQUENCE 진행)
+    /// <summary>
+    /// OPTIC RESTART 요청 처리 (Client가 다음 SEQUENCE 진행 명령)
+    /// </summary>
+    private void OnOpticRestartRequested(object sender, EventArgs e)
+    {
+        System.Diagnostics.Debug.WriteLine($"[MainWindow] OPTIC RESTART 요청 수신 - 다음 SEQUENCE 진행");
+        CommunicationLogger.WriteLog($"▶️ [OPTIC_RESTART] Client로부터 RESTART 명령 수신 - 다음 SEQUENCE 진행");
+        
+        // OpticSeqExecutor에서 이미 이벤트를 구독하고 있으므로 여기서는 로그만 기록
+    }
+
     public async Task<bool> StartCommunicationServer(string tcpIp, int port)
     {
         if (communicationServer != null)
@@ -319,6 +335,12 @@ public partial class MainWindow : Window
     public bool HasConnectedClients()
     {
         return communicationServer?.ConnectedClientCount > 0;
+    }
+
+    //25.12.08 - CommunicationServer 인스턴스 반환 (OpticSeqExecutor에서 사용)
+    public CommunicationServer GetCommunicationServer()
+    {
+        return communicationServer;
     }
 
     private void UpdateAutoModeDisplay(bool isConnected)

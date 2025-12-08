@@ -329,3 +329,7 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
+
+# Published builds
+publish/
+publish_debug/

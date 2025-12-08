@@ -30,6 +30,9 @@ namespace OptiX.Communication
         // OPTIC/IPVS 테스트 시작 이벤트
         public event EventHandler<OpticStartEventArgs> OpticTestStartRequested;
         public event EventHandler<IpvsStartEventArgs> IpvsTestStartRequested;
+        
+        //25.12.08 - OPTIC RESTART 이벤트 (다음 SEQUENCE 진행)
+        public event EventHandler OpticRestartRequested;
         #endregion
 
         #region Properties
@@ -194,6 +197,52 @@ namespace OptiX.Communication
                 catch (Exception ex)
                 {
                     LogMessage?.Invoke(this, $"❌ 클라이언트에게 메시지 전송 실패: {ex.Message}");
+                    // 연결이 끊어진 클라이언트 제거 (연결 상태 업데이트 포함)
+                    RemoveClient(client);
+                }
+            });
+
+            await Task.WhenAll(tasks);
+        }
+
+        //25.12.08 - 바이트 배열 전송 메서드 추가 (구조체 전송용)
+        /// <summary>
+        /// 모든 연결된 클라이언트에게 바이트 배열 전송
+        /// </summary>
+        /// <param name="data">전송할 바이트 배열</param>
+        public async Task SendBytesToAllClientsAsync(byte[] data)
+        {
+            if (!isRunning)
+            {
+                LogMessage?.Invoke(this, "⚠️ 서버가 실행되지 않았습니다.");
+                return;
+            }
+
+            List<TcpClient> clientsToSend;
+            lock (clientsLock)
+            {
+                clientsToSend = connectedClients.Where(c => c?.Connected == true).ToList();
+            }
+
+            if (clientsToSend.Count == 0)
+            {
+                LogMessage?.Invoke(this, "⚠️ 연결된 클라이언트가 없습니다.");
+                return;
+            }
+
+            var tasks = clientsToSend.Select(async client =>
+            {
+                try
+                {
+                    var stream = client.GetStream();
+                    await stream.WriteAsync(data, 0, data.Length);
+                    LogMessage?.Invoke(this, $"📤 모든 클라이언트에게 구조체 전송 ({data.Length} bytes)");
+                    CommunicationLogger.WriteLog($"📤 [STRUCT_SENT] 전송크기: {data.Length} bytes");
+                }
+                catch (Exception ex)
+                {
+                    LogMessage?.Invoke(this, $"❌ 클라이언트에게 데이터 전송 실패: {ex.Message}");
+                    CommunicationLogger.WriteLog($"❌ [SEND_ERROR] 전송 실패: {ex.Message}");
                     // 연결이 끊어진 클라이언트 제거 (연결 상태 업데이트 포함)
                     RemoveClient(client);
                 }
@@ -443,6 +492,9 @@ namespace OptiX.Communication
                     case CommunicationProtocol.SMID_OT_START:
                         return ProcessOPTICStart(data);
 
+                    case CommunicationProtocol.SMID_OT_RESTART:
+                        return ProcessOPTICRestart(data);
+
                     default:
                         LogMessage?.Invoke(this, $"⚠️ 알 수 없는 구조체 메시지 ID: {msgID}");
                         CommunicationLogger.WriteLog($"⚠️ [UNKNOWN_STRUCT] 메시지 ID: {msgID}");
@@ -534,6 +586,34 @@ namespace OptiX.Communication
                 LogMessage?.Invoke(this, $"❌ OPTIC_START 처리 실패: {ex.Message}");
                 CommunicationLogger.WriteLog($"❌ [OPTIC_START_ERROR] 오류: {ex.Message}");
                 return "OPTIC_START_ERROR";
+            }
+        }
+
+        /// <summary>
+        /// OPTIC_RESTART 구조체 처리 (다음 SEQUENCE 진행 명령)
+        /// </summary>
+        private string ProcessOPTICRestart(byte[] data)
+        {
+            try
+            {
+                var msg = CommunicationProtocol.ByteArrayToStructure<CommunicationProtocol.SMPACK_OT_RESTART>(data);
+
+                LogMessage?.Invoke(this, $"🟢 OPTIC_RESTART 수신 (다음 SEQUENCE 진행)");
+                CommunicationLogger.WriteLog($"🟢 [OPTIC_RESTART] 다음 SEQUENCE 진행 명령 수신");
+
+                // UI 스레드에서 이벤트 발생 (OpticSeqExecutor가 대기 중)
+                Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    OpticRestartRequested?.Invoke(this, EventArgs.Empty);
+                }));
+
+                return "OPTIC_RESTART_OK";
+            }
+            catch (Exception ex)
+            {
+                LogMessage?.Invoke(this, $"❌ OPTIC_RESTART 처리 실패: {ex.Message}");
+                CommunicationLogger.WriteLog($"❌ [OPTIC_RESTART_ERROR] 오류: {ex.Message}");
+                return "OPTIC_RESTART_ERROR";
             }
         }
 
