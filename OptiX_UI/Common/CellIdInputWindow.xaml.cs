@@ -268,33 +268,41 @@ namespace OptiX.Common
 
                 if (binding.Zones.Count > 0)
                 {
-                    int primaryZone = binding.Zones[0];
+                    //25.12.09 - HVI 모드일 때는 항상 Zone 1 (_1) 값을 기본값으로 사용
+                    int primaryZone = isHviModeEnabled ? 1 : binding.Zones[0];
+                    
                     cellIdValue = GlobalDataManager.GetValue(section, $"CELL_ID_ZONE_{primaryZone}", "");
                     innerIdValue = GlobalDataManager.GetValue(section, $"INNER_ID_ZONE_{primaryZone}", "");
 
-                    bool allSame = true;
-                    foreach (int zone in binding.Zones.Skip(1))
+                    // Normal 모드에서만 모든 존의 값이 같은지 확인
+                    if (!isHviModeEnabled && binding.Zones.Count > 1)
                     {
-                        string otherCell = GlobalDataManager.GetValue(section, $"CELL_ID_ZONE_{zone}", "");
-                        string otherInner = GlobalDataManager.GetValue(section, $"INNER_ID_ZONE_{zone}", "");
-
-                        if (!string.Equals(cellIdValue, otherCell, StringComparison.OrdinalIgnoreCase) ||
-                            !string.Equals(innerIdValue, otherInner, StringComparison.OrdinalIgnoreCase))
+                        bool allSame = true;
+                        foreach (int zone in binding.Zones.Skip(1))
                         {
-                            allSame = false;
-                            break;
-                        }
-                    }
+                            string otherCell = GlobalDataManager.GetValue(section, $"CELL_ID_ZONE_{zone}", "");
+                            string otherInner = GlobalDataManager.GetValue(section, $"INNER_ID_ZONE_{zone}", "");
 
-                    if (!allSame)
-                    {
-                        cellIdValue = "";
-                        innerIdValue = "";
+                            if (!string.Equals(cellIdValue, otherCell, StringComparison.OrdinalIgnoreCase) ||
+                                !string.Equals(innerIdValue, otherInner, StringComparison.OrdinalIgnoreCase))
+                            {
+                                allSame = false;
+                                break;
+                            }
+                        }
+
+                        if (!allSame)
+                        {
+                            cellIdValue = "";
+                            innerIdValue = "";
+                        }
                     }
                 }
 
                 binding.CellIdTextBox.Text = cellIdValue ?? "";
                 binding.InnerIdTextBox.Text = innerIdValue ?? "";
+                
+                System.Diagnostics.Debug.WriteLine($"[LoadCellInfo] {binding.DisplayName} - CELL_ID: {cellIdValue}, INNER_ID: {innerIdValue} (HVI: {isHviModeEnabled}, PrimaryZone: {(binding.Zones.Count > 0 ? (isHviModeEnabled ? 1 : binding.Zones[0]) : 0)})");
             }
         }
 
@@ -761,13 +769,22 @@ namespace OptiX.Common
                     continue;
                 }
 
+                //25.12.09 - HVI 모드일 때도 모든 존에 같은 값 저장
                 foreach (int zone in binding.Zones)
                 {
                     GlobalDataManager.SetValue(section, $"CELL_ID_ZONE_{zone}", cellId);
                     GlobalDataManager.SetValue(section, $"INNER_ID_ZONE_{zone}", innerId);
+                    System.Diagnostics.Debug.WriteLine($"[SaveCellInfo] Zone {zone} 저장 - CELL_ID: {cellId}, INNER_ID: {innerId}");
                 }
 
-                System.Diagnostics.Debug.WriteLine($"Cell 정보 저장: {binding.DisplayName} => CELL_ID='{cellId}', INNER_ID='{innerId}' (Zones: {FormatZoneList(binding.Zones)})");
+                if (isHviModeEnabled)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[HVI 모드] Cell 정보 저장: 모든 Zone에 동일 값 적용 => CELL_ID='{cellId}', INNER_ID='{innerId}' (Zones: {FormatZoneList(binding.Zones)})");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Normal 모드] Cell 정보 저장: {binding.DisplayName} => CELL_ID='{cellId}', INNER_ID='{innerId}' (Zones: {FormatZoneList(binding.Zones)})");
+                }
             }
         }
 

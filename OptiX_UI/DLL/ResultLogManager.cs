@@ -264,6 +264,12 @@ namespace OptiX.DLL
                 string cellId = representative.input.CELL_ID ?? string.Empty;
                 string innerId = representative.input.INNER_ID ?? string.Empty;
 
+                // Zone 개수 계산
+                int zoneCount = zoneData.Count;
+                
+                // SEQUENCE 개수는 1로 가정 (이 함수는 더 이상 사용되지 않음)
+                int sequenceCount = 1;
+
                 OptiX.Result_LOG.OPTIC.OpticCIMLogger.LogCIMDataHvi(
                     startTime,
                     endTime,
@@ -271,7 +277,9 @@ namespace OptiX.DLL
                     innerId,
                     outputs,
                     representative.testResult,
-                    representative.input);
+                    representative.input,
+                    zoneCount,
+                    sequenceCount);
 
                 ErrorLogger.Log("HVI CIM 로그 생성 완료 (배열 기반)", ErrorLogger.LogLevel.INFO);
                 return true;
@@ -306,6 +314,12 @@ namespace OptiX.DLL
                 string cellId = representative.input.CELL_ID ?? string.Empty;
                 string innerId = representative.input.INNER_ID ?? string.Empty;
 
+                // Zone 개수 계산
+                int zoneCount = zoneData.Count;
+                
+                // SEQUENCE 개수는 1로 가정 (이 함수는 더 이상 사용되지 않음)
+                int sequenceCount = 1;
+
                 var eecpLogger = OptiX.Result_LOG.OPTIC.OpticEECPLogger.Instance;
                 eecpLogger.LogEECPDataHvi(
                     startTime,
@@ -314,7 +328,9 @@ namespace OptiX.DLL
                     innerId,
                     outputs,
                     representative.input,
-                    representative.testResult);
+                    representative.testResult,
+                    zoneCount,
+                    sequenceCount);
 
                 var summaryLogger = OptiX.Result_LOG.OPTIC.OpticEECPSummaryLogger.Instance;
                 summaryLogger.LogEECPSummaryDataHvi(
@@ -322,7 +338,8 @@ namespace OptiX.DLL
                     endTime,
                     cellId,
                     innerId,
-                    outputs.Length,
+                    zoneCount,
+                    sequenceCount,
                     representative.input,
                     representative.testResult);
 

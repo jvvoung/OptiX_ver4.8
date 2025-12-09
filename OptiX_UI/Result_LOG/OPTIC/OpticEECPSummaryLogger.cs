@@ -16,8 +16,8 @@ namespace OptiX.Result_LOG.OPTIC
         private static readonly object _fileLock = new object();
         private static OpticEECPSummaryLogger _instance;
         private readonly string _basePath;
-        private readonly string _fileName;
-        private readonly string _fullPath;
+        private readonly string _filePath;     // 현재 모드의 파일 경로
+        private readonly bool _isHviMode;      // HVI 모드 여부
 
         /// <summary>
         /// Singleton Instance
@@ -40,6 +40,7 @@ namespace OptiX.Result_LOG.OPTIC
             }
         }
 
+        //25.12.08 - 프로그램 시작 시 모드 확인하여 해당 파일만 준비
         private OpticEECPSummaryLogger()
         {
             lock (_fileLock)
@@ -51,10 +52,6 @@ namespace OptiX.Result_LOG.OPTIC
                     
                     // 경로 정리 및 검증
                     _basePath = CleanPath(rawPath);
-                    _fileName = $"EECP_SUMMARY_{DateTime.Now:yyyyMMdd}.csv";
-                    _fullPath = Path.Combine(_basePath, _fileName);
-                    
-                    System.Diagnostics.Debug.WriteLine($"OPTIC EECP_SUMMARY 로거 초기화: {_fullPath}");
                     
                     // 디렉토리가 없으면 생성
                     if (!Directory.Exists(_basePath))
@@ -63,11 +60,35 @@ namespace OptiX.Result_LOG.OPTIC
                         System.Diagnostics.Debug.WriteLine($"OPTIC EECP_SUMMARY 디렉토리 생성: {_basePath}");
                     }
                     
+                    // OptiX.ini에서 HVI 모드 확인
+                    string hviModeStr = GlobalDataManager.GetValue("Settings", "HVI_MODE", "F");
+                    _isHviMode = (hviModeStr == "T" || hviModeStr.ToUpper() == "TRUE");
+                    
+                    // 모드에 따라 파일명 결정
+                    string fileName = _isHviMode 
+                        ? $"EECP_SUMMARY_HVI_{DateTime.Now:yyyyMMdd}.csv"
+                        : $"EECP_SUMMARY_{DateTime.Now:yyyyMMdd}.csv";
+                    
+                    _filePath = Path.Combine(_basePath, fileName);
+                    
                     // 파일이 없으면 헤더 생성
-                    if (!File.Exists(_fullPath))
+                    if (!File.Exists(_filePath))
                     {
-                        CreateHeader();
-                        System.Diagnostics.Debug.WriteLine($"OPTIC EECP_SUMMARY 헤더 파일 생성: {_fullPath}");
+                        if (_isHviMode)
+                        {
+                            CreateHeaderHvi();
+                            System.Diagnostics.Debug.WriteLine($"OPTIC EECP_SUMMARY HVI 헤더 파일 생성: {_filePath}");
+                        }
+                        else
+                        {
+                            CreateHeaderNormal();
+                            System.Diagnostics.Debug.WriteLine($"OPTIC EECP_SUMMARY Normal 헤더 파일 생성: {_filePath}");
+                        }
+                    }
+                    else
+                    {
+                        string modeStr = _isHviMode ? "HVI" : "Normal";
+                        System.Diagnostics.Debug.WriteLine($"OPTIC EECP_SUMMARY {modeStr} 로거 초기화: {_filePath}");
                     }
                 }
                 catch (Exception ex)
@@ -107,15 +128,28 @@ namespace OptiX.Result_LOG.OPTIC
             return rawPath;
         }
 
+        //25.12.08 - Normal 모드 CSV 헤더 생성
         /// <summary>
-        /// CSV 헤더 생성
+        /// Normal 모드 CSV 헤더 생성
         /// </summary>
-        private void CreateHeader()
+        private void CreateHeaderNormal()
         {
             var header = new StringBuilder();
             header.AppendLine("START TIME,END TIME,CELL ID,INNER ID,ZONE,SUMMARY_DATA,TACT,JUDGMENT,ERROR_NAME,TOTAL_POINT,CUR_POINT");
             
-            File.WriteAllText(_fullPath, header.ToString(), Encoding.UTF8);
+            File.WriteAllText(_filePath, header.ToString(), Encoding.UTF8);
+        }
+
+        //25.12.08 - HVI 모드 CSV 헤더 생성
+        /// <summary>
+        /// HVI 모드 CSV 헤더 생성
+        /// </summary>
+        private void CreateHeaderHvi()
+        {
+            var header = new StringBuilder();
+            header.AppendLine("START TIME,END TIME,CELL ID,INNER ID,SEQUENCE,SUMMARY_DATA,TACT,JUDGMENT,ERROR_NAME,TOTAL_POINT,CUR_POINT");
+            
+            File.WriteAllText(_filePath, header.ToString(), Encoding.UTF8);
         }
 
         /// <summary>
@@ -140,7 +174,7 @@ namespace OptiX.Result_LOG.OPTIC
             
             lock (_fileLock)
             {
-                File.AppendAllText(_fullPath, logEntry.ToString(), Encoding.UTF8);
+                File.AppendAllText(_filePath, logEntry.ToString(), Encoding.UTF8);
             }
         }
 
@@ -153,15 +187,48 @@ namespace OptiX.Result_LOG.OPTIC
             LogEECPSummaryData(now.AddSeconds(-10), now, cellId, innerId, zoneNumber, summaryData, input, testResult);
         }
 
+        //25.12.08 - HVI 모드 전용 EECP_SUMMARY 로그 기록
         /// <summary>
-        /// HVI 모드 전용 EECP_SUMMARY 로그 기록 (Output 배열 길이에 맞춰 반복)
+        /// HVI 모드 전용 EECP_SUMMARY 로그 기록
+        /// 파일명: EECP_SUMMARY_HVI_yyyyMMdd.csv (생성자에서 초기화)
+        /// SEQUENCE별로 한 행 생성
         /// </summary>
-        public void LogEECPSummaryDataHvi(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneCount, Input input, ZoneTestResult testResult)
+        public bool LogEECPSummaryDataHvi(DateTime startTime, DateTime endTime, string cellId, string innerId, int zoneCount, int sequenceCount, Input input, ZoneTestResult testResult)
         {
-            for (int index = 0; index < zoneCount; index++)
+            try
             {
-                string summaryData = $"Zone_{index + 1}_Summary_Data";
-                LogEECPSummaryData(startTime, endTime, cellId, innerId, index + 1, summaryData, input, testResult);
+                // SEQUENCE별로 한 행씩 생성
+                for (int seq = 0; seq < sequenceCount; seq++)
+                {
+                    var logEntry = new StringBuilder();
+                    
+                    logEntry.Append($"{startTime:yyyy:MM:dd HH:mm:ss:fff},");
+                    logEntry.Append($"{endTime:yyyy:MM:dd HH:mm:ss:fff},");
+                    logEntry.Append($"{cellId},");
+                    logEntry.Append($"{innerId},");
+                    logEntry.Append($"SEQ{seq + 1},");
+                    logEntry.Append($"ZONE_COUNT={zoneCount},");
+                    double tact = (endTime - startTime).TotalSeconds;
+                    logEntry.Append($"{tact:F3},");
+                    logEntry.Append($"{testResult.Judgment},");
+                    logEntry.Append($"{testResult.ErrorName},");
+                    logEntry.Append($"{input.total_point},");
+                    logEntry.AppendLine($"{input.cur_point}");
+                    
+                    lock (_fileLock)
+                    {
+                        File.AppendAllText(_filePath, logEntry.ToString(), Encoding.UTF8);
+                    }
+                }
+                
+                ErrorLogger.Log($"HVI EECP_SUMMARY 로그 생성 완료: {sequenceCount}개 SEQUENCE", ErrorLogger.LogLevel.INFO);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"OPTIC EECP_SUMMARY 로그 생성 오류 (HVI): {ex.Message}");
+                ErrorLogger.LogException(ex, "HVI EECP_SUMMARY 로그 생성 중 오류");
+                return false;
             }
         }
     }

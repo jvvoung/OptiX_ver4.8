@@ -401,13 +401,6 @@ namespace OptiX.OPTIC
             try
             {
                 ErrorLogger.Log($"HVI 모드 최종 처리 시작 (SEQUENCE {sequenceCount}개)", ErrorLogger.LogLevel.INFO);
-                
-                //25.12.08 - HVI 모드에서 SEQUENCE별 Output 2차원 배열 처리
-                if (sequenceCount > 1)
-                {
-                    var allZonesOutputs = SeqExecutionManager.GetAllZonesSequenceOutputs();
-                    ErrorLogger.Log($"HVI 모드: {allZonesOutputs.Count}개 Zone, 각 {sequenceCount}개 SEQUENCE Output", ErrorLogger.LogLevel.INFO);
-                }
 
                 var zoneContexts = new Dictionary<int, ZoneContext>();
                 for (int zone = 1; zone <= zoneCount; zone++)
@@ -423,11 +416,50 @@ namespace OptiX.OPTIC
                     }
                 }
 
-                var validOutputs = zoneContexts
-                    .Values
-                    .Where(c => c?.SharedOutput.data != null && c.SharedOutput.data.Length > 0)
-                    .Select(c => c.SharedOutput)
-                    .ToList();
+                //25.12.08 - SEQUENCE별 Output 배열 생성 (인덱스: zone * seqCount + seq)
+                var validOutputs = new List<Output>();
+                
+                if (sequenceCount > 1)
+                {
+                    // 자동 모드: SEQUENCE별 저장된 배열 사용
+                    // 배열 순서: [Zone0_SEQ0, Zone0_SEQ1, ..., Zone1_SEQ0, Zone1_SEQ1, ...]
+                    // 인덱스 공식: idx = zone * sequenceCount + seq
+                    ErrorLogger.Log($"HVI 모드: SEQUENCE별 Output 배열 생성 시작", ErrorLogger.LogLevel.INFO);
+                    
+                    for (int zone = 0; zone < zoneCount; zone++)
+                    {
+                        int zoneNumber = zone + 1;
+                        if (zoneContexts.TryGetValue(zoneNumber, out var context))
+                        {
+                            var sequenceOutputs = context.SequenceOutputs;
+                            if (sequenceOutputs != null && sequenceOutputs.Count > 0)
+                            {
+                                for (int seq = 0; seq < sequenceOutputs.Count; seq++)
+                                {
+                                    validOutputs.Add(sequenceOutputs[seq]);
+                                    ErrorLogger.Log($"Output[{zone * sequenceCount + seq}] = Zone {zoneNumber}, SEQUENCE {seq + 1}", ErrorLogger.LogLevel.INFO);
+                                }
+                            }
+                            else
+                            {
+                                ErrorLogger.Log($"Zone {zoneNumber}: SEQUENCE Output이 없습니다", ErrorLogger.LogLevel.WARNING);
+                            }
+                        }
+                    }
+                    
+                    ErrorLogger.Log($"HVI 모드: 총 {validOutputs.Count}개 Output (Zone {zoneCount}개 × SEQUENCE {sequenceCount}개 = {zoneCount * sequenceCount}개)", ErrorLogger.LogLevel.INFO);
+                }
+                else
+                {
+                    // 수동 모드 또는 SEQUENCE 1개: 기존 방식 (SharedOutput만 사용)
+                    validOutputs = zoneContexts
+                        .Values
+                        .Where(c => c?.SharedOutput.data != null && c.SharedOutput.data.Length > 0)
+                        .Select(c => c.SharedOutput)
+                        .ToList();
+                    
+                    ErrorLogger.Log($"HVI 모드: SharedOutput 사용 (Zone {validOutputs.Count}개)", ErrorLogger.LogLevel.INFO);
+                }
 
                 if (validOutputs.Count == 0)
                 {
@@ -525,37 +557,57 @@ namespace OptiX.OPTIC
 
                 MonitorLogService.Instance.Log(0, "ENTER CIM (HVI)");
 
-                var zoneLogData = new Dictionary<int, (Input input, Output output, ZoneTestResult testResult)>();
-                foreach (var kvp in zoneContexts)
-                {
-                    var ctx = kvp.Value;
-                    if (ctx == null) continue;
-                    if (ctx.SharedOutput.data == null || ctx.SharedOutput.data.Length == 0) continue;
-
-                    var zoneInput = ctx.SharedInput;
-                    if (string.IsNullOrWhiteSpace(zoneInput.CELL_ID)) zoneInput.CELL_ID = cellIdForHvi;
-                    if (string.IsNullOrWhiteSpace(zoneInput.INNER_ID)) zoneInput.INNER_ID = innerIdForHvi;
-
-                    zoneLogData[kvp.Key] = (zoneInput, ctx.SharedOutput, testResult);
-                }
+                // Input 정보 (Zone 1 대표)
+                var representativeInput = zone1Context.SharedInput;
+                if (string.IsNullOrWhiteSpace(representativeInput.CELL_ID)) representativeInput.CELL_ID = cellIdForHvi;
+                if (string.IsNullOrWhiteSpace(representativeInput.INNER_ID)) representativeInput.INNER_ID = innerIdForHvi;
 
                 _ = Task.Run(() =>
                 {
                     try
                     {
-                        bool cimSuccess = ResultLogManager.CreateCIMForZone_HVI(
+                        //25.12.08 - Output 배열, zoneCount, sequenceCount 전달
+                        bool cimSuccess = OptiX.Result_LOG.OPTIC.OpticCIMLogger.LogCIMDataHvi(
                             earliestStart,
                             latestEnd,
-                            zoneLogData);
+                            cellIdForHvi,
+                            innerIdForHvi,
+                            validOutputs.ToArray(),
+                            testResult,
+                            representativeInput,
+                            zoneCount,
+                            sequenceCount);
 
                         MonitorLogService.Instance.Log(0, $"CIM (HVI) {(cimSuccess ? "OK" : "FAIL")}");
 
-                        bool logSuccess = ResultLogManager.CreateAllResultLogs_HVI(
+                        //25.12.08 - EECP도 동일하게 전달
+                        bool eecpSuccess = OptiX.Result_LOG.OPTIC.OpticEECPLogger.Instance.LogEECPDataHvi(
                             earliestStart,
                             latestEnd,
-                            zoneLogData);
+                            cellIdForHvi,
+                            innerIdForHvi,
+                            validOutputs.ToArray(),
+                            representativeInput,
+                            testResult,
+                            zoneCount,
+                            sequenceCount);
 
-                        ErrorLogger.Log($"=== OPTIC 테스트 완료 (HVI) / 로그 결과: {logSuccess} ===", ErrorLogger.LogLevel.INFO);
+                        MonitorLogService.Instance.Log(0, $"EECP (HVI) {(eecpSuccess ? "OK" : "FAIL")}");
+
+                        //25.12.08 - EECP_SUMMARY도 동일하게 전달
+                        bool summarySuccess = OptiX.Result_LOG.OPTIC.OpticEECPSummaryLogger.Instance.LogEECPSummaryDataHvi(
+                            earliestStart,
+                            latestEnd,
+                            cellIdForHvi,
+                            innerIdForHvi,
+                            zoneCount,
+                            sequenceCount,
+                            representativeInput,
+                            testResult);
+
+                        MonitorLogService.Instance.Log(0, $"EECP_SUMMARY (HVI) {(summarySuccess ? "OK" : "FAIL")}");
+
+                        ErrorLogger.Log($"=== OPTIC 테스트 완료 (HVI) / 로그 결과: CIM={cimSuccess}, EECP={eecpSuccess}, SUMMARY={summarySuccess} ===", ErrorLogger.LogLevel.INFO);
                     }
                     catch (Exception ex)
                     {

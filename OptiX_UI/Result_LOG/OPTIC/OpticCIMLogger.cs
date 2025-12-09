@@ -167,21 +167,130 @@ namespace OptiX.Result_LOG.OPTIC
             }
         }
 
+        //25.12.08 - HVI 모드 전용 CIM 로그 데이터 기록 (SEQUENCE × Zone 2중 배열 처리)
         /// <summary>
-        /// HVI 모드 전용 CIM 로그 데이터 기록 (Output 배열 전체 처리)
+        /// HVI 모드 전용 CIM 로그 데이터 기록
+        /// Output 배열 순서: [Zone0_SEQ0, Zone0_SEQ1, ..., Zone1_SEQ0, Zone1_SEQ1, ...]
+        /// 인덱스 공식: idx = zone * sequenceCount + seq
         /// </summary>
-        public static void LogCIMDataHvi(DateTime startTime, DateTime endTime, string cellId, string innerId, Output[] outputs, ZoneTestResult testResult, Input input)
+        public static bool LogCIMDataHvi(DateTime startTime, DateTime endTime, string cellId, string innerId, Output[] outputs, ZoneTestResult testResult, Input input, int zoneCount, int sequenceCount)
         {
             if (outputs == null || outputs.Length == 0)
             {
-                return;
+                return false;
             }
 
-            for (int index = 0; index < outputs.Length; index++)
+            try
             {
-                var output = outputs[index];
-                int zoneNumber = index + 1;
-                LogCIMData(startTime, endTime, cellId, innerId, zoneNumber, output, testResult, input);
+                string rawPath = GlobalDataManager.GetValue("MTP_PATHS", "CIM_FOLDER", @"D:\Project\Log\Result\OPTIC\CIM");
+                string basePath = CleanPath(rawPath);
+                
+                if (!Directory.Exists(basePath))
+                {
+                    Directory.CreateDirectory(basePath);
+                }
+                
+                string fileName = $"ZONE_HVI.dat";
+                string filePath = Path.Combine(basePath, fileName);
+                
+                var logEntry = new StringBuilder();
+                
+                // 기본 정보
+                logEntry.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] CIM Log Entry (HVI Mode)");
+                logEntry.AppendLine($"START_TIME = {startTime:yyyy:MM:dd HH:mm:ss:fff}");
+                logEntry.AppendLine($"END_TIME = {endTime:yyyy:MM:dd HH:mm:ss:fff}");
+                logEntry.AppendLine($"TACT = {testResult.Tact}");
+                logEntry.AppendLine($"CELL_ID = {cellId}");
+                logEntry.AppendLine($"INNER_ID = {innerId}");
+                logEntry.AppendLine($"ZONE_COUNT = {zoneCount}");
+                logEntry.AppendLine($"SEQUENCE_COUNT = {sequenceCount}");
+                logEntry.AppendLine($"TOTAL_POINT = {input.total_point}");
+                logEntry.AppendLine($"CUR_POINT = {input.cur_point}");
+                logEntry.AppendLine($"ERROR_NAME = {testResult.ErrorName}");
+                logEntry.AppendLine($"JUDGMENT = {testResult.Judgment}");
+                logEntry.AppendLine();
+                
+                // [DATA] 섹션 시작
+                logEntry.AppendLine("[DATA]");
+                
+                // Zone별 접미사 (예: _C, _L, _R)
+                string[] zonePrefix = { "_C", "_L", "_R", "_T", "_B", "_F", "_S", "_E" };
+                string[] wadNames = { "WAD_0", "WAD_30", "WAD_45", "WAD_60", "WAD_15", "WAD_A", "WAD_B" };
+                string[] patternNames = { "W", "R", "G", "B", "WG", "WG2", "WG3", "WG4", "WG5", "WG6", "WG7", "WG8", "WG9", "WG10", "WG11", "WG12", "WG13" };
+                
+                // 2중 루프: SEQUENCE → Zone 순서로 처리
+                for (int seq = 0; seq < sequenceCount; seq++)
+                {
+                    logEntry.AppendLine($"// ========== SEQUENCE {seq + 1} ==========");
+                    
+                    for (int zone = 0; zone < zoneCount; zone++)
+                    {
+                        // 인덱스 계산: idx = zone * sequenceCount + seq
+                        int idx = zone * sequenceCount + seq;
+                        //인덱스0->시퀀스:0, 존:0
+                        //인덱스1->시퀀스:1, 존:0
+                        //인덱스2->시퀀스:2, 존:0
+                        //인덱스3->시퀀스:0, 존:1
+                        //인덱스4->시퀀스:1, 존:1
+                        //인덱스5->시퀀스:2, 존:1
+
+                        if (idx >= outputs.Length)
+                        {
+                            ErrorLogger.Log($"HVI CIM: 인덱스 범위 초과 (idx={idx}, length={outputs.Length})", ErrorLogger.LogLevel.WARNING);
+                            continue;
+                        }
+                        
+                        var output = outputs[idx];
+                        string zoneSuffix = zone < zonePrefix.Length ? zonePrefix[zone] : $"_Z{zone}";
+                        
+                        logEntry.AppendLine($"// Zone {zone + 1} (Suffix: {zoneSuffix})");
+                        
+                        // struct pattern data[7][17] 구조
+                        for (int wad = 0; wad < 7; wad++)
+                        {
+                            for (int pattern = 0; pattern < 17; pattern++)
+                            {
+                                int dataIndex = wad * 17 + pattern;
+                                
+                                if (dataIndex < output.data.Length)
+                                {
+                                    var data = output.data[dataIndex];
+                                    string prefix = $"{wadNames[wad]}_{patternNames[pattern]}{zoneSuffix}";
+                                    
+                                    logEntry.AppendLine($"{prefix}_X = {data.x:F3}");
+                                    logEntry.AppendLine($"{prefix}_Y = {data.y:F3}");
+                                    logEntry.AppendLine($"{prefix}_u = {data.u:F3}");
+                                    logEntry.AppendLine($"{prefix}_v = {data.v:F3}");
+                                    logEntry.AppendLine($"{prefix}_L = {data.L:F3}");
+                                    logEntry.AppendLine($"{prefix}_전류 = {data.cur:F3}");
+                                    logEntry.AppendLine($"{prefix}_효율 = {data.eff:F3}");
+                                    logEntry.AppendLine($"{prefix}_판정 = {(data.result == 0 ? "OK" : data.result == 1 ? "NG" : "PTN")}");
+                                }
+                            }
+                        }
+                        
+                        logEntry.AppendLine();
+                    }
+                }
+                
+                logEntry.AppendLine("========================================");
+                
+                // 파일 쓰기
+                lock (_fileLock)
+                {
+                    File.WriteAllText(filePath, logEntry.ToString(), Encoding.UTF8);
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"OPTIC CIM 로그 생성 (HVI): {filePath}");
+                ErrorLogger.Log($"HVI CIM 로그 생성 완료: {zoneCount}개 Zone × {sequenceCount}개 SEQUENCE", ErrorLogger.LogLevel.INFO);
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"OPTIC CIM 로그 생성 오류 (HVI): {ex.Message}");
+                ErrorLogger.LogException(ex, "HVI CIM 로그 생성 중 오류");
+                return false;
             }
         }
     }
