@@ -632,7 +632,7 @@ namespace OptiX.OPTIC
             try
             {
                 ErrorLogger.Log($"Zone {zoneId} SEQUENCE{sequenceIndex + 1} 시작", ErrorLogger.LogLevel.INFO, zoneId);
-                await ExecuteSeqForZone(zoneId, orderedSeq);
+                await ExecuteSeqForZone(zoneId, orderedSeq, isHviMode, sequenceIndex);
 
                 // 존 완료 표시
                 SetZoneTestCompleted(zoneId - 1, true);
@@ -650,11 +650,8 @@ namespace OptiX.OPTIC
                 //25.12.08 - Normal 모드: 항상 판정/로그 처리, HVI 모드: 첫 SEQUENCE에서만 버퍼링
                 if (isHviMode)
                 {
-                    // HVI 모드: 첫 SEQUENCE에서만 버퍼링 (최종 판정은 FinalizeHviModeAsync에서)
-                    if (sequenceIndex == 0)
-                    {
-                        await ProcessZoneResultHviBufferingAsync(zoneId);
-                    }
+                    // HVI 모드: 모든 SEQUENCE마다 버퍼링 (최종 판정은 FinalizeHviModeAsync에서)
+                    await ProcessZoneResultHviBufferingAsync(zoneId);
                 }
                 else
                 {
@@ -800,7 +797,7 @@ namespace OptiX.OPTIC
         /// <summary>
         /// Zone별 SEQ 실행 (최신 버전 - View와 동일)
         /// </summary>
-        private async Task ExecuteSeqForZone(int zoneId, List<string> orderedSeq)
+        private async Task ExecuteSeqForZone(int zoneId, List<string> orderedSeq, bool isHviMode, int sequenceIndex)
         {
             ErrorLogger.Log($"Zone SEQ 실행 시작", ErrorLogger.LogLevel.INFO, zoneId);
             
@@ -826,7 +823,9 @@ namespace OptiX.OPTIC
             
             int totalPoint = DllConstants.DEFAULT_CURRENT_POINT; // MTP는 119 포인트 (기본값)
             
-            SeqExecutionManager.StartZoneSeq(zoneId, cellId, innerId, totalPoint, isIPVS: false);
+            //25.12.08 - HVI 모드일 때 SEQUENCE2부터는 SequenceOutputs 초기화 안 함
+            bool clearSequenceOutputs = !(isHviMode && sequenceIndex > 0);
+            SeqExecutionManager.StartZoneSeq(zoneId, cellId, innerId, totalPoint, isIPVS: false, clearSequenceOutputs: clearSequenceOutputs);
             
             // 시퀀스를 Queue로 변환 (POP 방식으로 진행)
             var sequenceQueue = new Queue<string>(orderedSeq);

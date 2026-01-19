@@ -30,7 +30,7 @@ namespace OptiX.DLL
         /// <summary>
         /// 컨텍스트 초기화
         /// </summary>
-        public void Reset()
+        public void Reset(bool clearSequenceOutputs = true)
         {
             SharedInput = new Input
             {
@@ -51,7 +51,12 @@ namespace OptiX.DLL
             SeqStartTime = default(DateTime);
             SeqEndTime = default(DateTime);
             TestResult = null; //25.11.08 - TestResult 초기화
-            SequenceOutputs = new List<Output>(); //25.12.08 - SEQUENCE별 Output 배열 초기화
+            
+            //25.12.08 - SEQUENCE별 Output 배열 초기화 (HVI 모드에서는 유지 가능)
+            if (clearSequenceOutputs)
+            {
+                SequenceOutputs = new List<Output>();
+            }
         }
         
         //25.10.29 - Input 설정 메서드 추가
@@ -98,7 +103,8 @@ namespace OptiX.DLL
         /// <summary>
         /// Zone SEQ 시작 - 컨텍스트 생성 및 초기화
         /// </summary>
-        public static void StartZoneSeq(int zoneNumber, string cellId, string innerId, int totalPoint, bool isIPVS = false)
+        /// <param name="clearSequenceOutputs">SequenceOutputs 초기화 여부 (HVI 모드에서 SEQUENCE2부터는 false)</param>
+        public static void StartZoneSeq(int zoneNumber, string cellId, string innerId, int totalPoint, bool isIPVS = false, bool clearSequenceOutputs = true)
         {
             // 전역 SEQ 시작 시간 설정 (첫 번째 Zone)
             lock (_lockObject)
@@ -112,15 +118,15 @@ namespace OptiX.DLL
             // Zone 컨텍스트 생성 또는 가져오기
             var context = _zoneContexts.GetOrAdd(zoneNumber, new ZoneContext { ZoneNumber = zoneNumber });
             
-            // 컨텍스트 초기화
-            context.Reset();
+            // 컨텍스트 초기화 (SEQUENCE별 Output 배열은 조건부 초기화)
+            context.Reset(clearSequenceOutputs);
             context.SeqStartTime = DateTime.Now;
             
             // Input 설정
             int defaultTotalPoint = isIPVS ? DllConstants.DEFAULT_IPVS_TOTAL_POINT : DllConstants.DEFAULT_CURRENT_POINT;
             context.ConfigureInput(cellId, innerId, totalPoint > 0 ? totalPoint : defaultTotalPoint);
             
-            Debug.WriteLine($"[Zone {zoneNumber}] SEQ 시작 - CELL_ID: {cellId}, INNER_ID: {innerId}, total_point: {context.SharedInput.total_point}");
+            Debug.WriteLine($"[Zone {zoneNumber}] SEQ 시작 - CELL_ID: {cellId}, INNER_ID: {innerId}, total_point: {context.SharedInput.total_point}, clearSeqOutputs: {clearSequenceOutputs}");
             ErrorLogger.Log($"Zone {zoneNumber} SEQ 시작 (CELL_ID: {cellId})", ErrorLogger.LogLevel.INFO, zoneNumber);
         }
         
