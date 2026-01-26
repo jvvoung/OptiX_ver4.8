@@ -650,23 +650,16 @@ namespace OptiX.Common
                 return;
             }
 
-            if (!connectionStates.TryGetValue(binding.StateKey, out bool state))
-            {
-                if (TryLoadPersistedConnectionState(binding.StateKey, out bool persistedState))
-                {
-                    state = persistedState;
-                    connectionStates[binding.StateKey] = state;
-                }
-            }
-
-            if (connectionStates.TryGetValue(binding.StateKey, out state))
-            {
-                ApplyButtonResult(binding.ConnectButton, state);
-            }
-            else
-            {
-                ResetButtonAppearance(binding.ConnectButton);
-            }
+            // PortConnectionManager에서 직접 읽기 (항상 최신 상태 보장)
+            bool state = PortConnectionManager.Instance.GetConnectionState(binding.StateKey);
+            
+            // connectionStates 딕셔너리도 동기화
+            connectionStates[binding.StateKey] = state;
+            
+            // 버튼 상태 적용
+            ApplyButtonResult(binding.ConnectButton, state);
+            
+            System.Diagnostics.Debug.WriteLine($"[CellIdInputWindow] 포트 상태 로드: {binding.StateKey} = {(state ? "연결됨 🟢" : "끊김 ⚪")}");
         }
 
         private void ApplyTheme()
@@ -1097,44 +1090,17 @@ namespace OptiX.Common
             }
 
             connectionStates[binding.StateKey] = success;
-            PersistConnectionState(binding.StateKey, success);
+            // 메모리 기반 상태 관리 (INI 파일 저장 제거)
+            PortConnectionManager.Instance.SetConnectionState(binding.StateKey, success);
         }
 
-        private void PersistConnectionState(string stateKey, bool success)
-        {
-            try
-            {
-                GlobalDataManager.SetValue(PortStatusSection, stateKey, success ? "T" : "F");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"포트 상태 저장 실패 ({stateKey}): {ex.Message}");
-            }
-        }
+        // PersistConnectionState 메서드 제거됨 - 메모리 기반으로 변경
 
         private bool TryLoadPersistedConnectionState(string stateKey, out bool state)
         {
-            state = false;
-            try
-            {
-                string raw = GlobalDataManager.GetValue(PortStatusSection, stateKey, "");
-                if (string.Equals(raw, "T", StringComparison.OrdinalIgnoreCase))
-                {
-                    state = true;
-                    return true;
-                }
-                if (string.Equals(raw, "F", StringComparison.OrdinalIgnoreCase))
-                {
-                    state = false;
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"포트 상태 로드 실패 ({stateKey}): {ex.Message}");
-            }
-
-            return false;
+            // 메모리 기반 상태 관리 (INI 파일에서 읽지 않음)
+            state = PortConnectionManager.Instance.GetConnectionState(stateKey);
+            return state; // 연결되어 있으면 true 반환
         }
 
         private static string FormatZoneList(IEnumerable<int> zones)

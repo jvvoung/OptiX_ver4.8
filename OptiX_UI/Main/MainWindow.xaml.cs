@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -16,6 +17,7 @@ using System.Threading.Tasks;
 using OptiX.Main;
 using OptiX.Communication;
 using OptiX.Common;
+using OptiX.DLL;
 
 namespace OptiX
 {
@@ -47,11 +49,17 @@ public partial class MainWindow : Window
         tooltipManager = new TooltipManager(this);
         windowResizeManager = new WindowResizeManager(this);
         
+        // PageNavigationManager에 다크모드 상태 전달
+        pageNavigationManager.SetDarkMode(isDarkMode);
+        
         // 언어 변경 이벤트 구독
         LanguageManager.LanguageChanged += OnLanguageChanged;
         
         // 초기 언어 적용
         ApplyLanguage();
+        
+        // 자동 연결 기능 초기화 (UI 로드 후 실행)
+        Loaded += (s, e) => InitializeAutoConnections();
     }
 
     private void InitializeCommunicationServer()
@@ -530,10 +538,10 @@ public partial class MainWindow : Window
             // 창 크기 및 위치 설정 제거됨 - 하드코딩된 기본값 사용
 
             // 테마 설정 로드
-            string isDarkModeStr = GlobalDataManager.GetValue("Theme", "IsDarkMode", "False");
-            if (bool.TryParse(isDarkModeStr, out bool darkMode) && darkMode)
+            string isDarkModeStr = GlobalDataManager.GetValue("Theme", "IsDarkMode", "F");
+            isDarkMode = isDarkModeStr.ToUpper() == "T";
+            if (isDarkMode)
             {
-                isDarkMode = true;
                 ThemeManager.SetMainWindowDarkMode(this, pageNavigationManager);
                 tooltipManager?.SetDarkMode(true);
             }
@@ -622,5 +630,271 @@ public partial class MainWindow : Window
             DragMove();
         }
     }
+
+    #region 자동 연결 기능
+
+    /// <summary>
+    /// 프로그램 시작 시 자동 연결 기능 초기화
+    /// </summary>
+    private async void InitializeAutoConnections()
+    {
+        try
+        {
+            // 1. TCP/IP Communication 자동 연결
+            string autoConnectStr = GlobalDataManager.GetValue("Settings", "AUTO_CONNECT", "F");
+            System.Diagnostics.Debug.WriteLine($"[AutoConnect] INI에서 읽은 AUTO_CONNECT 원본 값: '{autoConnectStr}'");
+            System.Diagnostics.Debug.WriteLine($"[AutoConnect] ToUpper() 변환 후: '{autoConnectStr.ToUpper()}'");
+            bool autoConnect = autoConnectStr.ToUpper() == "T";
+            System.Diagnostics.Debug.WriteLine($"[AutoConnect] 최종 판단 ('{autoConnectStr.ToUpper()}' == 'T'): {autoConnect}");
+            
+            if (autoConnect)
+            {
+                System.Diagnostics.Debug.WriteLine("[AutoConnect] TCP/IP 자동 연결 시작...");
+                await Task.Delay(500); // UI 초기화 대기
+                
+                string tcpIp = GlobalDataManager.GetValue("Settings", "TCP_IP", "127.0.0.1");
+                string tcpPortStr = GlobalDataManager.GetValue("Settings", "TCP_PORT", "7777");
+                
+                if (int.TryParse(tcpPortStr, out int tcpPort))
+                {
+                    bool success = await StartCommunicationServer(tcpIp, tcpPort);
+                    
+                    string message;
+                    if (success)
+                    {
+                        // 서버 시작 성공 - 연결 상태 저장 (MainSettingsWindow 버튼 초록색 표시용)
+                        GlobalDataManager.SetValue("ConnectionState", "TCP_SERVER_RUNNING", "T");
+                        
+                        message = $"✅ TCP/IP 통신 서버가 시작되었습니다.\n\n" +
+                                  $"📡 IP: {tcpIp}\n" +
+                                  $"🔌 Port: {tcpPort}\n\n" +
+                                  $"⏳ 클라이언트 연결 대기 중...\n" +
+                                  $"(클라이언트가 연결되면 'AUTO MODE'가 표시됩니다)";
+                    }
+                    else
+                    {
+                        message = $"❌ TCP/IP 통신 서버 시작에 실패했습니다.\n\n" +
+                                  $"IP: {tcpIp}\n" +
+                                  $"Port: {tcpPort}\n\n" +
+                                  $"포트가 이미 사용 중이거나 권한이 없을 수 있습니다.";
+                    }
+                    
+                    MessageBoxImage icon = success ? MessageBoxImage.Information : MessageBoxImage.Warning;
+                    
+                    Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show(message, "TCP/IP 서버 자동 시작", MessageBoxButton.OK, icon);
+                    });
+                    
+                    System.Diagnostics.Debug.WriteLine($"[AutoConnect] TCP/IP 서버 시작 {(success ? "성공" : "실패")} (클라이언트 연결 대기 중)");
+                }
+            }
+            
+            // 2. OPTIC Port 자동 연결
+            string opticPortConnectStr = GlobalDataManager.GetValue("Settings", "OPTIC_PORT_CONNECT", "F");
+            System.Diagnostics.Debug.WriteLine($"[AutoConnect] INI에서 읽은 OPTIC_PORT_CONNECT 원본 값: '{opticPortConnectStr}'");
+            System.Diagnostics.Debug.WriteLine($"[AutoConnect] ToUpper() 변환 후: '{opticPortConnectStr.ToUpper()}'");
+            bool opticPortConnect = opticPortConnectStr.ToUpper() == "T";
+            System.Diagnostics.Debug.WriteLine($"[AutoConnect] 최종 판단 ('{opticPortConnectStr.ToUpper()}' == 'T'): {opticPortConnect}");
+            
+            if (opticPortConnect)
+            {
+                System.Diagnostics.Debug.WriteLine("[AutoConnect] OPTIC Port 자동 연결 시작...");
+                await Task.Delay(1000); // DLL 초기화 대기
+                
+                await AutoConnectOpticPorts();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AutoConnect] 오류: {ex.Message}");
+            ErrorLogger.Log($"자동 연결 오류: {ex.Message}", ErrorLogger.LogLevel.ERROR);
+        }
+    }
+
+    /// <summary>
+    /// OPTIC Port All Connect 자동 실행 (CellIdInputWindow의 AllConnectButton_Click과 동일)
+    /// </summary>
+    private async Task AutoConnectOpticPorts()
+    {
+        await Task.Run(() =>
+        {
+            try
+            {
+                // DLL 초기화 확인
+                if (!DllManager.IsInitialized)
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show("DLL이 초기화되지 않았습니다.\nOPTIC Port 자동 연결을 건너뜁니다.",
+                            "OPTIC Port 자동 연결", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    });
+                    return;
+                }
+
+                var successList = new List<string>();
+                var failureList = new List<string>();
+
+                // HVI 모드 확인
+                bool isHviMode = GlobalDataManager.IsHviModeEnabled();
+                System.Diagnostics.Debug.WriteLine($"[AutoConnect] HVI 모드: {isHviMode}");
+
+                // MTP 섹션에서 포트 정보 읽기
+                string section = "MTP";
+                var sectionData = GlobalDataManager.ReadSection(section);
+                if (sectionData == null || sectionData.Count == 0)
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show("MTP 섹션에 포트 정보가 없습니다.",
+                            "OPTIC Port 자동 연결", MessageBoxButton.OK, MessageBoxImage.Information);
+                    });
+                    return;
+                }
+
+                // Zone 개수 확인
+                int zoneCount = int.Parse(GlobalDataManager.GetValue("Settings", "MTP_ZONE", "2"));
+
+                // 포트 수집 (중복 제거용)
+                var pgPorts = new Dictionary<int, List<int>>();  // Port -> Zone List
+                var measPorts = new Dictionary<int, List<int>>();  // Port -> Zone List
+
+                // 모든 Zone의 포트 수집
+                for (int zone = 1; zone <= zoneCount; zone++)
+                {
+                    // PG Port
+                    string pgPortKey = $"PG_PORT_{zone}";
+                    if (sectionData.TryGetValue(pgPortKey, out string pgPortStr) && !string.IsNullOrWhiteSpace(pgPortStr))
+                    {
+                        if (int.TryParse(pgPortStr.Trim(), out int pgPort))
+                        {
+                            if (!pgPorts.ContainsKey(pgPort))
+                                pgPorts[pgPort] = new List<int>();
+                            pgPorts[pgPort].Add(zone);
+                        }
+                    }
+
+                    // MEAS Port
+                    string measPortKey = $"MEAS_PORT_{zone}";
+                    if (sectionData.TryGetValue(measPortKey, out string measPortStr) && !string.IsNullOrWhiteSpace(measPortStr))
+                    {
+                        if (int.TryParse(measPortStr.Trim(), out int measPort))
+                        {
+                            if (!measPorts.ContainsKey(measPort))
+                                measPorts[measPort] = new List<int>();
+                            measPorts[measPort].Add(zone);
+                        }
+                    }
+                }
+
+                // PG Port 연결 (중복 제거됨)
+                foreach (var kvp in pgPorts)
+                {
+                    int port = kvp.Key;
+                    var zones = kvp.Value;
+                    string zoneDisplay = zones.Count > 1 ? $"Zones {string.Join(", ", zones)}" : $"Zone {zones[0]}";
+
+                    try
+                    {
+                        bool result = DllFunctions.CallPGTurn(port);
+                        if (result)
+                        {
+                            string successMsg = $"PG Port {port}: 성공 ({zoneDisplay})";
+                            successList.Add(successMsg);
+
+                            // 연결 상태 저장 (CellIdInputWindow와 동일한 형식)
+                            // StateKey 형식: "PG:MTP:PG_PORT_1|PG_PORT_2|PG_PORT_3" (HVI 모드) 또는 "PG:MTP:PG_PORT_1" (Normal 모드)
+                            var iniKeys = zones.Select(z => $"PG_PORT_{z}").ToList();
+                            string keyPart = string.Join("|", iniKeys);
+                            string stateKey = $"PG:MTP:{keyPart}";
+                            PortConnectionManager.Instance.SetConnectionState(stateKey, true);
+                            System.Diagnostics.Debug.WriteLine($"[AutoConnect] PG 연결 상태 저장: {stateKey} = True");
+                        }
+                        else
+                        {
+                            failureList.Add($"PG Port {port}: 실패 ({zoneDisplay})");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        failureList.Add($"PG Port {port}: 예외 - {ex.Message} ({zoneDisplay})");
+                    }
+                }
+
+                // MEAS Port 연결 (중복 제거됨)
+                foreach (var kvp in measPorts)
+                {
+                    int port = kvp.Key;
+                    var zones = kvp.Value;
+                    string zoneDisplay = zones.Count > 1 ? $"Zones {string.Join(", ", zones)}" : $"Zone {zones[0]}";
+
+                    try
+                    {
+                        bool result = DllFunctions.CallMeasTurn(port);
+                        if (result)
+                        {
+                            string successMsg = $"MEAS Port {port}: 성공 ({zoneDisplay})";
+                            successList.Add(successMsg);
+
+                            // 연결 상태 저장 (CellIdInputWindow와 동일한 형식)
+                            // StateKey 형식: "MEAS:MTP:MEAS_PORT_1|MEAS_PORT_2|MEAS_PORT_3" (HVI 모드) 또는 "MEAS:MTP:MEAS_PORT_1" (Normal 모드)
+                            var iniKeys = zones.Select(z => $"MEAS_PORT_{z}").ToList();
+                            string keyPart = string.Join("|", iniKeys);
+                            string stateKey = $"MEAS:MTP:{keyPart}";
+                            PortConnectionManager.Instance.SetConnectionState(stateKey, true);
+                            System.Diagnostics.Debug.WriteLine($"[AutoConnect] MEAS 연결 상태 저장: {stateKey} = True");
+                        }
+                        else
+                        {
+                            failureList.Add($"MEAS Port {port}: 실패 ({zoneDisplay})");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        failureList.Add($"MEAS Port {port}: 예외 - {ex.Message} ({zoneDisplay})");
+                    }
+                }
+
+                // 결과 팝업 표시
+                Dispatcher.Invoke(() =>
+                {
+                    var sb = new StringBuilder();
+                    
+                    if (successList.Count > 0)
+                    {
+                        sb.AppendLine("✅ [성공]");
+                        foreach (var msg in successList)
+                            sb.AppendLine($"   - {msg}");
+                    }
+                    
+                    if (failureList.Count > 0)
+                    {
+                        if (sb.Length > 0) sb.AppendLine();
+                        sb.AppendLine("❌ [실패]");
+                        foreach (var msg in failureList)
+                            sb.AppendLine($"   - {msg}");
+                    }
+
+                    string message = sb.Length > 0 ? sb.ToString() : "연결할 포트가 없습니다.";
+                    MessageBoxImage icon = failureList.Count > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information;
+                    
+                    MessageBox.Show(message, "OPTIC Port 자동 연결", MessageBoxButton.OK, icon);
+                });
+
+                System.Diagnostics.Debug.WriteLine($"[AutoConnect] OPTIC Port 연결 완료 - 성공: {successList.Count}, 실패: {failureList.Count}, HVI 모드: {isHviMode}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AutoConnect] OPTIC Port 연결 오류: {ex.Message}");
+                Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"OPTIC Port 자동 연결 중 오류가 발생했습니다:\n{ex.Message}",
+                        "OPTIC Port 자동 연결", MessageBoxButton.OK, MessageBoxImage.Error);
+                });
+            }
+        });
+    }
+
+    #endregion
 }
 }

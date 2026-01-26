@@ -82,6 +82,10 @@ namespace OptiX.Common
                 // Theme 섹션
                 LoadSectionData("Theme");
                 
+                // 연결 상태 섹션 (자동 연결 기능용)
+                LoadSectionData("ConnectionState");
+                LoadSectionData("PORT_STATUS");
+                
                 // Zone 정보 로드 (MTP 성능 최적화)
                 LoadZoneInfo();
 
@@ -108,10 +112,11 @@ namespace OptiX.Common
             // 일반적인 키들을 미리 정의하여 로드
             var commonKeys = new[]
             {
-                "Category", "WAD", "TCP_IP", "CREATE_EECP", "CREATE_CIM", 
+                "Category", "WAD", "TCP_IP", "TCP_PORT", "CREATE_EECP", "CREATE_CIM", 
                 "CREATE_EECP_SUMMARY", "CREATE_VALIDATION", "MAX_POINT",
                 "EECP_FOLDER", "CIM_FOLDER", "VALID_FOLDER", "DLL_FOLDER", "SEQUENCE_FOLDER", "EECP_SUMMARY_FOLDER",
-                "IsDarkMode", "LANGUAGE", "MTP_ZONE", "IPVS_ZONE", "HVI_MODE", "MEAS_MULTI", "MEAS_MULIT"
+                "IsDarkMode", "LANGUAGE", "MTP_ZONE", "IPVS_ZONE", "HVI_MODE", "MEAS_MULTI", "MEAS_MULIT",
+                "AUTO_CONNECT", "OPTIC_PORT_CONNECT", "AUTO_START_SERVER", "RESTART_TIMEOUT_SEC"
             };
 
                 foreach (var key in commonKeys)

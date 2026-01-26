@@ -101,6 +101,7 @@
     </Compile>
     <Compile Include="Common\GlobalDataManager.cs" />
     <Compile Include="Common\IniFileManager.cs" />
+    <Compile Include="Common\PortConnectionManager.cs" />
     <Compile Include="Language\LanguageManager.cs" />
     <Compile Include="Language\LanguageHelper.cs" />
     <Compile Include="DLL\DllConstants.cs" />

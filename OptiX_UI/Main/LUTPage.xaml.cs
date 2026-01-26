@@ -42,8 +42,8 @@ namespace OptiX.Main
             try
             {
                 // MainWindow와 동일한 방식으로 테마 로드
-                string isDarkModeStr = GlobalDataManager.GetValue("Theme", "IsDarkMode", "False");
-                _isDarkMode = bool.TryParse(isDarkModeStr, out bool darkMode) && darkMode;
+                string isDarkModeStr = GlobalDataManager.GetValue("Theme", "IsDarkMode", "F");
+                _isDarkMode = isDarkModeStr.ToUpper() == "T";
                 ApplyTheme();
             }
             catch (Exception ex)
