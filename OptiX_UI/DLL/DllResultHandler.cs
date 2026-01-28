@@ -143,6 +143,8 @@ namespace OptiX.DLL
             int selectedWadIndex,
             string[] categoryNames,
             Action<string> onZoneJudgmentUpdate,
+            int zoneCount,
+            int sequenceCount,
             bool applyZoneJudgment = true)
         {
             try
@@ -154,6 +156,7 @@ namespace OptiX.DLL
 
                 int actualZone = int.TryParse(targetZone, out int z) ? z : 1;
                 Common.ErrorLogger.Log("=== OPTIC HVI 결과 처리 시작 ===", Common.ErrorLogger.LogLevel.INFO, actualZone);
+                Common.ErrorLogger.Log($"[HVI] zoneCount={zoneCount}, sequenceCount={sequenceCount}, zoneOutputs.Count={zoneOutputs.Count}", Common.ErrorLogger.LogLevel.INFO, actualZone);
 
                 var resultMatrices = zoneOutputs
                     .Where(o => o.data != null && o.data.Length > 0)
@@ -186,12 +189,24 @@ namespace OptiX.DLL
                 string zoneJudgment = OpticJudgment.Instance.JudgeZoneFromResults_HVI(resultMatrices);
                 Common.ErrorLogger.Log($"[HVI] Zone 전체 판정: {zoneJudgment}", Common.ErrorLogger.LogLevel.INFO, actualZone);
 
+                //25.01.29 - 첫 번째 시퀀스 데이터만 UI에 표시
                 int availableCategories = Math.Min(categoryNames.Length, DllConstants.MAX_PATTERN_COUNT);
-                for (int zoneIndex = 0; zoneIndex < zoneOutputs.Count; zoneIndex++)
+                for (int zone = 0; zone < zoneCount; zone++)
                 {
-                    var currentOutput = zoneOutputs[zoneIndex];
-                    int currentZoneNumber = zoneIndex + 1;
+                    // 첫 번째 시퀀스 인덱스 계산: idx = zone * sequenceCount + 0
+                    int firstSeqIndex = zone * sequenceCount;
+                    
+                    if (firstSeqIndex >= zoneOutputs.Count)
+                    {
+                        Common.ErrorLogger.Log($"[HVI] Zone {zone + 1}: 인덱스 범위 초과 (firstSeqIndex={firstSeqIndex}, Count={zoneOutputs.Count})", Common.ErrorLogger.LogLevel.WARNING, actualZone);
+                        continue;
+                    }
+                    
+                    var currentOutput = zoneOutputs[firstSeqIndex];
+                    int currentZoneNumber = zone + 1;
                     string zoneKey = currentZoneNumber.ToString();
+
+                    Common.ErrorLogger.Log($"[HVI] Zone {currentZoneNumber}: 첫 번째 시퀀스 데이터 (index={firstSeqIndex}) 사용", Common.ErrorLogger.LogLevel.INFO, actualZone);
 
                     string zoneCellId = cellId;
                     string zoneInnerId = innerId;

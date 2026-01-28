@@ -164,6 +164,12 @@ namespace OptiX.Common
                 }
                 catch { zoneCount = 2; }
 
+                //25.01.29 - HVI 모드일 때는 Zone 1만 표시
+                if (GlobalDataManager.IsHviModeEnabled())
+                {
+                    zoneCount = 1;
+                }
+
                 // Zone별 그래프 행 생성 (ZONE 안에 OK/R/J/PTN 포함)
                 for (int zone = 1; zone <= zoneCount; zone++)
                 {

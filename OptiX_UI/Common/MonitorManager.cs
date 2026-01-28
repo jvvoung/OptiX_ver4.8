@@ -97,6 +97,12 @@ namespace OptiX.Common
                 }
                 catch { zoneCount = 2; }
 
+                //25.01.29 - HVI 모드일 때는 Zone 1만 표시
+                if (GlobalDataManager.IsHviModeEnabled())
+                {
+                    zoneCount = 1;
+                }
+
                 for (int i = 0; i < zoneCount; i++)
                 {
                     monitorGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });

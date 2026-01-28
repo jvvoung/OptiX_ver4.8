@@ -490,13 +490,16 @@ namespace OptiX.OPTIC
                 string[] categoryNames = categoriesStr.Split(',').Select(c => c.Trim()).ToArray();
                 int selectedWadIndex = viewModel?.SelectedWadIndex ?? 0;
 
+                //25.01.29 - zoneCount, sequenceCount 전달 (첫 번째 시퀀스만 UI에 표시)
                 string zoneJudgment = handler.ProcessOpticResultHvi(
                     validOutputs,
                     "1",
                     dataTableManager,
                     selectedWadIndex,
                     categoryNames,
-                    null);
+                    null,
+                    zoneCount,
+                    sequenceCount);
 
                 var representativeOutput = validOutputs[0];
                 zone1Context.SharedOutput = representativeOutput;
@@ -827,6 +830,10 @@ namespace OptiX.OPTIC
             bool clearSequenceOutputs = !(isHviMode && sequenceIndex > 0);
             SeqExecutionManager.StartZoneSeq(zoneId, cellId, innerId, totalPoint, isIPVS: false, clearSequenceOutputs: clearSequenceOutputs);
             
+            //25.01.29 - HVI 모드일 때는 모든 존의 로그를 Zone 1 모니터(index 0)에 표시
+            int monitorIndex = isHviMode ? 0 : (zoneId - 1);
+            string zonePrefix = isHviMode ? $"[Zone{zoneId}] " : "";
+            
             // 시퀀스를 Queue로 변환 (POP 방식으로 진행)
             var sequenceQueue = new Queue<string>(orderedSeq);
 
@@ -844,7 +851,8 @@ namespace OptiX.OPTIC
                     arg = parsed;
                 
                 //25.10.30 - 함수 진입 즉시 로그 (MonitorLogService는 이미 비동기 큐 방식이므로 빠름)
-                MonitorLogService.Instance.Log(zoneId - 1, $"ENTER {fnName}{(arg.HasValue ? "(" + arg.Value + ")" : string.Empty)}");
+                //25.01.29 - HVI 모드일 때 Zone 번호를 로그에 포함
+                MonitorLogService.Instance.Log(monitorIndex, $"{zonePrefix}ENTER {fnName}{(arg.HasValue ? "(" + arg.Value + ")" : string.Empty)}");
 
                 // DELAY 처리: 밀리초 지연 (비동기)
                 if (string.Equals(fnName, "DELAY", StringComparison.OrdinalIgnoreCase))
@@ -853,12 +861,14 @@ namespace OptiX.OPTIC
                     if (delayMs > 0)
                     {
                         //25.10.30 - Task.Run() 제거 (순서 보장)
-                        MonitorLogService.Instance.Log(zoneId - 1, $"DELAY start {delayMs}ms");
+                        //25.01.29 - HVI 모드일 때 Zone 번호를 로그에 포함
+                        MonitorLogService.Instance.Log(monitorIndex, $"{zonePrefix}DELAY start {delayMs}ms");
                         
                         await Task.Delay(delayMs);  // 비동기 지연으로 UI 스레드 블록 방지
                         
                         //25.10.30 - Task.Run() 제거 (순서 보장)
-                        MonitorLogService.Instance.Log(zoneId - 1, "DELAY end");
+                        //25.01.29 - HVI 모드일 때 Zone 번호를 로그에 포함
+                        MonitorLogService.Instance.Log(monitorIndex, $"{zonePrefix}DELAY end");
                     }
                     continue; // 다음 SEQ 항목으로
                 }
@@ -867,13 +877,15 @@ namespace OptiX.OPTIC
                 bool ok = await SeqExecutionManager.ExecuteMappedAsync(fnName, arg, zoneId);
                 
                 //25.10.30 - Task.Run() 제거 (순서 보장)
-                MonitorLogService.Instance.Log(zoneId - 1, $"Execute {fnName}({(arg.HasValue ? arg.Value.ToString() : "-")}) => {(ok ? "OK" : "FAIL")}");
+                //25.01.29 - HVI 모드일 때 Zone 번호를 로그에 포함
+                MonitorLogService.Instance.Log(monitorIndex, $"{zonePrefix}Execute {fnName}({(arg.HasValue ? arg.Value.ToString() : "-")}) => {(ok ? "OK" : "FAIL")}");
                 
                 if (!ok)
                 {
                     ErrorLogger.Log($"{fnName} 실행 실패", ErrorLogger.LogLevel.WARNING, zoneId);
                     //25.10.30 - Task.Run() 제거 (순서 보장)
-                    MonitorLogService.Instance.Log(zoneId - 1, $"{fnName} failed");
+                    //25.01.29 - HVI 모드일 때 Zone 번호를 로그에 포함
+                    MonitorLogService.Instance.Log(monitorIndex, $"{zonePrefix}{fnName} failed");
                     // 실패 정책: 일단 계속 진행
                 }
             }
