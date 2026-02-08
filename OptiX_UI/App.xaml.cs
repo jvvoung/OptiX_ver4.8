@@ -41,26 +41,63 @@ namespace OptiX
             base.OnStartup(e);
         }
 
-        //25.10.30 - App 종료 시 로거들 정리 (남은 로그 플러시)
-        protected override void OnExit(ExitEventArgs e)
+    //25.10.30 - App 종료 시 로거들 정리 (남은 로그 플러시)
+    //25.02.08 - DLL 리소스 해제 추가
+    protected override void OnExit(ExitEventArgs e)
+    {
+        try
         {
+            System.Diagnostics.Debug.WriteLine("========== Application 종료 프로세스 시작 ==========");
+            
+            // ===== 1. DLL 리소스 해제 (MainWindow.OnClosed에서도 호출되지만 안전을 위해 중복 호출) =====
             try
             {
-                // ErrorLogger 종료 (남은 로그를 파일에 플러시)
-                ErrorLogger.Dispose();
-                System.Diagnostics.Debug.WriteLine("ErrorLogger 종료 완료");
-                
-                //25.10.30 - MonitorLogService 종료 추가
-                MonitorLogService.Instance.Dispose();
-                System.Diagnostics.Debug.WriteLine("MonitorLogService 종료 완료");
+                System.Diagnostics.Debug.WriteLine("[App.OnExit] DLL 리소스 해제 시작...");
+                DllManager.Dispose();
+                System.Diagnostics.Debug.WriteLine("[App.OnExit] DLL 리소스 해제 완료");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Logger 종료 중 오류: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[App.OnExit] DLL 리소스 해제 실패: {ex.Message}");
             }
             
+            // ===== 2. MonitorLogService 종료 =====
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("[App.OnExit] MonitorLogService 종료 시작...");
+                MonitorLogService.Instance.Dispose();
+                System.Diagnostics.Debug.WriteLine("[App.OnExit] MonitorLogService 종료 완료");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[App.OnExit] MonitorLogService 종료 실패: {ex.Message}");
+            }
+            
+            // ===== 3. ErrorLogger 종료 (남은 로그를 파일에 플러시) =====
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("[App.OnExit] ErrorLogger 종료 시작...");
+                ErrorLogger.Dispose();
+                System.Diagnostics.Debug.WriteLine("[App.OnExit] ErrorLogger 종료 완료");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[App.OnExit] ErrorLogger 종료 실패: {ex.Message}");
+            }
+            
+            System.Diagnostics.Debug.WriteLine("========== Application 종료 프로세스 완료 ==========");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[App.OnExit] 종료 프로세스 중 예외 발생: {ex.Message}");
+        }
+        finally
+        {
+            // 짧은 대기 (로그 플러시 시간 확보)
+            System.Threading.Thread.Sleep(100);
             base.OnExit(e);
         }
+    }
     }
 }
 

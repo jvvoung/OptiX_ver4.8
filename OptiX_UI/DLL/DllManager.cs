@@ -389,7 +389,7 @@ namespace OptiX.DLL
 
         /// <summary>
         /// DLL 정리 (프로그램 종료 시 호출)
-        /// DllImport는 CLR이 자동 관리하므로 명시적 해제 불필요
+        /// 모든 장비 리소스를 안전하게 해제합니다.
         /// </summary>
         public static void Dispose()
         {
@@ -397,12 +397,33 @@ namespace OptiX.DLL
             {
                 try
                 {
+                    Debug.WriteLine("[DllManager] ========== DLL 리소스 해제 시작 ==========");
+                    
+                    // 1. 장비 리소스 해제 (포트 연결 끊기)
+                    if (_isInitialized)
+                    {
+                        try
+                        {
+                            Debug.WriteLine("[DllManager] 장비 포트 연결 해제 시도...");
+                            bool result = cleanup_all_devices();
+                            Debug.WriteLine($"[DllManager] 장비 리소스 해제 {(result ? "성공" : "실패")}");
+                            ErrorLogger.Log($"장비 리소스 해제: {(result ? "성공" : "실패")}", 
+                                            result ? ErrorLogger.LogLevel.INFO : ErrorLogger.LogLevel.WARNING);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[DllManager] 장비 리소스 해제 중 예외: {ex.Message}");
+                            ErrorLogger.LogException(ex, "장비 리소스 해제 실패 (DLL 함수 호출 예외)");
+                        }
+                    }
+
+                    // 2. 초기화 상태 리셋
                     _isInitialized = false;
                     _isDllDirectorySet = false;
                     _currentDllDirectory = "";
                     
-                    Debug.WriteLine("[DllManager] 해제 완료 (DllImport는 CLR이 자동 관리)");
-                    ErrorLogger.Log("DLL 해제 완료", ErrorLogger.LogLevel.INFO);
+                    Debug.WriteLine("[DllManager] ========== DLL 리소스 해제 완료 ==========");
+                    ErrorLogger.Log("DLL 리소스 해제 완료", ErrorLogger.LogLevel.INFO);
                 }
                 catch (Exception ex)
                 {
@@ -494,6 +515,35 @@ namespace OptiX.DLL
         [return: MarshalAs(UnmanagedType.I1)]
         public static extern bool getLUTdata(int rgb, float RV, float GV, float BV, 
                                              int interval, int cnt, IntPtr output);
+
+        // ===== 장비 종료 함수 (25.02.08 - 종료 처리 강화) =====
+
+        /// <summary>
+        /// PG 포트 연결 해제 및 전원 차단
+        /// C++: bool pg_off()
+        /// </summary>
+        [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl,
+                   EntryPoint = "pg_off", ExactSpelling = true)]
+        [return: MarshalAs(UnmanagedType.I1)]
+        public static extern bool pg_off();
+
+        /// <summary>
+        /// 측정기 포트 연결 해제
+        /// C++: bool meas_off()
+        /// </summary>
+        [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl,
+                   EntryPoint = "meas_off", ExactSpelling = true)]
+        [return: MarshalAs(UnmanagedType.I1)]
+        public static extern bool meas_off();
+
+        /// <summary>
+        /// 모든 장비 리소스 해제
+        /// C++: bool cleanup_all_devices()
+        /// </summary>
+        [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl,
+                   EntryPoint = "cleanup_all_devices", ExactSpelling = true)]
+        [return: MarshalAs(UnmanagedType.I1)]
+        public static extern bool cleanup_all_devices();
 
         #endregion
 

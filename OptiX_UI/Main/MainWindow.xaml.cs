@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -13,7 +15,6 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using System.IO;
-using System.Threading.Tasks;
 using OptiX.Main;
 using OptiX.Communication;
 using OptiX.Common;
@@ -38,9 +39,16 @@ public partial class MainWindow : Window
     private TooltipManager tooltipManager;
     private WindowResizeManager windowResizeManager;
 
+    // 25.02.08 - 종료 처리용 CancellationToken 추가
+    private CancellationTokenSource shutdownCancellationTokenSource;
+
     public MainWindow()
     {
         InitializeComponent();
+        
+        // 종료 토큰 초기화
+        shutdownCancellationTokenSource = new CancellationTokenSource();
+        
         LoadSettingsFromIni();
         InitializeCommunicationServer();
         
@@ -562,25 +570,115 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
-        // 언어 변경 이벤트 구독 해제
-        LanguageManager.LanguageChanged -= OnLanguageChanged;
-        
-        // CommunicationServer 정리
-        if (communicationServer != null)
+        try
         {
+            System.Diagnostics.Debug.WriteLine("========== MainWindow 종료 프로세스 시작 ==========");
+            ErrorLogger.Log("프로그램 종료 시작", ErrorLogger.LogLevel.INFO);
+
+            // ===== 1단계: 전역 취소 토큰 발생 (모든 비동기 작업 중단 신호) =====
+            System.Diagnostics.Debug.WriteLine("[Shutdown] 1단계: 전역 취소 토큰 발생");
+            shutdownCancellationTokenSource?.Cancel();
+
+            // ===== 2단계: Timer 정리 =====
+            System.Diagnostics.Debug.WriteLine("[Shutdown] 2단계: Timer 정리");
             try
             {
-                communicationServer.StopServerAsync().Wait(3000);
-                communicationServer.SendMessageToAllClientsAsync("SERVER_SHUTDOWN").Wait(1000);
-                communicationServer.Dispose();
+                opticTestTimer?.Dispose();
+                opticTestTimer = null;
+                System.Diagnostics.Debug.WriteLine("[Shutdown] opticTestTimer 정리 완료");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"서버 정리 중 오류: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[Shutdown] Timer 정리 실패: {ex.Message}");
             }
+
+            // ===== 3단계: 통신 서버 종료 (클라이언트 연결 끊기) =====
+            System.Diagnostics.Debug.WriteLine("[Shutdown] 3단계: 통신 서버 종료");
+            if (communicationServer != null)
+            {
+                try
+                {
+                    // 3-1. 클라이언트에게 종료 메시지 전송 (1초 타임아웃)
+                    var sendShutdownTask = communicationServer.SendMessageToAllClientsAsync("SERVER_SHUTDOWN");
+                    if (!sendShutdownTask.Wait(TimeSpan.FromSeconds(1)))
+                    {
+                        System.Diagnostics.Debug.WriteLine("[Shutdown] 종료 메시지 전송 타임아웃 (1초 초과)");
+                    }
+
+                    // 3-2. 서버 중지 (3초 타임아웃)
+                    var stopServerTask = communicationServer.StopServerAsync();
+                    if (!stopServerTask.Wait(TimeSpan.FromSeconds(3)))
+                    {
+                        System.Diagnostics.Debug.WriteLine("[Shutdown] 서버 중지 타임아웃 (3초 초과) - 강제 종료");
+                        ErrorLogger.Log("통신 서버 종료 타임아웃 (강제 종료됨)", ErrorLogger.LogLevel.WARNING);
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("[Shutdown] 통신 서버 정상 종료");
+                    }
+
+                    // 3-3. Dispose
+                    communicationServer.Dispose();
+                    communicationServer = null;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Shutdown] 통신 서버 정리 중 예외: {ex.Message}");
+                    ErrorLogger.LogException(ex, "통신 서버 정리 실패");
+                }
+            }
+
+            // ===== 4단계: OpticSeqExecutor 작업 중단 (페이지가 있는 경우) =====
+            System.Diagnostics.Debug.WriteLine("[Shutdown] 4단계: 실행 중인 테스트 중단");
+            try
+            {
+                var opticPage = pageNavigationManager?.GetCurrentPage() as OpticPage;
+                if (opticPage != null)
+                {
+                    var viewModel = opticPage.DataContext as OptiX.OPTIC.OpticPageViewModel;
+                    if (viewModel != null)
+                    {
+                        // StopAllTests 메서드는 나중에 OpticPageViewModel에 추가 예정
+                        // viewModel.StopAllTests();
+                        System.Diagnostics.Debug.WriteLine("[Shutdown] OPTIC ViewModel 정리 시도");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Shutdown] 테스트 중단 실패: {ex.Message}");
+            }
+
+            // ===== 5단계: DLL 리소스 해제 (장비 포트 연결 끊기) =====
+            System.Diagnostics.Debug.WriteLine("[Shutdown] 5단계: DLL 리소스 해제");
+            try
+            {
+                DllManager.Dispose();
+                System.Diagnostics.Debug.WriteLine("[Shutdown] DLL 리소스 해제 완료");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Shutdown] DLL 리소스 해제 실패: {ex.Message}");
+                ErrorLogger.LogException(ex, "DLL 리소스 해제 실패");
+            }
+
+            // ===== 6단계: 언어 이벤트 구독 해제 =====
+            System.Diagnostics.Debug.WriteLine("[Shutdown] 6단계: 이벤트 구독 해제");
+            LanguageManager.LanguageChanged -= OnLanguageChanged;
+
+            System.Diagnostics.Debug.WriteLine("========== MainWindow 종료 프로세스 완료 ==========");
         }
-        
-        base.OnClosed(e);
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Shutdown] 종료 프로세스 중 예외 발생: {ex.Message}");
+            ErrorLogger.LogException(ex, "MainWindow 종료 처리 중 예외");
+        }
+        finally
+        {
+            // 최종 정리
+            shutdownCancellationTokenSource?.Dispose();
+            base.OnClosed(e);
+        }
     }
 
     /// <summary>

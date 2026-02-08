@@ -12,6 +12,9 @@
 namespace {
     bool g_mtp_initialized = false;
     bool g_ipvs_initialized = false;
+    
+    // 25.02.08 - 포트 연결 상태 추가 (종료 처리 강화)
+    port_state g_port_state = { -1, -1, false, false };
 }
 
 extern "C" {
@@ -120,12 +123,21 @@ extern "C" {
 
     // PG 포트 제어
     //25.10.30 - AFX_MANAGE_STATE 제거 (전역 Lock 제거)
+    //25.02.08 - 포트 상태 저장 추가
     __declspec(dllexport) bool PGTurn(int port) 
     {
         // AFX_MANAGE_STATE(AfxGetStaticModuleState()); // 제거!
 
         if (port < 0)
             return false;
+        
+        // 포트 연결 성공 시 상태 저장
+        g_port_state.pg_port = port;
+        g_port_state.pg_connected = true;
+        
+        // TODO: 실제 하드웨어와 통신하는 경우 여기에 연결 코드 추가
+        // 예: OpenSerialPort(port); 또는 InitializeUSB(port);
+        
         return true;
     }
 
@@ -150,12 +162,20 @@ extern "C" {
     }
 
     //25.10.30 - 측정 포트 제어 (AFX_MANAGE_STATE 제거)
+    //25.02.08 - 포트 상태 저장 추가
     __declspec(dllexport) bool Meas_Turn(int port) 
     {
         // AFX_MANAGE_STATE(AfxGetStaticModuleState()); // 제거!
 
         if (port < 0)
             return false;
+        
+        // 포트 연결 성공 시 상태 저장
+        g_port_state.meas_port = port;
+        g_port_state.meas_connected = true;
+        
+        // TODO: 실제 하드웨어와 통신하는 경우 여기에 연결 코드 추가
+        
         return true;
     }
 
@@ -213,6 +233,114 @@ extern "C" {
         out->lut[rgb].black = black(gen);
 
         return true;
+    }
+
+    // ===== 장비 종료 함수 (25.02.08 - 종료 처리 강화) =====
+
+    /// <summary>
+    /// PG 포트 연결 해제 및 전원 차단
+    /// </summary>
+    __declspec(dllexport) bool pg_off()
+    {
+        try
+        {
+            if (!g_port_state.pg_connected)
+            {
+                // 이미 연결 해제된 상태
+                return true;
+            }
+
+            // TODO: 실제 하드웨어 전원 차단 로직 추가
+            // 예:
+            // if (g_pg_handle != nullptr) {
+            //     SendCommand(g_pg_handle, "POWER_OFF");
+            //     CloseSerialPort(g_pg_handle);
+            //     g_pg_handle = nullptr;
+            // }
+
+            // 포트 상태 초기화
+            g_port_state.pg_port = -1;
+            g_port_state.pg_connected = false;
+
+            // 로그 출력 (디버깅용)
+            OutputDebugStringA("[Process.dll] PG 포트 연결 해제 완료\n");
+
+            return true;
+        }
+        catch (...)
+        {
+            // 예외 발생 시에도 상태는 초기화
+            g_port_state.pg_port = -1;
+            g_port_state.pg_connected = false;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 측정기 포트 연결 해제
+    /// </summary>
+    __declspec(dllexport) bool meas_off()
+    {
+        try
+        {
+            if (!g_port_state.meas_connected)
+            {
+                return true;
+            }
+
+            // TODO: 실제 하드웨어 연결 해제 로직 추가
+            // 예:
+            // if (g_meas_handle != nullptr) {
+            //     DisconnectMeasurementDevice(g_meas_handle);
+            //     g_meas_handle = nullptr;
+            // }
+
+            g_port_state.meas_port = -1;
+            g_port_state.meas_connected = false;
+
+            OutputDebugStringA("[Process.dll] 측정기 포트 연결 해제 완료\n");
+
+            return true;
+        }
+        catch (...)
+        {
+            g_port_state.meas_port = -1;
+            g_port_state.meas_connected = false;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 모든 장비 리소스 해제
+    /// </summary>
+    __declspec(dllexport) bool cleanup_all_devices()
+    {
+        bool pg_result = pg_off();
+        bool meas_result = meas_off();
+
+        // 초기화 플래그도 리셋
+        g_mtp_initialized = false;
+        g_ipvs_initialized = false;
+
+        char log_buffer[256];
+        sprintf_s(log_buffer, sizeof(log_buffer), 
+                  "[Process.dll] 모든 장비 리소스 해제 완료 (PG: %s, MEAS: %s)\n",
+                  pg_result ? "성공" : "실패",
+                  meas_result ? "성공" : "실패");
+        OutputDebugStringA(log_buffer);
+
+        return pg_result && meas_result;
+    }
+
+    /// <summary>
+    /// 현재 포트 연결 상태 조회
+    /// </summary>
+    __declspec(dllexport) void get_port_state(struct port_state* state)
+    {
+        if (state != nullptr)
+        {
+            *state = g_port_state;
+        }
     }
 
 } // extern "C"

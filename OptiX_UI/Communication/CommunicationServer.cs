@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Collections.Generic;
 using System.Linq;
+using OptiX.Common;
 
 namespace OptiX.Communication
 {
@@ -113,7 +114,7 @@ namespace OptiX.Communication
         }
 
         /// <summary>
-        /// TCP 서버 중지
+        /// TCP 서버 중지 (25.02.08 - 개선 버전)
         /// </summary>
         public async Task StopServerAsync()
         {
@@ -125,39 +126,55 @@ namespace OptiX.Communication
                     return;
                 }
 
-                // 취소 토큰 신호
+                LogMessage?.Invoke(this, "🛑 TCP 서버 중지 시작...");
+
+                // 1. 취소 토큰 신호 (Accept/Handle 루프 중단)
                 cancellationTokenSource?.Cancel();
 
-                // TCP 리스너 중지
+                // 2. TCP 리스너 중지 (AcceptTcpClientAsync 즉시 해제)
                 tcpListener?.Stop();
 
-                // 연결된 모든 클라이언트 종료
+                // 3. 연결된 모든 클라이언트 종료
+                List<Task> clientCloseTasks = new List<Task>();
                 lock (clientsLock)
                 {
                     foreach (var client in connectedClients.ToList())
                     {
-                        try
+                        clientCloseTasks.Add(Task.Run(() =>
                         {
-                            client?.Close();
-                        }
-                        catch { }
+                            try
+                            {
+                                client?.GetStream()?.Close();
+                                client?.Close();
+                            }
+                            catch { }
+                        }));
                     }
                     connectedClients.Clear();
                 }
 
+                // 4. 모든 클라이언트 종료 대기 (최대 2초)
+                var allClientsClosedTask = Task.WhenAll(clientCloseTasks);
+                if (await Task.WhenAny(allClientsClosedTask, Task.Delay(2000)) == allClientsClosedTask)
+                {
+                    LogMessage?.Invoke(this, "✅ 모든 클라이언트 정상 종료");
+                }
+                else
+                {
+                    LogMessage?.Invoke(this, "⚠️ 일부 클라이언트 종료 타임아웃");
+                }
+
                 isRunning = false;
-                LogMessage?.Invoke(this, "🛑 TCP 서버 중지됨");
                 
-                // 통신 로그 기록
-                CommunicationLogger.WriteLog($"🛑 [SERVER_STOP] 서버 중지 - 사유: 사용자 요청");
+                LogMessage?.Invoke(this, "🛑 TCP 서버 중지 완료");
+                CommunicationLogger.WriteLog($"🛑 [SERVER_STOP] 서버 중지 완료");
                 
                 ConnectionStatusChanged?.Invoke(this, false);
-
-                await Task.Delay(100); // 안전한 종료를 위한 대기
             }
             catch (Exception ex)
             {
                 LogMessage?.Invoke(this, $"❌ 서버 중지 실패: {ex.Message}");
+                ErrorLogger.LogException(ex, "CommunicationServer.StopServerAsync 실패");
             }
         }
 
@@ -619,18 +636,61 @@ namespace OptiX.Communication
 
         #endregion
 
-        #region IDisposable Implementation
+        #region IDisposable Implementation (25.02.08 - 개선)
         
+        private bool disposed = false;
+
+        /// <summary>
+        /// 리소스 정리
+        /// </summary>
         public void Dispose()
         {
-            try
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposed)
             {
-                StopServerAsync().Wait(5000); // 5초 대기
+                if (disposing)
+                {
+                    try
+                    {
+                        // CancellationTokenSource 취소 및 정리
+                        cancellationTokenSource?.Cancel();
+                        cancellationTokenSource?.Dispose();
+                        cancellationTokenSource = null;
+
+                        // TcpListener 정리
+                        tcpListener?.Stop();
+                        tcpListener = null;
+
+                        // 연결된 클라이언트 정리
+                        lock (clientsLock)
+                        {
+                            foreach (var client in connectedClients.ToList())
+                            {
+                                try
+                                {
+                                    client?.Close();
+                                    client?.Dispose();
+                                }
+                                catch { }
+                            }
+                            connectedClients.Clear();
+                        }
+
+                        LogMessage?.Invoke(this, "🧹 CommunicationServer 리소스 정리 완료");
+                    }
+                    catch (Exception ex)
+                    {
+                        LogMessage?.Invoke(this, $"❌ CommunicationServer 정리 중 오류: {ex.Message}");
+                    }
+                }
+
+                disposed = true;
             }
-            catch { }
-            
-            cancellationTokenSource?.Dispose();
-            tcpListener = null;
         }
         
         #endregion

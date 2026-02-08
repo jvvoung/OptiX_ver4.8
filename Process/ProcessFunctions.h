@@ -28,6 +28,31 @@ extern "C" {
     __declspec(dllexport) bool getLUTdata(int rgb, float RV, float GV, float BV, 
                                           int interval, int cnt, struct output* out);
 
+    // ===== 장비 종료 함수 (25.02.08 - 종료 처리 강화) =====
+    
+    /// <summary>
+    /// PG(Pattern Generator) 포트 연결 해제 및 전원 차단
+    /// 호출 시점: 프로그램 종료 시 또는 테스트 완료 후
+    /// </summary>
+    __declspec(dllexport) bool pg_off();
+
+    /// <summary>
+    /// 측정기(Measurement Equipment) 포트 연결 해제
+    /// 호출 시점: 프로그램 종료 시 또는 테스트 완료 후
+    /// </summary>
+    __declspec(dllexport) bool meas_off();
+
+    /// <summary>
+    /// 모든 장비 리소스 해제 (pg_off + meas_off)
+    /// 호출 시점: 프로그램 종료 시 (OnExit)
+    /// </summary>
+    __declspec(dllexport) bool cleanup_all_devices();
+
+    /// <summary>
+    /// 현재 포트 연결 상태 조회
+    /// </summary>
+    __declspec(dllexport) void get_port_state(struct port_state* state);
+
 #ifdef __cplusplus
 }
 #endif

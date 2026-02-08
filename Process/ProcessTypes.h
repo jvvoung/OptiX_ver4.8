@@ -55,6 +55,14 @@ extern "C" {
         struct lut_parameter lut[3];       // LUT 파라미터 [RGB]
     };
 
+    // 포트 연결 상태 관리 구조체 (25.02.08 - 종료 처리 강화)
+    struct port_state {
+        int pg_port;           // PG 포트 번호 (-1: 연결 안 됨)
+        int meas_port;         // MEAS 포트 번호 (-1: 연결 안 됨)
+        bool pg_connected;     // PG 연결 상태
+        bool meas_connected;   // MEAS 연결 상태
+    };
+
 #ifdef __cplusplus
 }
 #endif

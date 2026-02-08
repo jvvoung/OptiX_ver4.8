@@ -51,6 +51,10 @@ namespace OptiX.OPTIC
         private OptiX.Communication.CommunicationServer communicationServer; //25.12.08 - Client 통신용
         private System.Threading.SemaphoreSlim restartSemaphore; //25.12.08 - RESTART 대기용 세마포어
 
+        // 25.02.08 - 종료 처리용 CancellationToken 추가
+        private CancellationTokenSource testCancellationTokenSource;
+        private Task runningTestTask;
+
         public OpticSeqExecutor(
             Action<List<GraphManager.GraphDataPoint>> updateGraphDisplay,
             OpticDataTableManager dataTableManager,
@@ -66,6 +70,9 @@ namespace OptiX.OPTIC
             
             //25.12.08 - RESTART 대기용 세마포어 초기화 (초기값 0 = 대기 상태)
             restartSemaphore = new System.Threading.SemaphoreSlim(0, 1);
+            
+            //25.02.08 - 종료 처리용 CancellationToken 초기화
+            testCancellationTokenSource = new CancellationTokenSource();
             
             //25.12.08 - CommunicationServer 가져오기 (MainWindow에서)
             try
@@ -148,13 +155,19 @@ namespace OptiX.OPTIC
             }
             
             isTestStarted = true;
-            Task.Run(() => StartTestAsync());
+            
+            //25.02.08 - CancellationToken 리셋
+            testCancellationTokenSource?.Dispose();
+            testCancellationTokenSource = new CancellationTokenSource();
+            
+            //25.02.08 - Task 추적 (종료 시 대기용)
+            runningTestTask = Task.Run(() => StartTestAsync(testCancellationTokenSource.Token));
         }
 
         /// <summary>
-        /// 테스트 비동기 실행
+        /// 테스트 비동기 실행 (25.02.08 - CancellationToken 추가)
         /// </summary>
-        private async Task StartTestAsync()
+        private async Task StartTestAsync(CancellationToken cancellationToken)
         {
             try
             {
@@ -168,6 +181,13 @@ namespace OptiX.OPTIC
                         MessageBox.Show("DLL이 초기화되지 않았습니다. 메인 설정창에서 DLL 경로를 확인해주세요.",
                                       "오류", MessageBoxButton.OK, MessageBoxImage.Warning);
                     }, System.Windows.Threading.DispatcherPriority.Background);
+                    return;
+                }
+
+                //25.02.08 - 취소 토큰 체크 추가
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    ErrorLogger.Log("테스트 시작 전 취소됨", ErrorLogger.LogLevel.INFO);
                     return;
                 }
 
@@ -207,6 +227,13 @@ namespace OptiX.OPTIC
                 {
                     if (seqIndex >= sequenceGroups.Count) break;
                     
+                    //25.02.08 - 취소 토큰 체크
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        ErrorLogger.Log($"SEQUENCE{seqIndex + 1} 실행 중 취소됨", ErrorLogger.LogLevel.INFO);
+                        return;
+                    }
+                    
                     var currentSequence = sequenceGroups[seqIndex];
                     ErrorLogger.Log($"=== SEQUENCE{seqIndex + 1} 시작 ({currentSequence.Count}개 Step) ===", ErrorLogger.LogLevel.INFO);
                     
@@ -216,7 +243,7 @@ namespace OptiX.OPTIC
                     {
                         int currentZoneId = zoneId;
                         int currentSeqIndex = seqIndex;
-                        tasks.Add(Task.Run(() => ExecuteSeqForZoneAsync(currentZoneId, currentSequence, isHviMode, currentSeqIndex)));
+                        tasks.Add(Task.Run(() => ExecuteSeqForZoneAsync(currentZoneId, currentSequence, isHviMode, currentSeqIndex), cancellationToken));
                     }
 
                     // 모든 Zone 완료 대기
@@ -250,30 +277,46 @@ namespace OptiX.OPTIC
                                 
                                 // RESTART 명령이 올 때까지 대기 (타임아웃: 10분)
                                 int timeoutSeconds = int.Parse(GlobalDataManager.GetValue("Settings", "RESTART_TIMEOUT_SEC", "600"));
-                                var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
                                 
-                                try
+                                //25.02.08 - CancellationToken 연결 (Linked Token)
+                                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                                    cancellationToken,
+                                    new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds)).Token
+                                ))
                                 {
-                                    await restartSemaphore.WaitAsync(cts.Token);
-                                    ErrorLogger.Log($"▶️ RESTART 명령 수신 완료 - SEQUENCE{seqIndex + 2} 진행", ErrorLogger.LogLevel.INFO);
-                                    MonitorLogService.Instance.Log(0, $"RESTART OK → SEQUENCE{seqIndex + 2} START");
-                                }
-                                catch (OperationCanceledException)
-                                {
-                                    // 타임아웃 발생
-                                    ErrorLogger.Log($"⏱️ RESTART 대기 타임아웃 ({timeoutSeconds}초) - 테스트 중단", ErrorLogger.LogLevel.WARNING);
-                                    MonitorLogService.Instance.Log(0, $"TIMEOUT - TEST ABORTED");
-                                    
-                                    _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                                    try
                                     {
-                                        MessageBox.Show(
-                                            $"RESTART 명령 대기 시간 초과 ({timeoutSeconds}초)\n테스트를 중단합니다.",
-                                            "타임아웃",
-                                            MessageBoxButton.OK,
-                                            MessageBoxImage.Warning);
-                                    }, System.Windows.Threading.DispatcherPriority.Background);
-                                    
-                                    return; // 테스트 중단
+                                        await restartSemaphore.WaitAsync(linkedCts.Token);
+                                        ErrorLogger.Log($"▶️ RESTART 명령 수신 완료 - SEQUENCE{seqIndex + 2} 진행", ErrorLogger.LogLevel.INFO);
+                                        MonitorLogService.Instance.Log(0, $"RESTART OK → SEQUENCE{seqIndex + 2} START");
+                                    }
+                                    catch (OperationCanceledException)
+                                    {
+                                        if (cancellationToken.IsCancellationRequested)
+                                        {
+                                            // 프로그램 종료로 인한 취소
+                                            ErrorLogger.Log("프로그램 종료로 RESTART 대기 취소됨", ErrorLogger.LogLevel.INFO);
+                                            MonitorLogService.Instance.Log(0, "PROGRAM SHUTDOWN - TEST ABORTED");
+                                            return;
+                                        }
+                                        else
+                                        {
+                                            // 타임아웃 발생
+                                            ErrorLogger.Log($"⏱️ RESTART 대기 타임아웃 ({timeoutSeconds}초) - 테스트 중단", ErrorLogger.LogLevel.WARNING);
+                                            MonitorLogService.Instance.Log(0, $"TIMEOUT - TEST ABORTED");
+                                            
+                                            _ = System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                                            {
+                                                MessageBox.Show(
+                                                    $"RESTART 명령 대기 시간 초과 ({timeoutSeconds}초)\n테스트를 중단합니다.",
+                                                    "타임아웃",
+                                                    MessageBoxButton.OK,
+                                                    MessageBoxImage.Warning);
+                                            }, System.Windows.Threading.DispatcherPriority.Background);
+                                            
+                                            return; // 테스트 중단
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1058,6 +1101,75 @@ namespace OptiX.OPTIC
             catch (Exception ex)
             {
                 ErrorLogger.LogException(ex, "전체 완료 메시지 전송 실패");
+            }
+        }
+
+        //25.02.08 - 종료 처리 메서드 추가
+        /// <summary>
+        /// 실행 중인 모든 테스트 중단 (프로그램 종료 시 호출)
+        /// </summary>
+        public void StopAllTests()
+        {
+            try
+            {
+                ErrorLogger.Log("모든 테스트 중단 요청", ErrorLogger.LogLevel.INFO);
+                
+                // 1. CancellationToken 취소
+                testCancellationTokenSource?.Cancel();
+                
+                // 2. Semaphore 해제 (RESTART 대기 중인 경우)
+                try
+                {
+                    if (restartSemaphore != null && restartSemaphore.CurrentCount == 0)
+                    {
+                        restartSemaphore.Release();
+                    }
+                }
+                catch { }
+                
+                // 3. 실행 중인 Task 대기 (최대 3초)
+                if (runningTestTask != null && !runningTestTask.IsCompleted)
+                {
+                    if (runningTestTask.Wait(TimeSpan.FromSeconds(3)))
+                    {
+                        ErrorLogger.Log("테스트 정상 종료됨", ErrorLogger.LogLevel.INFO);
+                    }
+                    else
+                    {
+                        ErrorLogger.Log("테스트 종료 타임아웃 (강제 종료)", ErrorLogger.LogLevel.WARNING);
+                    }
+                }
+                
+                // 4. 상태 리셋
+                isTestStarted = false;
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogException(ex, "테스트 중단 중 오류");
+            }
+        }
+
+        /// <summary>
+        /// 리소스 정리 (Dispose 패턴)
+        /// </summary>
+        public void Dispose()
+        {
+            try
+            {
+                StopAllTests();
+                
+                testCancellationTokenSource?.Dispose();
+                restartSemaphore?.Dispose();
+                
+                // CommunicationServer 이벤트 구독 해제
+                if (communicationServer != null)
+                {
+                    communicationServer.OpticRestartRequested -= OnOpticRestartRequested;
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.LogException(ex, "OpticSeqExecutor.Dispose 중 오류");
             }
         }
     }
