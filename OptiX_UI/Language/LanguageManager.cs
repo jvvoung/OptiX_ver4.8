@@ -34,7 +34,8 @@ namespace OptiX
                 // PathSettingWindow
                 ["PathSettings.FileGenerationStatus"] = "파일 생성 여부",
                 ["PathSettings.FolderPathSettings"] = "폴더 경로 설정",
-                ["PathSettings.FilePathSettings"] = "파일 경로 설정",
+                ["PathSettings.FilePathSettings"] = "Seq 파일 설정",
+                ["PathSettings.RecipePathSettings"] = "Recipe 파일 설정",
                 ["PathSettings.SelectFolder"] = "폴더를 선택하세요",
                 
                 // 호버 툴팁
@@ -107,9 +108,11 @@ namespace OptiX
                 
                 // Path 설정 창
                 ["PathSettings.FolderPathSettings"] = "폴더 경로 설정",
-                ["PathSettings.FilePathSettings"] = "파일 경로 설정",
+                ["PathSettings.FilePathSettings"] = "Seq 파일 설정",
+                ["PathSettings.RecipePathSettings"] = "Recipe 파일 설정",
                 ["PathSettings.SelectFolder"] = "폴더를 선택하세요",
                 ["PathSettings.Sequence"] = "📄 Seq.",
+                ["PathSettings.Recipe"] = "📄 Recipe",
                 ["PathSettings.Save"] = "💾 SAVE",
                 ["PathSettings.Cancel"] = "❌ CANCEL",
                 // LUT Page placeholders
@@ -142,7 +145,8 @@ namespace OptiX
                 // PathSettingWindow
                 ["PathSettings.FileGenerationStatus"] = "File Generation Status",
                 ["PathSettings.FolderPathSettings"] = "Folder Path Settings",
-                ["PathSettings.FilePathSettings"] = "File Path Settings",
+                ["PathSettings.FilePathSettings"] = "Seq File Settings",
+                ["PathSettings.RecipePathSettings"] = "Recipe File Settings",
                 ["PathSettings.SelectFolder"] = "Please select folder",
                 
                 // 호버 툴팁
@@ -215,10 +219,11 @@ namespace OptiX
                 
                 // Path 설정 창
                 ["PathSettings.FolderPathSettings"] = "Folder Path Settings",
-                ["PathSettings.FilePathSettings"] = "File Path Settings",
+                ["PathSettings.FilePathSettings"] = "Seq File Settings",
+                ["PathSettings.RecipePathSettings"] = "Recipe File Settings",
                 ["PathSettings.SelectFolder"] = "Please select a folder",
-                ["PathSettings.FilePath"] = "File Path Settings",
                 ["PathSettings.Sequence"] = "📄 Seq.",
+                ["PathSettings.Recipe"] = "📄 Recipe",
                 ["PathSettings.Save"] = "💾 SAVE",
                 ["PathSettings.Cancel"] = "❌ CANCEL",
                 // LUT Page placeholders
@@ -251,7 +256,8 @@ namespace OptiX
                 // PathSettingWindow
                 ["PathSettings.FileGenerationStatus"] = "Trạng thái tạo file",
                 ["PathSettings.FolderPathSettings"] = "Cài đặt đường dẫn thư mục",
-                ["PathSettings.FilePathSettings"] = "Cài đặt đường dẫn file",
+                ["PathSettings.FilePathSettings"] = "Cài đặt file Seq",
+                ["PathSettings.RecipePathSettings"] = "Cài đặt file Recipe",
                 ["PathSettings.SelectFolder"] = "Vui lòng chọn thư mục",
                 
                 // 호버 툴팁
@@ -324,9 +330,11 @@ namespace OptiX
                 
                 // Path 설정 창
                 ["PathSettings.FolderPathSettings"] = "Cài đặt Đường dẫn Thư mục",
-                ["PathSettings.FilePathSettings"] = "Cài đặt Đường dẫn File",
+                ["PathSettings.FilePathSettings"] = "Cài đặt file Seq",
+                ["PathSettings.RecipePathSettings"] = "Cài đặt file Recipe",
                 ["PathSettings.SelectFolder"] = "Vui lòng chọn thư mục",
                 ["PathSettings.Sequence"] = "📄 Seq.",
+                ["PathSettings.Recipe"] = "📄 Recipe",
                 ["PathSettings.Save"] = "💾 SAVE",
                 ["PathSettings.Cancel"] = "❌ CANCEL",
                 // LUT Page placeholders

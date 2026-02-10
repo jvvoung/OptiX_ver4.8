@@ -59,8 +59,8 @@ extern "C" {
     struct port_state {
         int pg_port;           // PG 포트 번호 (-1: 연결 안 됨)
         int meas_port;         // MEAS 포트 번호 (-1: 연결 안 됨)
-        bool pg_connected;     // PG 연결 상태
-        bool meas_connected;   // MEAS 연결 상태
+        int pg_connected;      // PG 연결 상태 (0: false, 1: true)
+        int meas_connected;    // MEAS 연결 상태 (0: false, 1: true)
     };
 
 #ifdef __cplusplus

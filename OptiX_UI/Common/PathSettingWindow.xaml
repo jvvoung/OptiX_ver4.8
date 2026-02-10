@@ -352,9 +352,9 @@
                     
                     <!-- VALID 행 제거 -->
                     
-                    <!-- Load 섹션 -->
+                    <!-- Seq 파일 설정 섹션 -->
                     <TextBlock x:Name="FilePathSettingsTitle"
-                               Text="파일 경로 설정" 
+                               Text="Seq 파일 설정" 
                                FontSize="16" 
                                FontWeight="Bold" 
                                Foreground="{DynamicResource DynamicTextPrimaryColor}"
@@ -366,7 +366,7 @@
                             Margin="0,0,0,16"/>
                     
                     <!-- Sequence 행 -->
-                    <Grid Margin="0,0,0,16">
+                    <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="96"/>
                             <ColumnDefinition Width="*"/>
@@ -384,6 +384,40 @@
                                  Style="{StaticResource ModernTextBoxStyle}"
                                  Margin="8,0,0,0"
                                  Text="Sequence 파일을 선택하세요"/>
+                    </Grid>
+                    
+                    <!-- Recipe 파일 설정 섹션 -->
+                    <TextBlock x:Name="RecipePathSettingsTitle"
+                               Text="Recipe 파일 설정" 
+                               FontSize="16" 
+                               FontWeight="Bold" 
+                               Foreground="{DynamicResource DynamicTextPrimaryColor}"
+                               Margin="0,16,0,8"/>
+                    
+                    <Border Height="2" 
+                            Background="{StaticResource PrimaryColor}" 
+                            CornerRadius="1"
+                            Margin="0,0,0,16"/>
+                    
+                    <!-- Recipe 행 -->
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="96"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <Button Grid.Column="0" 
+                                x:Name="RecipeButton"
+                                Content="📄 Recipe" 
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                FontSize="8"
+                                Click="RecipeButton_Click"/>
+                        
+                        <TextBox Grid.Column="1" 
+                                 x:Name="RecipeTextBox"
+                                 Style="{StaticResource ModernTextBoxStyle}"
+                                 Margin="8,0,0,0"
+                                 Text="Recipe 파일을 선택하세요"/>
                     </Grid>
                     
                     </StackPanel>

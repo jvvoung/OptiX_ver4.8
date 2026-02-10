@@ -14,7 +14,7 @@ namespace {
     bool g_ipvs_initialized = false;
     
     // 25.02.08 - 포트 연결 상태 추가 (종료 처리 강화)
-    port_state g_port_state = { -1, -1, false, false };
+    port_state g_port_state = { -1, -1, 0, 0 };
 }
 
 extern "C" {
@@ -133,7 +133,7 @@ extern "C" {
         
         // 포트 연결 성공 시 상태 저장
         g_port_state.pg_port = port;
-        g_port_state.pg_connected = true;
+        g_port_state.pg_connected = 1;
         
         // TODO: 실제 하드웨어와 통신하는 경우 여기에 연결 코드 추가
         // 예: OpenSerialPort(port); 또는 InitializeUSB(port);
@@ -172,7 +172,7 @@ extern "C" {
         
         // 포트 연결 성공 시 상태 저장
         g_port_state.meas_port = port;
-        g_port_state.meas_connected = true;
+        g_port_state.meas_connected = 1;
         
         // TODO: 실제 하드웨어와 통신하는 경우 여기에 연결 코드 추가
         
@@ -260,7 +260,7 @@ extern "C" {
 
             // 포트 상태 초기화
             g_port_state.pg_port = -1;
-            g_port_state.pg_connected = false;
+            g_port_state.pg_connected = 0;
 
             // 로그 출력 (디버깅용)
             OutputDebugStringA("[Process.dll] PG 포트 연결 해제 완료\n");
@@ -271,7 +271,7 @@ extern "C" {
         {
             // 예외 발생 시에도 상태는 초기화
             g_port_state.pg_port = -1;
-            g_port_state.pg_connected = false;
+            g_port_state.pg_connected = 0;
             return false;
         }
     }
@@ -296,7 +296,7 @@ extern "C" {
             // }
 
             g_port_state.meas_port = -1;
-            g_port_state.meas_connected = false;
+            g_port_state.meas_connected = 0;
 
             OutputDebugStringA("[Process.dll] 측정기 포트 연결 해제 완료\n");
 
@@ -305,7 +305,7 @@ extern "C" {
         catch (...)
         {
             g_port_state.meas_port = -1;
-            g_port_state.meas_connected = false;
+            g_port_state.meas_connected = 0;
             return false;
         }
     }

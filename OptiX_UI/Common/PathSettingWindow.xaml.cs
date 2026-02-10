@@ -13,6 +13,7 @@ namespace OptiX.Common
         public string SUMMARYPath { get; private set; } = "";
         public string CIMPath { get; private set; } = "";
         public string SequencePath { get; private set; } = "";
+        public string RecipePath { get; private set; } = "";
 
         private bool isDarkMode = false;
         private string iniSection = "MTP_PATHS"; // 기본값은 MTP_PATHS
@@ -42,12 +43,14 @@ namespace OptiX.Common
                 SUMMARYPath = GlobalDataManager.GetValue(iniSection, "EECP_SUMMARY_FOLDER", "");
                 CIMPath = GlobalDataManager.GetValue(iniSection, "CIM_FOLDER", "");
                 SequencePath = GlobalDataManager.GetValue(iniSection, "SEQUENCE_FOLDER", "");
+                RecipePath = GlobalDataManager.GetValue(iniSection, "RECIPE_FOLDER", "");
 
                 // 텍스트박스에 표시
                 EECPTextBox.Text = string.IsNullOrEmpty(EECPPath) ? "EECP 폴더를 선택하세요" : EECPPath;
                 SUMMARYTextBox.Text = string.IsNullOrEmpty(SUMMARYPath) ? "SUMMARY 폴더를 선택하세요" : SUMMARYPath;
                 CIMTextBox.Text = string.IsNullOrEmpty(CIMPath) ? "CIM 폴더를 선택하세요" : CIMPath;
                 SequenceTextBox.Text = string.IsNullOrEmpty(SequencePath) ? "Sequence 파일을 선택하세요" : SequencePath;
+                RecipeTextBox.Text = string.IsNullOrEmpty(RecipePath) ? "Recipe 파일을 선택하세요" : RecipePath;
             }
             catch (Exception ex)
             {
@@ -157,6 +160,23 @@ namespace OptiX.Common
             }
         }
 
+        private void RecipeButton_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = "Recipe 파일을 선택하세요",
+                Filter = "Recipe 파일 (*.ini)|*.ini|모든 파일 (*.*)|*.*",
+                CheckFileExists = true,
+                CheckPathExists = true
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                RecipePath = dialog.FileName;
+                RecipeTextBox.Text = RecipePath;
+            }
+        }
+
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
@@ -192,6 +212,7 @@ namespace OptiX.Common
                 GlobalDataManager.SetValue(iniSection, "CIM_FOLDER", CIMPath);
                 //GlobalDataManager.SetValue(iniSection, "VALID_FOLDER", VALIDPath);
                 GlobalDataManager.SetValue(iniSection, "SEQUENCE_FOLDER", SequencePath);
+                GlobalDataManager.SetValue(iniSection, "RECIPE_FOLDER", RecipePath);
             }
             catch (Exception ex)
             {
@@ -267,9 +288,13 @@ namespace OptiX.Common
                 if (FolderPathSettingsTitle != null)
                     FolderPathSettingsTitle.Text = LanguageManager.GetText("PathSettings.FolderPathSettings");
                 
-                // 파일 경로 설정 제목
+                // Seq 파일 설정 제목
                 if (FilePathSettingsTitle != null)
                     FilePathSettingsTitle.Text = LanguageManager.GetText("PathSettings.FilePathSettings");
+                
+                // Recipe 파일 설정 제목
+                if (RecipePathSettingsTitle != null)
+                    RecipePathSettingsTitle.Text = LanguageManager.GetText("PathSettings.RecipePathSettings");
                 
                 // 각 TextBox의 placeholder 텍스트 업데이트 (경로가 없을 때만)
                 if (EECPTextBox != null && string.IsNullOrEmpty(EECPPath))
@@ -283,6 +308,9 @@ namespace OptiX.Common
                 
                 if (SequenceTextBox != null && string.IsNullOrEmpty(SequencePath))
                     SequenceTextBox.Text = $"Seq. {LanguageManager.GetText("PathSettings.SelectFolder")}";
+                
+                if (RecipeTextBox != null && string.IsNullOrEmpty(RecipePath))
+                    RecipeTextBox.Text = $"Recipe {LanguageManager.GetText("PathSettings.SelectFolder")}";
                 
                 System.Diagnostics.Debug.WriteLine($"PathSettingWindow 언어 적용 완료: {LanguageManager.CurrentLanguage}");
             }

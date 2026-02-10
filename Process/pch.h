@@ -9,5 +9,6 @@
 
 // 여기에 미리 컴파일하려는 헤더 추가
 #include "framework.h"
+#include "ProcessTypes.h"  // Process DLL 공통 타입 정의 (간헐적 컴파일 에러 방지)
 
 #endif //PCH_H
